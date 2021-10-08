@@ -1,10 +1,12 @@
 use yew::prelude::*;
-use yew::{ ChangeData };
+use yew::{ props };
 use chrono::{DateTime, Utc, Duration, NaiveDateTime, TimeZone};
 use yew::services::ConsoleService;
 use std::ops::{Add, Sub};
+use crate::md_text_field::{MaterialTextField, MaterialTextFieldProps};
 
 mod bindings;
+mod md_text_field;
 
 const DATE_FORMAT: &str = "%Y-%m-%d %H:%M:%S";
 
@@ -29,11 +31,7 @@ struct EventConfig {
     tod_offset: Duration
 }
 
-trait UpdateRaceTimes {
-    fn update_race_times(&mut self);
-}
-
-impl UpdateRaceTimes for EventConfig {
+impl EventConfig {
     fn update_race_times(&mut self) {
         self.race_start_utc = self.session_start_utc.add(self.green_flag_offset);
         self.race_end_utc = self.race_start_utc.add(self.race_duration);
@@ -64,18 +62,17 @@ impl Component for EventConfig {
     fn update(&mut self, msg: Self::Message) -> ShouldRender {
         match msg {
             EventConfigMsg::ChangeGreenFlagOffset(offset) => {
-                let duration_split: Vec<i64> = offset.split(":")
-                    .into_iter()
-                    .map(|part| part.parse::<i64>().unwrap())
-                    .collect();
-                
-                ConsoleService::info(format!("Offset: {:?}", offset).as_ref());
-                ConsoleService::info(format!("Offset Split: {:?}", duration_split).as_ref());
-                let duration_seconds = (duration_split[0] * 60 + duration_split[1]) * 60 + duration_split[2];
-                ConsoleService::info(format!("Offset Seconds: {:?}", duration_seconds).as_ref());
-                self.green_flag_offset = Duration::seconds(duration_seconds);
-                self.update_race_times();
-                true
+                match parse_duration_from_str(offset.as_str()) {
+                    Ok(duration) => {
+                        self.green_flag_offset = duration;
+                        self.update_race_times();
+                        true
+                    },
+                    Err(e) => {
+                        ConsoleService::error(format!("green flag offset parse failure: {:?}", e).as_str());
+                        false
+                    }
+                }
             },
             EventConfigMsg::ChangeSessionStart(session_start) => {
                 let parsed_session_start = NaiveDateTime::parse_from_str(session_start.as_str(), DATE_FORMAT);
@@ -129,83 +126,71 @@ impl Component for EventConfig {
     }
 
     fn view(&self) -> Html {
-        let offset_onchange = self.link.batch_callback(|data: ChangeData| {
-            match data { 
-                ChangeData::Value(value) => Some(EventConfigMsg::ChangeGreenFlagOffset(value)),
-                _ => None
-            }
+        let race_duration_text_field_props = props!(MaterialTextFieldProps {
+            value: format_duration(self.race_duration),
+            label: "Race Duration (HH:MM:SS)".to_string(),
+            id: "race_duration".to_string(),
+            disabled: false,
+            on_change: self.link.callback(|value| EventConfigMsg::ChangeRaceDuration(value))
         });
-        let session_start_onchange = self.link.batch_callback(|data: ChangeData| {
-            match data {
-                ChangeData::Value(value) => Some(EventConfigMsg::ChangeSessionStart(value)),
-                _ => None
-            }
+        let session_start_utc_text_field_props = props!(MaterialTextFieldProps {
+            value: format_date_time(self.session_start_utc.naive_utc()),
+            label: "Session Start (UTC)".to_string(),
+            id: "session-start-utc".to_string(),
+            disabled: false,
+            on_change: self.link.callback(|value| EventConfigMsg::ChangeSessionStart(value))
         });
-        let race_start_onchange = self.link.batch_callback(|data: ChangeData| {
-           match data {
-               ChangeData::Value(value) => Some(EventConfigMsg::ChangeRaceStartToD(value)),
-               _ => None
-           } 
+        let race_start_utc_text_field_props = props!(MaterialTextFieldProps {
+            value: format_date_time(self.race_start_utc.naive_utc()),
+            label: "Race Start (UTC)".to_string(),
+            id: "race-start-utc".to_string(),
+            disabled: true
         });
-        let race_duration_onchange = self.link.batch_callback(|data: ChangeData| {
-            match data {
-                ChangeData::Value(value) => Some(EventConfigMsg::ChangeRaceDuration(value)),
-                _ => None
-            }
+        let race_end_utc_text_field_props = props!(MaterialTextFieldProps {
+            value: format_date_time(self.race_end_utc.naive_utc()),
+            label: "Race End (UTC)".to_string(),
+            id: "race-end-utc".to_string(),
+            disabled: true
+        });
+        let race_start_tod_text_field_props = props!(MaterialTextFieldProps {
+            value: format_date_time(self.race_start_tod),
+            label: "Race Start (ToD)".to_string(),
+            id: "race-start-tod".to_string(),
+            disabled: false,
+            on_change: self.link.callback(|value| EventConfigMsg::ChangeRaceStartToD(value))
+        });
+        let race_end_tod_text_field_props = props!(MaterialTextFieldProps {
+            value: format_date_time(self.race_end_tod),
+            label: "Race End (ToD)".to_string(),
+            id: "race-end-tod".to_string(),
+            disabled: true
+        });
+        let green_flag_offset_text_field_props = props!(MaterialTextFieldProps {
+            value: format_duration(self.green_flag_offset),
+            label: "Green Flag Offset (HH:MM:SS)".to_string(),
+            id: "green-flag-offset".to_string(),
+            disabled: false,
+            on_change: self.link.callback(|value| EventConfigMsg::ChangeGreenFlagOffset(value))
+        });
+        let tod_offset_text_field_props = props!(MaterialTextFieldProps {
+            value: format_duration(self.tod_offset),
+            label: "ToD Offset (HH:MM:SS)".to_string(),
+            id: "tod-offset".to_string(),
+            disabled: true
         });
         html! {
             <div id="global-event-config" class="mdc-card">
                 <div class="mdc-card-wrapper__text-section">
                     <div class="card-title">{ "Global Event Config" }</div>
                 </div>
-                <label class="mdc-text-field mdc-text-field--filled">
-                    <span class="mdc-text-field__ripple"></span>
-                    <span class="mdc-floating-label" id="race-duration">{ "Race Duration (HH:MM:SS)" }</span>
-                    <input class="mdc-text-field__input" type="text" value=format_duration(self.race_duration) onchange=race_duration_onchange aria-labelledby="race-duration"/>
-                    <span class="mdc-line-ripple"></span>
-                </label>
-                <label class="mdc-text-field mdc-text-field--filled">
-                    <span class="mdc-text-field__ripple"></span>
-                    <span class="mdc-floating-label" id="session-start-utc">{ "Session Start (UTC)" }</span>
-                    <input class="mdc-text-field__input" type="text" value=format_date_time(self.session_start_utc.naive_utc()) onchange=session_start_onchange aria-labelledby="session-start-utc" />
-                    <span class="mdc-line-ripple"></span>
-                </label>
-                <label class="mdc-text-field mdc-text-field--filled mdc-text-field--disabled">
-                    <span class="mdc-text-field__ripple"></span>
-                    <span class="mdc-floating-label" id="race-start-utc">{ "Race Start (UTC)" }</span>
-                    <input class="mdc-text-field__input" type="text" disabled=true value=format_date_time(self.race_start_utc.naive_utc()) aria-labelledby="race-start-utc" />
-                    <span class="mdc-line-ripple"></span>
-                </label>
-                <label class="mdc-text-field mdc-text-field--filled mdc-text-field--disabled">
-                    <span class="mdc-text-field__ripple"></span>
-                    <span class="mdc-floating-label" id="race-end-utc">{ "Race End (UTC)" }</span>
-                    <input class="mdc-text-field__input" type="text" disabled=true value=format_date_time(self.race_end_utc.naive_utc()) aria-labelledby="race-end-utc" />
-                    <span class="mdc-line-ripple"></span>
-                </label>
-                <label class="mdc-text-field mdc-text-field--filled">
-                    <span class="mdc-text-field__ripple"></span>
-                    <span class="mdc-floating-label" id="race-start-tod">{ "Race Start (ToD)" }</span>                    
-                    <input class="mdc-text-field__input" type="text" value=format_date_time(self.race_start_tod) onchange=race_start_onchange aria-labelledby="race-start-tod"/>
-                    <span class="mdc-line-ripple"></span>
-                </label>
-                <label class="mdc-text-field mdc-text-field--filled mdc-text-field--disabled">
-                    <span class="mdc-text-field__ripple"></span>
-                    <span class="mdc-floating-label" id="race-end-tod">{ "Race End (ToD)" }</span>
-                    <input class="mdc-text-field__input" type="text" disabled=true value=format_date_time(self.race_end_tod) aria-labelledby="race-end-tod" />
-                    <span class="mdc-line-ripple"></span>
-                </label>
-                <label class="mdc-text-field mdc-text-field--filled">
-                    <span class="mdc-text-field__ripple"></span>
-                    <span class="mdc-floating-label" id="green-flag-offset">{ "Green Flag Offset" }</span>
-                    <input class="mdc-text-field__input" type="text" value=format_duration(self.green_flag_offset) onchange=offset_onchange aria-labelledby="green-flag-offset"/>
-                    <span class="mdc-line-ripple"></span>
-                </label>
-                <label class="mdc-text-field mdc-text-field--filled mdc-text-field--disabled">
-                    <span class="mdc-text-field__ripple"></span>
-                    <span class="mdc-floating-label" id="tod-offset">{ "ToD Offset" }</span>
-                    <input class="mdc-text-field__input" type="text" disabled=true value=format_duration(self.tod_offset) aria-labelledby="tod-offset" />
-                    <span class="mdc-line-ripple"></span>
-                </label>
+                <MaterialTextField with race_duration_text_field_props />
+                <MaterialTextField with session_start_utc_text_field_props />
+                <MaterialTextField with race_start_utc_text_field_props />
+                <MaterialTextField with race_end_utc_text_field_props />
+                <MaterialTextField with race_start_tod_text_field_props />
+                <MaterialTextField with race_end_tod_text_field_props />
+                <MaterialTextField with green_flag_offset_text_field_props />
+                <MaterialTextField with tod_offset_text_field_props />
             </div>
         }
     }
@@ -227,10 +212,11 @@ fn format_date_time(date_time: NaiveDateTime) -> String {
 }
 
 fn parse_duration_from_str(duration_string: &str) -> Result<Duration, &str> {
-    let duration_split: Vec<i64> = duration_string.split(":")
+    let duration_split = duration_string
+        .split(':')
         .into_iter()
         .map(|part| part.parse::<i64>().unwrap())
-        .collect();
+        .collect::<Vec<_>>();
     
     if duration_split.len() != 3 {
         Err("the duration string was not in the proper format of 00:00:00")

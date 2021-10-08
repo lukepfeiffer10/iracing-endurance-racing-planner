@@ -14,3 +14,6 @@ features = ["serde", "wasmbind"]
 
 [dependencies.wasm-bindgen]
 version = "0.2.78"
+
+[dependencies.boolinator]
+version = "2.4.0"

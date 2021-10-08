@@ -95,6 +95,7 @@ dependencies = [
 name = "endurance-racing-planner"
 version = "0.1.0"
 dependencies = [
+ "boolinator",
  "chrono",
  "wasm-bindgen",
  "yew",
