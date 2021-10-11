@@ -17,3 +17,7 @@ version = "0.2.78"
 
 [dependencies.boolinator]
 version = "2.4.0"
+
+[dependencies.serde]
+version = "1.0.130"
+features = ["derive"]

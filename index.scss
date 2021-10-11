@@ -1,5 +1,37 @@
-﻿#global-event-config {
-  width: 350px;
+﻿.flex-container {
+  display: flex;
+  
+  &.flex-column {
+    flex-direction: column;
+  }
+  
+  &.flex-row {
+    flex-direction: row;
+    
+    &.flex-justify-content-center {
+      justify-content: center;
+    }
+  }
+}
+
+#left-column {
+  flex-grow: 1;
+  padding: 15px;
+}
+
+#right-column {
+  flex-grow: 6;
+  padding: 15px;
+}
+
+#fuel-stint-times {
+  margin-left: 10%;
+  margin-right: 10%;
+  flex-grow: 1;
+}
+
+#overall-event-config {
+  margin-bottom: 15px;
 }
 
 .card-title {
@@ -9,4 +41,9 @@
 
 .mdc-card-wrapper__text-section {
   padding: 16px;
+}
+
+.mdc-checkbox .mdc-checkbox__native-control:enabled:checked ~ .mdc-checkbox__background {
+  background-color: var(--mdc-theme-primary);
+  border-color: var(--mdc-theme-primary);
 }

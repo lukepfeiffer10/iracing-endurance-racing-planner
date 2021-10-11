@@ -4,11 +4,22 @@ use chrono::{DateTime, Utc, Duration, NaiveDateTime, TimeZone};
 use yew::services::ConsoleService;
 use std::ops::{Add, Sub};
 use crate::md_text_field::{MaterialTextField, MaterialTextFieldProps};
+use crate::fuel_stint_times::{FuelStintTimes};
+use crate::overall_fuel_stint_config::OverallFuelStintConfig;
 
 mod bindings;
 mod md_text_field;
+mod fuel_stint_times;
+mod overall_fuel_stint_config;
+mod event_bus;
+mod duration_serde;
 
 const DATE_FORMAT: &str = "%Y-%m-%d %H:%M:%S";
+
+pub enum DurationFormat {
+    HourMinSec,
+    MinSecMilli
+}
 
 enum EventConfigMsg {
     ChangeGreenFlagOffset(String),
@@ -62,7 +73,7 @@ impl Component for EventConfig {
     fn update(&mut self, msg: Self::Message) -> ShouldRender {
         match msg {
             EventConfigMsg::ChangeGreenFlagOffset(offset) => {
-                match parse_duration_from_str(offset.as_str()) {
+                match parse_duration_from_str(offset.as_str(), DurationFormat::HourMinSec) {
                     Ok(duration) => {
                         self.green_flag_offset = duration;
                         self.update_race_times();
@@ -103,7 +114,7 @@ impl Component for EventConfig {
                 }
             },
             EventConfigMsg::ChangeRaceDuration(duration) => {
-                match parse_duration_from_str(duration.as_str()) { 
+                match parse_duration_from_str(duration.as_str(), DurationFormat::HourMinSec) { 
                     Ok(duration) => {
                         self.race_duration = duration;
                         self.update_race_times();
@@ -127,70 +138,101 @@ impl Component for EventConfig {
 
     fn view(&self) -> Html {
         let race_duration_text_field_props = props!(MaterialTextFieldProps {
-            value: format_duration(self.race_duration),
-            label: "Race Duration (HH:MM:SS)".to_string(),
+            value: format_duration(self.race_duration, DurationFormat::HourMinSec),
+            label: Some("Race Duration (HH:MM:SS)".to_string()),
             id: "race_duration".to_string(),
             disabled: false,
             on_change: self.link.callback(|value| EventConfigMsg::ChangeRaceDuration(value))
         });
         let session_start_utc_text_field_props = props!(MaterialTextFieldProps {
             value: format_date_time(self.session_start_utc.naive_utc()),
-            label: "Session Start (UTC)".to_string(),
+            label: Some("Session Start (UTC)".to_string()),
             id: "session-start-utc".to_string(),
             disabled: false,
             on_change: self.link.callback(|value| EventConfigMsg::ChangeSessionStart(value))
         });
         let race_start_utc_text_field_props = props!(MaterialTextFieldProps {
             value: format_date_time(self.race_start_utc.naive_utc()),
-            label: "Race Start (UTC)".to_string(),
+            label: Some("Race Start (UTC)".to_string()),
             id: "race-start-utc".to_string(),
             disabled: true
         });
         let race_end_utc_text_field_props = props!(MaterialTextFieldProps {
             value: format_date_time(self.race_end_utc.naive_utc()),
-            label: "Race End (UTC)".to_string(),
+            label: Some("Race End (UTC)".to_string()),
             id: "race-end-utc".to_string(),
             disabled: true
         });
         let race_start_tod_text_field_props = props!(MaterialTextFieldProps {
             value: format_date_time(self.race_start_tod),
-            label: "Race Start (ToD)".to_string(),
+            label: Some("Race Start (ToD)".to_string()),
             id: "race-start-tod".to_string(),
             disabled: false,
             on_change: self.link.callback(|value| EventConfigMsg::ChangeRaceStartToD(value))
         });
         let race_end_tod_text_field_props = props!(MaterialTextFieldProps {
             value: format_date_time(self.race_end_tod),
-            label: "Race End (ToD)".to_string(),
+            label: Some("Race End (ToD)".to_string()),
             id: "race-end-tod".to_string(),
             disabled: true
         });
         let green_flag_offset_text_field_props = props!(MaterialTextFieldProps {
-            value: format_duration(self.green_flag_offset),
-            label: "Green Flag Offset (HH:MM:SS)".to_string(),
+            value: format_duration(self.green_flag_offset, DurationFormat::HourMinSec),
+            label: Some("Green Flag Offset (HH:MM:SS)".to_string()),
             id: "green-flag-offset".to_string(),
             disabled: false,
             on_change: self.link.callback(|value| EventConfigMsg::ChangeGreenFlagOffset(value))
         });
         let tod_offset_text_field_props = props!(MaterialTextFieldProps {
-            value: format_duration(self.tod_offset),
-            label: "ToD Offset (HH:MM:SS)".to_string(),
+            value: format_duration(self.tod_offset, DurationFormat::HourMinSec),
+            label: Some("ToD Offset (HH:MM:SS)".to_string()),
             id: "tod-offset".to_string(),
             disabled: true
         });
         html! {
-            <div id="global-event-config" class="mdc-card">
-                <div class="mdc-card-wrapper__text-section">
-                    <div class="card-title">{ "Global Event Config" }</div>
+            <div class="mdc-typography flex-container flex-row">
+                <div id="left-column" class="flex-container flex-column">
+                    <div id="overall-event-config" class="mdc-card">
+                        <div class="mdc-card-wrapper__text-section">
+                            <div class="card-title">{ "Overall Event Config" }</div>
+                        </div>
+                        <MaterialTextField with race_duration_text_field_props />
+                        <MaterialTextField with session_start_utc_text_field_props />
+                        <MaterialTextField with race_start_utc_text_field_props />
+                        <MaterialTextField with race_end_utc_text_field_props />
+                        <MaterialTextField with race_start_tod_text_field_props />
+                        <MaterialTextField with race_end_tod_text_field_props />
+                        <MaterialTextField with green_flag_offset_text_field_props />
+                        <MaterialTextField with tod_offset_text_field_props />
+                    </div>
+                    <OverallFuelStintConfig />
                 </div>
-                <MaterialTextField with race_duration_text_field_props />
-                <MaterialTextField with session_start_utc_text_field_props />
-                <MaterialTextField with race_start_utc_text_field_props />
-                <MaterialTextField with race_end_utc_text_field_props />
-                <MaterialTextField with race_start_tod_text_field_props />
-                <MaterialTextField with race_end_tod_text_field_props />
-                <MaterialTextField with green_flag_offset_text_field_props />
-                <MaterialTextField with tod_offset_text_field_props />
+                <div id="right-column" class="flex-container flex-column">
+                    <div class="flex-container flex-row flex-justify-content-center">
+                        <FuelStintTimes />
+                    </div>
+                    <div class="flex-container flex-row">
+                        <div style="flex-grow: 4">
+                            <h3>{ "Time of Day Lap Factors" }</h3>
+                        </div>
+                        <div style="flex-grow: 1">
+                            <h3>{ "Per Driver Lap Factors"} </h3>
+                        </div>
+                    </div>
+                    <div class="flex-container flex-row">
+                        <div style="flex-grow: 1">
+                            <h3>{ "Realtime Deltas" }</h3>
+                        </div>
+                        <div style="flex-grow: 1">
+                            <h3>{ "Manual Fuel Stint Calculator"} </h3>
+                        </div>
+                    </div>
+                    <div class="flex-container flex-row">
+                        <div style="flex-grow: 1">
+                            <h3>{ "Final Fuel Stint Calculator" }</h3>
+                        </div>
+                    </div>
+                </div>
             </div>
         }
     }
@@ -203,27 +245,69 @@ impl Component for EventConfig {
     }
 }
 
-fn format_duration(duration: Duration) -> String {
-    format!("{:02}:{:02}:{:02}", duration.num_hours(), duration.num_minutes() % 60, duration.num_seconds() % 60)
+pub fn format_duration(duration: Duration, format: DurationFormat) -> String {
+    match format {
+        DurationFormat::HourMinSec => format!("{:02}:{:02}:{:02}", duration.num_hours(), duration.num_minutes() % 60, duration.num_seconds() % 60),
+        DurationFormat::MinSecMilli => format!("{:02}:{:02}.{:03}", duration.num_minutes() % 60, duration.num_seconds() % 60, duration.num_milliseconds() % 1000) 
+    }
 }
 
 fn format_date_time(date_time: NaiveDateTime) -> String {
     date_time.format(DATE_FORMAT).to_string()
 }
 
-fn parse_duration_from_str(duration_string: &str) -> Result<Duration, &str> {
-    let duration_split = duration_string
-        .split(':')
-        .into_iter()
-        .map(|part| part.parse::<i64>().unwrap())
-        .collect::<Vec<_>>();
+fn parse_duration_from_str(str: &str, format: DurationFormat) -> Result<Duration, &str> {
+    let duration = match format {
+       DurationFormat::HourMinSec => {
+           let duration_split = str
+               .split(':')
+               .into_iter()
+               .map(|part| part.parse::<i64>().unwrap())
+               .collect::<Vec<_>>();
+
+           let duration_seconds = match duration_split.len() {
+               3 => {
+                   Some((duration_split[0] * 60 + duration_split[1]) * 60 + duration_split[2])
+               }
+               2 => {
+                   Some(duration_split[0] * 60 + duration_split[1])
+               }
+               1 => {
+                   Some(duration_split[0])
+               }
+               _ => None
+           };
+           
+           duration_seconds
+               .map(|value| Duration::seconds(value))
+       }
+       DurationFormat::MinSecMilli => {
+           let has_milliseconds = str.contains('.');
+           let duration_split = str
+               .split('.')
+               .flat_map(|value| value.split(':'))               
+               .map(|value| value.parse::<i64>().unwrap())
+               .collect::<Vec<_>>();
+           
+           let duration_milliseconds = match duration_split.len() {
+               3 => Some((duration_split[0] * 60 + duration_split[1]) * 1000 + duration_split[2]),
+               2 => {
+                   if has_milliseconds {
+                       Some(duration_split[0] * 1000 + duration_split[1])
+                   } else {
+                       Some((duration_split[0] * 60 + duration_split[1]) * 1000)
+                   }
+               },
+               1 => Some(duration_split[0] * 1000),
+               _ => None
+           };
+           
+           duration_milliseconds
+               .map(|value| Duration::milliseconds(value))
+       }
+    };
     
-    if duration_split.len() != 3 {
-        Err("the duration string was not in the proper format of 00:00:00")
-    } else {
-        let duration_seconds = (duration_split[0] * 60 + duration_split[1]) * 60 + duration_split[2];
-        Ok(Duration::seconds(duration_seconds))
-    }
+    duration.ok_or("the duration could not be parsed")
 }
 
 fn main() {
