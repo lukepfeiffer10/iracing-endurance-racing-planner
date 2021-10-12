@@ -17,11 +17,20 @@
 #left-column {
   flex-grow: 1;
   padding: 15px;
+  
+  > div {
+    margin-bottom: 15px;
+    margin-top: 15px;
+  }
 }
 
 #right-column {
   flex-grow: 6;
   padding: 15px;
+  
+  > div {
+    margin: 15px;
+  }
 }
 
 #fuel-stint-times {
@@ -32,6 +41,18 @@
 
 #overall-event-config {
   margin-bottom: 15px;
+}
+
+#time-of-day-lap-factors {
+  flex-grow: 3;
+  
+  td.show-reset > label.mdc-text-field > i {
+    visibility: visible;
+  }
+  
+  td > label.mdc-text-field > i {
+    visibility: hidden;
+  }
 }
 
 .card-title {

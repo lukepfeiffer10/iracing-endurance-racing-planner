@@ -2,15 +2,18 @@
 use std::collections::HashSet;
 use yew::worker::*;
 use crate::overall_fuel_stint_config::OverallFuelStintConfigData;
+use crate::fuel_stint_times::StandardLapTime;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub enum EventBusInput {
     OverallFuelStintConfig(OverallFuelStintConfigData),
+    StandardLapTime(StandardLapTime)
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 pub enum EventBusOutput {
-    OverallFuelStintConfig(OverallFuelStintConfigData)
+    OverallFuelStintConfig(OverallFuelStintConfigData),
+    StandardLapTime(StandardLapTime)
 }
 
 pub struct EventBus {
@@ -38,6 +41,11 @@ impl Agent for EventBus {
             EventBusInput::OverallFuelStintConfig(data) => {
                 for sub in self.subscribers.iter() {
                     self.link.respond(*sub, EventBusOutput::OverallFuelStintConfig(data.clone()));
+                }
+            }
+            EventBusInput::StandardLapTime(duration) => {
+                for sub in self.subscribers.iter() {
+                    self.link.respond(*sub, EventBusOutput::StandardLapTime(duration.clone()));
                 }
             }
         }

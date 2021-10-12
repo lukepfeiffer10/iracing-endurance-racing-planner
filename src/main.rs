@@ -6,6 +6,7 @@ use std::ops::{Add, Sub};
 use crate::md_text_field::{MaterialTextField, MaterialTextFieldProps};
 use crate::fuel_stint_times::{FuelStintTimes};
 use crate::overall_fuel_stint_config::OverallFuelStintConfig;
+use crate::time_of_day_lap_factors::TimeOfDayLapFactors;
 
 mod bindings;
 mod md_text_field;
@@ -13,6 +14,7 @@ mod fuel_stint_times;
 mod overall_fuel_stint_config;
 mod event_bus;
 mod duration_serde;
+mod time_of_day_lap_factors;
 
 const DATE_FORMAT: &str = "%Y-%m-%d %H:%M:%S";
 
@@ -212,10 +214,8 @@ impl Component for EventConfig {
                         <FuelStintTimes />
                     </div>
                     <div class="flex-container flex-row">
-                        <div style="flex-grow: 4">
-                            <h3>{ "Time of Day Lap Factors" }</h3>
-                        </div>
-                        <div style="flex-grow: 1">
+                        <TimeOfDayLapFactors />
+                        <div style="flex-grow: 2">
                             <h3>{ "Per Driver Lap Factors"} </h3>
                         </div>
                     </div>
@@ -248,7 +248,14 @@ impl Component for EventConfig {
 pub fn format_duration(duration: Duration, format: DurationFormat) -> String {
     match format {
         DurationFormat::HourMinSec => format!("{:02}:{:02}:{:02}", duration.num_hours(), duration.num_minutes() % 60, duration.num_seconds() % 60),
-        DurationFormat::MinSecMilli => format!("{:02}:{:02}.{:03}", duration.num_minutes() % 60, duration.num_seconds() % 60, duration.num_milliseconds() % 1000) 
+        DurationFormat::MinSecMilli => {
+            let prefix = if duration.num_milliseconds().is_negative() {
+                "-"
+            } else {
+                ""
+            };
+            format!("{}{:02}:{:02}.{:03}", prefix, duration.num_minutes().abs() % 60, duration.num_seconds().abs() % 60, duration.num_milliseconds().abs() % 1000)
+        }
     }
 }
 

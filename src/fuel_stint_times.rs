@@ -4,8 +4,23 @@ use chrono::Duration;
 use crate::{format_duration, parse_duration_from_str, DurationFormat};
 use crate::md_text_field::{MaterialTextField, MaterialTextFieldProps};
 use yew::services::ConsoleService;
-use crate::event_bus::{EventBus, EventBusOutput};
+use crate::event_bus::{EventBus, EventBusOutput, EventBusInput};
 use crate::overall_fuel_stint_config::OverallFuelStintConfigData;
+use serde::{Serialize, Deserialize};
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct StandardLapTime {
+    #[serde(with = "crate::duration_serde")]
+    pub lap_time: Duration,
+}
+
+impl Clone for StandardLapTime {
+    fn clone(&self) -> Self {
+        Self {
+            lap_time: self.lap_time
+        }
+    }
+}
 
 struct StintData {
     lap_time: Duration,
@@ -114,7 +129,14 @@ impl Component for FuelStintTimes {
                 let parsed_lap_time = parse_duration_from_str(value.as_str(), DurationFormat::MinSecMilli);
                 match parsed_lap_time.map(|parsed_lap_time| {
                     match stint_type {
-                        StintType::Standard => self.standard_fuel_stint.update_lap_time(parsed_lap_time),
+                        StintType::Standard => {
+                            self.standard_fuel_stint.update_lap_time(parsed_lap_time);
+                            let fuel_saving_lap_time = (parsed_lap_time.num_milliseconds() as f64) * 1.01;
+                            self.fuel_saving_stint.update_lap_time(Duration::milliseconds(fuel_saving_lap_time.floor() as i64));
+                            self._producer.send(EventBusInput::StandardLapTime(StandardLapTime {
+                                lap_time: parsed_lap_time
+                            }));
+                        }
                         StintType::FuelSaving => self.fuel_saving_stint.update_lap_time(parsed_lap_time)
                     }
                 }) {
@@ -181,7 +203,7 @@ impl Component for FuelStintTimes {
                 </div>
                 <div class="mdc-data-table">
                   <div class="mdc-data-table__table-container">
-                    <table class="mdc-data-table__table" aria-label="Dessert calories">
+                    <table class="mdc-data-table__table">
                       <thead>
                         <tr class="mdc-data-table__header-row">
                           <th class="mdc-data-table__header-cell" role="columnheader" scope="col">{ "Stint Type" }</th>
