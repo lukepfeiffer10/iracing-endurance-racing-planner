@@ -5,8 +5,8 @@ use crate::{format_duration, parse_duration_from_str, DurationFormat};
 use crate::md_text_field::{MaterialTextField, MaterialTextFieldProps};
 use yew::services::ConsoleService;
 use crate::event_bus::{EventBus, EventBusOutput, EventBusInput};
-use crate::overall_fuel_stint_config::OverallFuelStintConfigData;
 use serde::{Serialize, Deserialize};
+use crate::overview::overall_fuel_stint_config::OverallFuelStintConfigData;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct StandardLapTime {

@@ -1,8 +1,7 @@
 ﻿use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use yew::worker::*;
-use crate::overall_fuel_stint_config::OverallFuelStintConfigData;
-use crate::fuel_stint_times::StandardLapTime;
+use crate::overview::{overall_fuel_stint_config::OverallFuelStintConfigData, fuel_stint_times::StandardLapTime};
 
 #[derive(Serialize, Deserialize, Debug)]
 pub enum EventBusInput {
