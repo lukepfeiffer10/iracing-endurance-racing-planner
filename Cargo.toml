@@ -11,6 +11,9 @@ version = "0.18.0"
 [dependencies.yew-router]
 version = "0.15.0"
 
+[dependencies.yewtil]
+version = "0.4.0"
+
 [dependencies.chrono]
 version = "0.4.19"
 features = ["serde", "wasmbind"]

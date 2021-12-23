@@ -1,17 +1,28 @@
+use boolinator::Boolinator;
 use chrono::{Duration, NaiveDateTime};
 use yew::{Component, ComponentLink, Html, ShouldRender};
 use yew::prelude::*;
 use yew_router::{Switch};
+use yew_router::agent::RouteRequest;
 use yew_router::prelude::*;
+use crate::bindings::enable_tab_bar;
+use crate::event_bus::EventBus;
+use crate::overview::fuel_stint_times::{StintData};
+use crate::overview::overall_event_config::{EventConfigData};
+use crate::overview::overall_fuel_stint_config::OverallFuelStintConfigData;
 use crate::overview::Overview;
+use crate::overview::per_driver_lap_factors::DriverLapFactor;
+use crate::overview::time_of_day_lap_factors::TimeOfDayLapFactor;
+use crate::roster::{Driver, DriverRoster};
 
 mod bindings;
 mod md_text_field;
 mod event_bus;
 mod duration_serde;
 mod overview;
+mod roster;
 
-#[derive(Switch,Clone)]
+#[derive(Switch,Clone,Eq,PartialEq)]
 enum AppRoutes {
     #[to = "/roster"]
     Roster,
@@ -19,29 +30,91 @@ enum AppRoutes {
     Overview,
 }
 
-struct App;
+enum AppMsg {
+    ChangeRoute(Route)
+}
+
+struct App {
+    _route_agent_bridge: RouteAgentBridge,
+    current_route: AppRoutes,
+    _event_bus_bridge: Box<dyn Bridge<EventBus>>,
+}
 
 impl Component for App {
-    type Message = ();
+    type Message = AppMsg;
     type Properties = ();
 
-    fn create(_props: Self::Properties, _link: ComponentLink<Self>) -> Self {
-        Self {}
+    fn create(_props: Self::Properties, link: ComponentLink<Self>) -> Self {
+        let mut route_agent_bridge = RouteAgentBridge::new(link.callback(AppMsg::ChangeRoute));
+        route_agent_bridge.send(RouteRequest::GetCurrentRoute);
+        let event_bus_bridge = EventBus::bridge(link.batch_callback(|message| {
+            match message {
+                _ => None
+            }
+        }));
+        Self {
+            _route_agent_bridge: route_agent_bridge,
+            current_route: AppRoutes::Overview,
+            _event_bus_bridge: event_bus_bridge
+        }
     }
 
-    fn update(&mut self, _msg: Self::Message) -> ShouldRender {
-        false
+    fn update(&mut self, msg: Self::Message) -> ShouldRender {
+        match msg {
+            AppMsg::ChangeRoute(route) => {
+                self.current_route = AppRoutes::switch(route).unwrap_or(AppRoutes::Overview);
+                true
+            }
+        }
     }
 
     fn change(&mut self, _props: Self::Properties) -> ShouldRender {
         false
     }
 
-    fn view(&self) -> Html {
+    fn view(&self) -> Html {        
         html! {
             <>
                 <Router<AppRoutes> render=Router::render(Self::switch) />
+                <footer>
+                    <div class="mdc-tab-bar" role="tablist">
+                        <div class="mdc-tab-scroller">
+                            <div class="mdc-tab-scroller__scroll-area">
+                              <div class="mdc-tab-scroller__scroll-content">
+                                <RouterButton<AppRoutes> route=AppRoutes::Overview 
+                                                         classes={classes!["mdc-tab", self.is_active_tab(AppRoutes::Overview).as_some("mdc-tab--active")].to_string()}>
+                                  <span class="mdc-tab__content">
+                                    <span class="mdc-tab__icon material-icons" aria-hidden="true">{ "home" }</span>
+                                    <span class="mdc-tab__text-label">{ "Overview" }</span>
+                                  </span>
+                                  <span class={classes!["mdc-tab-indicator",self.is_active_tab(AppRoutes::Overview).as_some("mdc-tab-indicator--active")]}>
+                                    <span class="mdc-tab-indicator__content mdc-tab-indicator__content--underline"></span>
+                                  </span>
+                                  <span class="mdc-tab__ripple"></span>
+                                </RouterButton<AppRoutes>>
+                                <RouterButton<AppRoutes> route=AppRoutes::Roster 
+                                                         classes={classes!["mdc-tab", self.is_active_tab(AppRoutes::Roster).as_some("mdc-tab--active")].to_string()}>
+                                  <span class="mdc-tab__content">
+                                    <span class="mdc-tab__icon material-icons" aria-hidden="true">{ "list" }</span>
+                                    <span class="mdc-tab__text-label">{ "Roster" }</span>
+                                  </span>
+                                  <span class={classes!["mdc-tab-indicator",self.is_active_tab(AppRoutes::Roster).as_some("mdc-tab-indicator--active")]}>
+                                    <span class="mdc-tab-indicator__content mdc-tab-indicator__content--underline"></span>
+                                  </span>
+                                  <span class="mdc-tab__ripple"></span>
+                                </RouterButton<AppRoutes>>
+                              </div>
+                            </div>
+                        </div>
+                    </div>
+                </footer>
             </>
+        }
+    }
+
+    fn rendered(&mut self, first_render: bool) {
+        if first_render {
+            enable_tab_bar(".mdc-tab-bar");
         }
     }
 }
@@ -51,7 +124,9 @@ impl App {
         match switch {
             AppRoutes::Roster => {
                 return html! {
-                    <p> { "Work in Progress" }</p>
+                    <div class="mdc-typography flex-container flex-row">
+                        <DriverRoster />
+                    </div>
                 }
             }
             AppRoutes::Overview => {
@@ -59,6 +134,40 @@ impl App {
                     <Overview />
                 }
             }
+        }
+    }
+    
+    fn is_active_tab(&self, tab: AppRoutes) -> bool {
+        tab == self.current_route        
+    }
+}
+
+struct FuelStintAverageTimes {
+    standard_fuel_stint: StintData,
+    fuel_saving_stint: StintData
+}
+
+struct RacePlanner {
+    overall_event_config: EventConfigData,
+    overall_fuel_stint_config: OverallFuelStintConfigData,
+    fuel_stint_average_times: FuelStintAverageTimes,
+    time_of_day_lap_factors: Vec<TimeOfDayLapFactor>,
+    per_driver_lap_factors: Vec<DriverLapFactor>,
+    driver_roster: Vec<Driver>
+}
+
+impl RacePlanner {
+    fn new() -> Self {
+        Self {
+            overall_event_config: EventConfigData::new(),
+            overall_fuel_stint_config: OverallFuelStintConfigData::new(),
+            fuel_stint_average_times: FuelStintAverageTimes {
+                standard_fuel_stint: StintData::new(),
+                fuel_saving_stint: StintData::new()
+            },
+            time_of_day_lap_factors: vec![],
+            per_driver_lap_factors: vec![],
+            driver_roster: vec![]
         }
     }
 }

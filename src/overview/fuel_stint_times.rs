@@ -22,7 +22,7 @@ impl Clone for StandardLapTime {
     }
 }
 
-struct StintData {
+pub struct StintData {
     lap_time: Duration,
     fuel_per_lap: f32,
     lap_count: i32,
@@ -34,7 +34,7 @@ struct StintData {
 }
 
 impl StintData {
-    fn new() -> StintData {
+    pub fn new() -> StintData {
         StintData {
             lap_time: Duration::zero(),
             fuel_per_lap: 0.0,

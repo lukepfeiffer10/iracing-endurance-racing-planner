@@ -8,7 +8,7 @@ use boolinator::Boolinator;
 
 const TIME_OF_DAY_TIME_FORMAT: &str = "%I:%M %p";
 
-struct TimeOfDayLapFactor {
+pub struct TimeOfDayLapFactor {
     time_of_day: String,
     lap_time: Duration,
     tod_start: NaiveTime,
@@ -236,6 +236,7 @@ fn render_time_of_day_lap_factor(factor: &TimeOfDayLapFactor, link: &ComponentLi
             style: MaterialTextFieldIconStyle::Leading,
             icon: "restart_alt".to_string(),
             on_click: Some(link.callback(move |_| TimeOfDayLapFactorsMsg::ResetLapTimeToReference(index))),
+            background_color: None
         })
     });
     let tod_start_props = props!(MaterialTextFieldProps {

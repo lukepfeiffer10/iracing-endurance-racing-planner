@@ -2,12 +2,13 @@
 use yew::Properties;
 use boolinator::{Boolinator};
 use std::fmt::{Formatter, Display};
+use yewtil::NeqAssign;
 
 pub enum MaterialTextFieldMessage {
     ChangeValue(String)
 }
 
-#[derive(Clone, PartialEq)]
+#[derive(Clone, PartialEq, Debug)]
 pub enum MaterialTextFieldIconStyle {
     Leading,
     Trailing,
@@ -22,14 +23,15 @@ impl Display for MaterialTextFieldIconStyle {
     }
 }
 
-#[derive(Clone, PartialEq)]
+#[derive(Clone, PartialEq, Debug)]
 pub struct MaterialTextFieldIcon {
     pub style: MaterialTextFieldIconStyle,
     pub icon: String,
     pub on_click: Option<Callback<MouseEvent>>,
+    pub background_color: Option<String>,
 }
 
-#[derive(Properties, Clone, PartialEq)]
+#[derive(Properties, Clone, PartialEq, Debug)]
 pub struct MaterialTextFieldProps {
     // The value to display in the text field
     pub value: String,
@@ -83,11 +85,7 @@ impl Component for MaterialTextField {
     }
 
     fn change(&mut self, props: Self::Properties) -> ShouldRender {
-        if props.value != self.props.value {
-            self.props.value = props.value;
-            return true;
-        }
-        false
+        self.props.neq_assign(props)
     }
 
     fn view(&self) -> Html {
@@ -135,13 +133,20 @@ fn render_icon(icon: Option<MaterialTextFieldIcon>) -> Html {
                 "mdc-text-field__icon",
                 format!("mdc-text-field__icon--{}", value.style)
             );
+            let style = match value.background_color {
+                Some(background_color) => {
+                    format!("background-color: {}", background_color)
+                },
+                None => "".to_string()
+            };
+            
             
             match value.on_click {
                 Some(callback) => html! {
-                    <i class=icon_classes tabindex="0" role="button" onclick=callback>{ value.icon }</i>
+                    <i class=icon_classes style=style tabindex="0" role="button" onclick=callback>{ value.icon }</i>
                 },
                 None => html! {
-                    <i class=icon_classes>{ value.icon }</i>
+                    <i class=icon_classes style=style>{ value.icon }</i>
                 }
             }            
         }

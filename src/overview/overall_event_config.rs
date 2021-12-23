@@ -12,6 +12,33 @@ pub enum EventConfigMsg {
     ChangeRaceDuration(String)
 }
 
+pub struct EventConfigData {
+    pub race_duration: Duration,
+    pub session_start_utc: DateTime<Utc>,
+    pub race_start_utc: DateTime<Utc>,
+    pub race_end_utc: DateTime<Utc>,
+    pub race_start_tod: NaiveDateTime,
+    pub race_end_tod: NaiveDateTime,
+    pub green_flag_offset: Duration,
+    pub tod_offset: Duration
+}
+
+impl EventConfigData {
+    pub fn new() -> Self {
+        let utc_now = Utc::now();
+        Self {
+            race_duration: Duration::zero(),
+            session_start_utc: utc_now,
+            race_start_utc: utc_now,
+            race_end_utc: utc_now,
+            race_start_tod: utc_now.naive_utc(),
+            race_end_tod: utc_now.naive_utc(),
+            green_flag_offset: Duration::zero(),
+            tod_offset: Duration::zero()
+        }
+    }
+}
+
 pub struct EventConfig {
     // `ComponentLink` is like a reference to a component.
     // It can be used to send messages to the component

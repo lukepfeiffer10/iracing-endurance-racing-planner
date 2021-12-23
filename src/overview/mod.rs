@@ -7,8 +7,8 @@ use self::per_driver_lap_factors::PerDriverLapFactors;
 
 pub(crate) mod fuel_stint_times;
 pub(crate) mod overall_fuel_stint_config;
-mod time_of_day_lap_factors;
-mod per_driver_lap_factors;
+pub(crate) mod time_of_day_lap_factors;
+pub(crate) mod per_driver_lap_factors;
 pub(crate) mod overall_event_config;
 
 pub struct Overview;
