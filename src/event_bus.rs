@@ -3,21 +3,32 @@ use std::collections::HashSet;
 use yew::services::ConsoleService;
 use yew::worker::*;
 use crate::overview::{overall_fuel_stint_config::OverallFuelStintConfigData, fuel_stint_times::StandardLapTime};
-use crate::{Driver, RacePlanner};
+use crate::schedule::fuel_stint_schedule::ScheduleRelatedData;
+use crate::{Driver, EventConfigData, FuelStintAverageTimes, RacePlanner};
 
 #[derive(Serialize, Deserialize, Debug)]
 pub enum EventBusInput {
+    GetOverallFuelStintConfig,
     OverallFuelStintConfig(OverallFuelStintConfigData),
     StandardLapTime(StandardLapTime),
     GetDriverRoster,
-    PutDriverRoster(Vec<Driver>)
+    PutDriverRoster(Vec<Driver>),
+    GetOverallEventConfig,
+    PutOverallEventConfig(EventConfigData),
+    GetFuelStintAverageTimes,
+    PutFuelStintAverageTimes(FuelStintAverageTimes),
+    GetScheduleRelatedData,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 pub enum EventBusOutput {
     OverallFuelStintConfig(OverallFuelStintConfigData),
+    SendOverallFuelStintConfig(OverallFuelStintConfigData),
     StandardLapTime(StandardLapTime),
-    SendDriverRoster(Vec<Driver>)
+    SendDriverRoster(Vec<Driver>),
+    SendOverallEventConfig(Option<EventConfigData>),
+    SendFuelStintAverageTimes(Option<FuelStintAverageTimes>),
+    SendScheduleRelatedData(ScheduleRelatedData)
 }
 
 pub struct EventBus {
@@ -49,8 +60,14 @@ impl Agent for EventBus {
     fn handle_input(&mut self, msg: Self::Input, _id: HandlerId) {
         match msg {
             EventBusInput::OverallFuelStintConfig(data) => {
+                self.race_planner_data.overall_fuel_stint_config = data.clone();
                 for sub in self.subscribers.iter() {
                     self.link.respond(*sub, EventBusOutput::OverallFuelStintConfig(data.clone()));
+                }
+            }
+            EventBusInput::GetOverallFuelStintConfig => {
+                for sub in self.subscribers.iter() {
+                    self.link.respond(*sub, EventBusOutput::SendOverallFuelStintConfig(self.race_planner_data.overall_fuel_stint_config.clone()));
                 }
             }
             EventBusInput::StandardLapTime(duration) => {
@@ -65,6 +82,33 @@ impl Agent for EventBus {
             }
             EventBusInput::PutDriverRoster(drivers) => {                
                 self.race_planner_data.driver_roster = drivers;
+            }
+            EventBusInput::GetOverallEventConfig => {
+                for sub in self.subscribers.iter() {
+                    self.link.respond(*sub, EventBusOutput::SendOverallEventConfig(self.race_planner_data.overall_event_config.clone()))
+                }
+            }
+            EventBusInput::PutOverallEventConfig(config) => {
+                self.race_planner_data.overall_event_config = Some(config);
+            }
+            EventBusInput::GetFuelStintAverageTimes => {
+                for sub in self.subscribers.iter() {
+                    self.link.respond(*sub, EventBusOutput::SendFuelStintAverageTimes(self.race_planner_data.fuel_stint_average_times.clone()))
+                }
+            }
+            EventBusInput::PutFuelStintAverageTimes(data) => {
+                self.race_planner_data.fuel_stint_average_times = Some(data);
+            }
+            EventBusInput::GetScheduleRelatedData => {
+                for sub in self.subscribers.iter() {
+                    let data = ScheduleRelatedData {
+                        overall_event_config: self.race_planner_data.overall_event_config.clone(),
+                        fuel_stint_times: self.race_planner_data.fuel_stint_average_times.clone(),
+                        overall_fuel_stint_config: self.race_planner_data.overall_fuel_stint_config.clone(),
+                        drivers: self.race_planner_data.driver_roster.clone()
+                    };
+                    self.link.respond(*sub, EventBusOutput::SendScheduleRelatedData(data));
+                }
             }
         }
     }

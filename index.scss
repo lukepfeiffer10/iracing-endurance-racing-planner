@@ -1,4 +1,6 @@
-﻿.flex-container {
+﻿@import "variables";
+
+.flex-container {
   display: flex;
   
   &.flex-column {
@@ -16,20 +18,20 @@
 
 #left-column {
   flex-grow: 1;
-  padding: 15px;
+  padding: $gutter;
   
   > div {
-    margin-bottom: 15px;
-    margin-top: 15px;
+    margin-bottom: $gutter;
+    margin-top: $gutter;
   }
 }
 
 #right-column {
   flex-grow: 6;
-  padding: 15px;
+  padding: $gutter;
   
   > div {
-    margin: 15px;
+    margin: $gutter;
   }
 }
 
@@ -40,11 +42,12 @@
 }
 
 #overall-event-config {
-  margin-bottom: 15px;
+  margin-bottom: $gutter;
 }
 
 #time-of-day-lap-factors {
   flex-grow: 3;
+  margin-right: $gutter;
   
   td.show-reset > label.mdc-text-field > i {
     visibility: visible;
@@ -57,6 +60,7 @@
 
 #driver-lap-factors {
   flex-grow: 2;
+  margin-left: $gutter;
   
   p {
     text-align: center;
@@ -83,3 +87,5 @@ footer {
   bottom: 0;
   left: 0;
 }
+
+@import "src/schedule/schedule";

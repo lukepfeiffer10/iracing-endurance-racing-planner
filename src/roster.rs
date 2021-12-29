@@ -1,7 +1,6 @@
 ﻿use yew::prelude::*;
 use yew::{Component, ComponentLink, Html, ShouldRender, props};
 use serde::{Serialize, Deserialize};
-use yew::services::ConsoleService;
 use crate::bindings;
 use crate::event_bus::{EventBus, EventBusInput, EventBusOutput};
 use crate::md_text_field::{MaterialTextField, MaterialTextFieldProps, MaterialTextFieldIcon, MaterialTextFieldIconStyle};
@@ -233,11 +232,13 @@ impl Component for DriverRoster {
                   </div>
                 </div>
                 <div class="mdc-card__actions">
-                  <button class="material-icons mdc-icon-button mdc-card__action mdc-card__action--icon" 
+                    <button class="material-icons mdc-icon-button mdc-card__action mdc-card__action--icon" 
                           title="New Driver"
                           onclick=self.link.callback(|_| DriverRosterMsg::AddDriver)>
-                    {"add"}
-                  </button>
+                        
+                        <div class="mdc-icon-button__ripple"></div>
+                        {"add"}
+                    </button>
                 </div>
             </div>
         }

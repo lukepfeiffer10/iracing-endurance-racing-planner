@@ -1,7 +1,7 @@
 ﻿use yew::prelude::*;
 use yew::props;
 use chrono::Duration;
-use crate::{format_duration, parse_duration_from_str, DurationFormat};
+use crate::{format_duration, parse_duration_from_str, DurationFormat, FuelStintAverageTimes};
 use crate::md_text_field::{MaterialTextField, MaterialTextFieldProps};
 use yew::services::ConsoleService;
 use crate::event_bus::{EventBus, EventBusOutput, EventBusInput};
@@ -22,15 +22,19 @@ impl Clone for StandardLapTime {
     }
 }
 
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct StintData {
-    lap_time: Duration,
-    fuel_per_lap: f32,
-    lap_count: i32,
-    lap_time_with_pit: Duration,
-    track_time: Duration,
-    track_time_with_pit: Duration,
-    fuel_per_stint: f32,
-    fuel_stint_config: OverallFuelStintConfigData
+    #[serde(with = "crate::duration_serde")]
+    pub lap_time: Duration,
+    pub fuel_per_lap: f32,
+    pub lap_count: i32,
+    #[serde(with = "crate::duration_serde")]
+    pub lap_time_with_pit: Duration,
+    #[serde(with = "crate::duration_serde")]
+    pub track_time: Duration,
+    #[serde(with = "crate::duration_serde")]
+    pub track_time_with_pit: Duration,
+    pub fuel_per_stint: f32,
 }
 
 impl StintData {
@@ -43,43 +47,42 @@ impl StintData {
             track_time: Duration::zero(),
             track_time_with_pit: Duration::zero(),
             fuel_per_stint: 0.0,
-            fuel_stint_config: OverallFuelStintConfigData::new()
         }
     }
     
-    fn update(&mut self) {
-        self.update_lap_time(self.lap_time);
-        self.update_fuel_per_lap(self.fuel_per_lap);
+    fn update(&mut self, fuel_tank_size: i32, pit_duration: Duration) {
+        self.update_lap_time(self.lap_time, pit_duration);
+        self.update_fuel_per_lap(self.fuel_per_lap, fuel_tank_size, pit_duration);
     }
     
-    fn update_lap_time(&mut self, lap_time: Duration) {
+    fn update_lap_time(&mut self, lap_time: Duration, pit_duration: Duration) {
         self.lap_time = lap_time;
-        self.update_lap_time_with_pit();
-        self.update_track_time();
+        self.update_lap_time_with_pit(pit_duration);
+        self.update_track_time(pit_duration);
     }
     
-    fn update_fuel_per_lap(&mut self, fuel_per_lap: f32) {
+    fn update_fuel_per_lap(&mut self, fuel_per_lap: f32, fuel_tank_size: i32, pit_duration: Duration) {
         self.fuel_per_lap = fuel_per_lap;
         self.lap_count = if fuel_per_lap == 0.0 { 
              0
         } else {
-            (self.fuel_stint_config.fuel_tank_size as f32 / fuel_per_lap).floor() as i32
+            (fuel_tank_size as f32 / fuel_per_lap).floor() as i32
         };
         self.fuel_per_stint = fuel_per_lap * (self.lap_count as f32);
-        self.update_lap_time_with_pit();
-        self.update_track_time();
+        self.update_lap_time_with_pit(pit_duration);
+        self.update_track_time(pit_duration);
     }
     
-    fn update_track_time(&mut self) {
+    fn update_track_time(&mut self, pit_duration: Duration) {
         self.track_time = self.lap_time * self.lap_count;
-        self.track_time_with_pit = self.track_time + self.fuel_stint_config.pit_duration;        
+        self.track_time_with_pit = self.track_time + pit_duration;        
     }
     
-    fn update_lap_time_with_pit(&mut self) {
+    fn update_lap_time_with_pit(&mut self, pit_duration: Duration) {
         self.lap_time_with_pit = if self.lap_count == 0 {
             Duration::zero()
         } else {
-            self.lap_time + self.fuel_stint_config.pit_duration / self.lap_count
+            self.lap_time + pit_duration / self.lap_count
         };
     }
 }
@@ -93,13 +96,16 @@ pub enum StintType {
 pub enum FuelStintTimesMsg {
     UpdateLapTime(String, StintType),
     UpdateFuelPerLap(String, StintType),
-    Update(OverallFuelStintConfigData)
+    UpdateFuelConfig(OverallFuelStintConfigData),
+    OnCreate(FuelStintAverageTimes),
 }
 
 pub struct FuelStintTimes {
     link: ComponentLink<Self>,
     standard_fuel_stint: StintData,
     fuel_saving_stint: StintData,
+    fuel_tank_size: i32,
+    pit_duration: Duration,
     _producer: Box<dyn Bridge<EventBus>>,
 }
 
@@ -108,18 +114,25 @@ impl Component for FuelStintTimes {
     type Properties = ();
 
     fn create(_props: Self::Properties, link: ComponentLink<Self>) -> Self {
-        Self {
-            _producer: EventBus::bridge(link.batch_callback(|message| {
-                match message {
-                    EventBusOutput::OverallFuelStintConfig(data) => {
-                        Some(FuelStintTimesMsg::Update(data))
-                    },
-                    _ => None
+        let mut event_bus_bridge = EventBus::bridge(link.batch_callback(|message| {
+            match message {
+                EventBusOutput::OverallFuelStintConfig(data) => {
+                    Some(FuelStintTimesMsg::UpdateFuelConfig(data))
+                },
+                EventBusOutput::SendFuelStintAverageTimes(data) => {
+                    data.map(|f| FuelStintTimesMsg::OnCreate(f))
                 }
-            })),
+                _ => None
+            }
+        }));
+        event_bus_bridge.send(EventBusInput::GetFuelStintAverageTimes);
+        Self {
+            _producer: event_bus_bridge,
             link,
             standard_fuel_stint: StintData::new(),
-            fuel_saving_stint: StintData::new(),            
+            fuel_saving_stint: StintData::new(),
+            fuel_tank_size: 0,
+            pit_duration: Duration::zero(),
         }
     }
 
@@ -130,14 +143,14 @@ impl Component for FuelStintTimes {
                 match parsed_lap_time.map(|parsed_lap_time| {
                     match stint_type {
                         StintType::Standard => {
-                            self.standard_fuel_stint.update_lap_time(parsed_lap_time);
+                            self.standard_fuel_stint.update_lap_time(parsed_lap_time, self.pit_duration);
                             let fuel_saving_lap_time = (parsed_lap_time.num_milliseconds() as f64) * 1.01;
-                            self.fuel_saving_stint.update_lap_time(Duration::milliseconds(fuel_saving_lap_time.floor() as i64));
+                            self.fuel_saving_stint.update_lap_time(Duration::milliseconds(fuel_saving_lap_time.floor() as i64), self.pit_duration);
                             self._producer.send(EventBusInput::StandardLapTime(StandardLapTime {
                                 lap_time: parsed_lap_time
                             }));
                         }
-                        StintType::FuelSaving => self.fuel_saving_stint.update_lap_time(parsed_lap_time)
+                        StintType::FuelSaving => self.fuel_saving_stint.update_lap_time(parsed_lap_time, self.pit_duration)
                     }
                 }) {
                     Ok(_) => true,
@@ -151,8 +164,8 @@ impl Component for FuelStintTimes {
                 let parsed_fuel_per_lap = value.parse::<f32>();
                 match parsed_fuel_per_lap.map(|parsed_fuel_per_lap| {
                     match stint_type {
-                        StintType::Standard => self.standard_fuel_stint.update_fuel_per_lap(parsed_fuel_per_lap),
-                        StintType::FuelSaving => self.fuel_saving_stint.update_fuel_per_lap(parsed_fuel_per_lap)
+                        StintType::Standard => self.standard_fuel_stint.update_fuel_per_lap(parsed_fuel_per_lap, self.fuel_tank_size, self.pit_duration),
+                        StintType::FuelSaving => self.fuel_saving_stint.update_fuel_per_lap(parsed_fuel_per_lap, self.fuel_tank_size, self.pit_duration)
                     }
                 }) {
                     Ok(_) => true,
@@ -162,11 +175,16 @@ impl Component for FuelStintTimes {
                     }
                 }
             },
-            FuelStintTimesMsg::Update(data) => {
-                self.fuel_saving_stint.fuel_stint_config = data.clone();
-                self.standard_fuel_stint.fuel_stint_config = data.clone();
-                self.fuel_saving_stint.update();
-                self.standard_fuel_stint.update();
+            FuelStintTimesMsg::UpdateFuelConfig(data) => {
+                self.fuel_tank_size = data.fuel_tank_size;
+                self.pit_duration = data.pit_duration;
+                self.fuel_saving_stint.update(self.fuel_tank_size, self.pit_duration);
+                self.standard_fuel_stint.update(self.fuel_tank_size, self.pit_duration);
+                true
+            }
+            FuelStintTimesMsg::OnCreate(data) => {
+                self.fuel_saving_stint = data.fuel_saving_stint;
+                self.standard_fuel_stint = data.standard_fuel_stint;
                 true
             }
         }
@@ -251,6 +269,13 @@ impl Component for FuelStintTimes {
                 </div>
             </div>
         }
+    }
+
+    fn destroy(&mut self) {
+        self._producer.send(EventBusInput::PutFuelStintAverageTimes(FuelStintAverageTimes {
+            fuel_saving_stint: self.fuel_saving_stint.clone(),
+            standard_fuel_stint: self.standard_fuel_stint.clone()
+        }))
     }
 }
 

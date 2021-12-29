@@ -14,4 +14,7 @@ extern "C" {
 
     #[wasm_bindgen(js_name = "enableIconButton")]
     pub fn enable_icon_button(query_selector: &str);
+
+    #[wasm_bindgen(js_name = "enableSelects")]
+    pub fn enable_selects(query_selector: &str);
 }

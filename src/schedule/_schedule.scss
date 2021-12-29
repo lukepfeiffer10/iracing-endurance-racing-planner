@@ -1,0 +1,17 @@
+﻿#fuel-stint-schedule {
+  flex: 2;
+  margin-right: $gutter;
+  
+  p {
+    text-align: center;
+  }  
+}
+
+.select-width {
+  width: 200px;
+}
+
+#driver-availability {
+  flex: 1;
+  margin-left: $gutter;
+}

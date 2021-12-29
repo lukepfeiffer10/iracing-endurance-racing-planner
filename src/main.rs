@@ -1,3 +1,4 @@
+use std::fmt::{Display, Formatter};
 use boolinator::Boolinator;
 use chrono::{Duration, NaiveDateTime};
 use yew::{Component, ComponentLink, Html, ShouldRender};
@@ -5,6 +6,7 @@ use yew::prelude::*;
 use yew_router::{Switch};
 use yew_router::agent::RouteRequest;
 use yew_router::prelude::*;
+use serde::{Serialize, Deserialize};
 use crate::bindings::enable_tab_bar;
 use crate::event_bus::EventBus;
 use crate::overview::fuel_stint_times::{StintData};
@@ -14,6 +16,7 @@ use crate::overview::Overview;
 use crate::overview::per_driver_lap_factors::DriverLapFactor;
 use crate::overview::time_of_day_lap_factors::TimeOfDayLapFactor;
 use crate::roster::{Driver, DriverRoster};
+use crate::schedule::Schedule;
 
 mod bindings;
 mod md_text_field;
@@ -21,13 +24,50 @@ mod event_bus;
 mod duration_serde;
 mod overview;
 mod roster;
+mod schedule;
 
 #[derive(Switch,Clone,Eq,PartialEq)]
 enum AppRoutes {
+    #[to = "/schedule"]
+    Schedule,
     #[to = "/roster"]
     Roster,
     #[to = "/"]
     Overview,
+}
+
+impl AppRoutes {
+    fn render_tab(&self, is_active: bool) -> Html {
+        let icon = match self {
+            AppRoutes::Schedule => "schedule",
+            AppRoutes::Roster => "list",
+            AppRoutes::Overview => "home"
+        };
+        
+        html! {
+            <RouterButton<AppRoutes> route=self.clone()
+                classes={classes!["mdc-tab", is_active.as_some("mdc-tab--active")].to_string()}>
+                <span class="mdc-tab__content">
+                    <span class="mdc-tab__icon material-icons" aria-hidden="true">{ icon }</span>
+                    <span class="mdc-tab__text-label">{ format!("{}", self) }</span>
+                </span>
+                <span class={classes!["mdc-tab-indicator",is_active.as_some("mdc-tab-indicator--active")]}>
+                    <span class="mdc-tab-indicator__content mdc-tab-indicator__content--underline"></span>
+                </span>
+                <span class="mdc-tab__ripple"></span>
+            </RouterButton<AppRoutes>> 
+        }
+    }
+}
+
+impl Display for AppRoutes {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            AppRoutes::Schedule => write!(f, "Schedule"),
+            AppRoutes::Roster => write!(f, "Roster"),
+            AppRoutes::Overview => write!(f, "Overview"),
+        }
+    }
 }
 
 enum AppMsg {
@@ -72,7 +112,7 @@ impl Component for App {
         false
     }
 
-    fn view(&self) -> Html {        
+    fn view(&self) -> Html {
         html! {
             <>
                 <Router<AppRoutes> render=Router::render(Self::switch) />
@@ -80,29 +120,10 @@ impl Component for App {
                     <div class="mdc-tab-bar" role="tablist">
                         <div class="mdc-tab-scroller">
                             <div class="mdc-tab-scroller__scroll-area">
-                              <div class="mdc-tab-scroller__scroll-content">
-                                <RouterButton<AppRoutes> route=AppRoutes::Overview 
-                                                         classes={classes!["mdc-tab", self.is_active_tab(AppRoutes::Overview).as_some("mdc-tab--active")].to_string()}>
-                                  <span class="mdc-tab__content">
-                                    <span class="mdc-tab__icon material-icons" aria-hidden="true">{ "home" }</span>
-                                    <span class="mdc-tab__text-label">{ "Overview" }</span>
-                                  </span>
-                                  <span class={classes!["mdc-tab-indicator",self.is_active_tab(AppRoutes::Overview).as_some("mdc-tab-indicator--active")]}>
-                                    <span class="mdc-tab-indicator__content mdc-tab-indicator__content--underline"></span>
-                                  </span>
-                                  <span class="mdc-tab__ripple"></span>
-                                </RouterButton<AppRoutes>>
-                                <RouterButton<AppRoutes> route=AppRoutes::Roster 
-                                                         classes={classes!["mdc-tab", self.is_active_tab(AppRoutes::Roster).as_some("mdc-tab--active")].to_string()}>
-                                  <span class="mdc-tab__content">
-                                    <span class="mdc-tab__icon material-icons" aria-hidden="true">{ "list" }</span>
-                                    <span class="mdc-tab__text-label">{ "Roster" }</span>
-                                  </span>
-                                  <span class={classes!["mdc-tab-indicator",self.is_active_tab(AppRoutes::Roster).as_some("mdc-tab-indicator--active")]}>
-                                    <span class="mdc-tab-indicator__content mdc-tab-indicator__content--underline"></span>
-                                  </span>
-                                  <span class="mdc-tab__ripple"></span>
-                                </RouterButton<AppRoutes>>
+                              <div class="mdc-tab-scroller__scroll-content">                                
+                                { AppRoutes::Overview.render_tab(self.is_active_tab(AppRoutes::Overview)) }
+                                { AppRoutes::Schedule.render_tab(self.is_active_tab(AppRoutes::Schedule)) }                                
+                                { AppRoutes::Roster.render_tab(self.is_active_tab(AppRoutes::Roster)) }
                               </div>
                             </div>
                         </div>
@@ -134,6 +155,11 @@ impl App {
                     <Overview />
                 }
             }
+            AppRoutes::Schedule => {
+                return html! {
+                    <Schedule />
+                }
+            }
         }
     }
     
@@ -142,15 +168,16 @@ impl App {
     }
 }
 
-struct FuelStintAverageTimes {
-    standard_fuel_stint: StintData,
-    fuel_saving_stint: StintData
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct FuelStintAverageTimes {
+    pub standard_fuel_stint: StintData,
+    pub fuel_saving_stint: StintData
 }
 
 struct RacePlanner {
-    overall_event_config: EventConfigData,
+    overall_event_config: Option<EventConfigData>,
     overall_fuel_stint_config: OverallFuelStintConfigData,
-    fuel_stint_average_times: FuelStintAverageTimes,
+    fuel_stint_average_times: Option<FuelStintAverageTimes>,
     time_of_day_lap_factors: Vec<TimeOfDayLapFactor>,
     per_driver_lap_factors: Vec<DriverLapFactor>,
     driver_roster: Vec<Driver>
@@ -159,12 +186,9 @@ struct RacePlanner {
 impl RacePlanner {
     fn new() -> Self {
         Self {
-            overall_event_config: EventConfigData::new(),
+            overall_event_config: None,
             overall_fuel_stint_config: OverallFuelStintConfigData::new(),
-            fuel_stint_average_times: FuelStintAverageTimes {
-                standard_fuel_stint: StintData::new(),
-                fuel_saving_stint: StintData::new()
-            },
+            fuel_stint_average_times: None,
             time_of_day_lap_factors: vec![],
             per_driver_lap_factors: vec![],
             driver_roster: vec![]

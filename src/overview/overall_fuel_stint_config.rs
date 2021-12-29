@@ -5,15 +5,15 @@ use crate::md_text_field::{MaterialTextFieldProps, MaterialTextField};
 use crate::{format_duration, parse_duration_from_str, DurationFormat};
 use yew::services::ConsoleService;
 use yew::{ web_sys::HtmlInputElement, NodeRef};
-use crate::event_bus::{EventBus, EventBusInput};
-use yew::agent::{Dispatcher, Dispatched};
+use crate::event_bus::{EventBus, EventBusInput, EventBusOutput};
 use serde::{Serialize, Deserialize};
 
 pub enum OverallFuelStintMessage {
     UpdatePitDuration(String),
     UpdateFuelTankSize(String),
     UpdateTireChangeTime(String),
-    UpdateAddTireTire(bool)
+    UpdateAddTireTire(bool),
+    OnCreate(OverallFuelStintConfigData),
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -29,10 +29,10 @@ pub struct OverallFuelStintConfigData {
 impl OverallFuelStintConfigData {
     pub fn new() -> Self {
         Self {
-            pit_duration: Duration::zero(),
-            fuel_tank_size: 0,
-            tire_change_time: Duration::zero(),
-            add_tire_time: false
+            pit_duration: Duration::seconds(57),
+            fuel_tank_size: 99,
+            tire_change_time: Duration::seconds(27),
+            add_tire_time: true
         }
     }
 }
@@ -52,7 +52,7 @@ pub struct OverallFuelStintConfig {
     link: ComponentLink<Self>,
     data: OverallFuelStintConfigData,
     add_tire_time_input_ref: NodeRef,
-    event_bus: Dispatcher<EventBus>
+    event_bus: Box<dyn Bridge<EventBus>>
 }
 
 impl Component for OverallFuelStintConfig {
@@ -60,11 +60,20 @@ impl Component for OverallFuelStintConfig {
     type Properties = ();
 
     fn create(_props: Self::Properties, link: ComponentLink<Self>) -> Self {
+        let mut event_bus = EventBus::bridge(link.batch_callback(|message| {
+            match message {
+                EventBusOutput::SendOverallFuelStintConfig(config) => {
+                    Some(OverallFuelStintMessage::OnCreate(config))
+                }
+                _ => None
+            }
+        }));
+        event_bus.send(EventBusInput::GetOverallFuelStintConfig);
         Self {
             link,
             data: OverallFuelStintConfigData::new(),
             add_tire_time_input_ref: NodeRef::default(),
-            event_bus: EventBus::dispatcher()
+            event_bus
         }
     }
 
@@ -108,6 +117,10 @@ impl Component for OverallFuelStintConfig {
             }
             OverallFuelStintMessage::UpdateAddTireTire(value) => {
                 self.data.add_tire_time = value;
+            }
+            OverallFuelStintMessage::OnCreate(data) => {
+                self.data = data;
+                should_render = true;
             }
         };
         self.event_bus.send(EventBusInput::OverallFuelStintConfig(self.data.clone()));
