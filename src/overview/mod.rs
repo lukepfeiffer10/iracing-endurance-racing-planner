@@ -1,4 +1,5 @@
 ﻿use yew::{Component, ComponentLink, Html, html, ShouldRender};
+use yew::services::ConsoleService;
 use self::overall_event_config::EventConfig;
 use self::overall_fuel_stint_config::OverallFuelStintConfig;
 use self::fuel_stint_times::FuelStintTimes;
@@ -18,8 +19,7 @@ impl Component for Overview {
     type Properties = ();
 
     fn create(_props: Self::Properties, _link: ComponentLink<Self>) -> Self {
-        Self {
-        }
+        Self {}
     }
 
     fn update(&mut self, _msg: Self::Message) -> ShouldRender {

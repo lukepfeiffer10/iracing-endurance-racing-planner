@@ -123,6 +123,7 @@ dependencies = [
  "serde",
  "wasm-bindgen",
  "yew",
+ "yew-mdc",
  "yew-router",
  "yewtil",
 ]
@@ -588,6 +589,22 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn",
+]
+
+[[package]]
+name = "yew-mdc"
+version = "0.1.0"
+source = "git+https://github.com/lukepfeiffer10/yew-mdc.git#d00b1b1017e78768ba0119a7196c9ddbe09e9a8f"
+dependencies = [
+ "boolinator",
+ "cfg-if 0.1.10",
+ "js-sys",
+ "lazy_static",
+ "serde",
+ "serde_json",
+ "wasm-bindgen",
+ "web-sys",
+ "yew",
 ]
 
 [[package]]

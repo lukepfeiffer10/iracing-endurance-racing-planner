@@ -30,11 +30,3 @@ export function enableIconButton(querySelector) {
         iconButtonRipple.unbounded = true;
     }
 }
-
-export function enableSelects(querySelector) {
-    let elements = document.querySelectorAll(querySelector);
-    for (let i = 0; i < elements.length; i++) {
-        let element = elements[i];
-        new mdc.select.MDCSelect(element);
-    }
-}

@@ -3,6 +3,11 @@ name = "endurance-racing-planner"
 version = "0.1.0"
 edition = "2018"
 
+[lib]
+crate-type = ['cdylib']
+
+[profile.release]
+lto = true
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies.yew]
@@ -13,6 +18,9 @@ version = "0.15.0"
 
 [dependencies.yewtil]
 version = "0.4.0"
+
+[dependencies.yew-mdc]
+git = "https://github.com/lukepfeiffer10/yew-mdc.git"
 
 [dependencies.chrono]
 version = "0.4.19"

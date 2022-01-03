@@ -7,6 +7,7 @@ use yew_router::{Switch};
 use yew_router::agent::RouteRequest;
 use yew_router::prelude::*;
 use serde::{Serialize, Deserialize};
+use wasm_bindgen::prelude::*;
 use crate::bindings::enable_tab_bar;
 use crate::event_bus::EventBus;
 use crate::overview::fuel_stint_times::{StintData};
@@ -291,7 +292,8 @@ fn parse_duration_from_str(str: &str, format: DurationFormat) -> Result<Duration
     duration.ok_or("the duration could not be parsed")
 }
 
-fn main() {
+#[wasm_bindgen(start)]
+pub fn main() {
     yew::start_app::<App>();
 }
 
