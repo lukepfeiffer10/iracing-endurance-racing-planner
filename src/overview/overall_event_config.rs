@@ -33,9 +33,9 @@ impl EventConfigData {
         //let utc_now = Utc::now();
         Self {
             race_duration: Duration::hours(10),
-            session_start_utc: DateTime::from_utc(NaiveDate::from_ymd(2021, 10, 12).and_hms(12, 0, 0), Utc),
-            race_start_utc: DateTime::from_utc(NaiveDate::from_ymd(2021, 10, 12).and_hms(12, 43, 0), Utc),
-            race_end_utc: DateTime::from_utc(NaiveDate::from_ymd(2021, 10, 12).and_hms(22, 43, 0), Utc),
+            session_start_utc: DateTime::from_utc(NaiveDate::from_ymd(2021, 10, 02).and_hms(12, 0, 0), Utc),
+            race_start_utc: DateTime::from_utc(NaiveDate::from_ymd(2021, 10, 02).and_hms(12, 43, 0), Utc),
+            race_end_utc: DateTime::from_utc(NaiveDate::from_ymd(2021, 10, 02).and_hms(22, 43, 0), Utc),
             race_start_tod: NaiveDate::from_ymd(2021, 11, 13).and_hms(11, 30, 0),
             race_end_tod: NaiveDate::from_ymd(2021, 11, 13).and_hms(21, 30, 0),
             green_flag_offset: Duration::minutes(43),

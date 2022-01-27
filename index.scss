@@ -1,5 +1,24 @@
 ﻿@import "variables";
 
+html, body, .wrapper {
+  height: 100%;
+  margin: 0;
+}
+
+.content {
+  flex-grow: 1;
+  flex-shrink: 1;
+  flex-basis: auto;
+  overflow: auto;
+  padding: $gutter;
+}
+
+footer {
+  flex-grow: 0;
+  flex-shrink: 1;
+  flex-basis: 48px;
+}
+
 .flex-container {
   display: flex;
   
@@ -79,13 +98,6 @@
 .mdc-checkbox .mdc-checkbox__native-control:enabled:checked ~ .mdc-checkbox__background {
   background-color: var(--mdc-theme-primary);
   border-color: var(--mdc-theme-primary);
-}
-
-footer {
-  position: absolute;
-  right: 0;
-  bottom: 0;
-  left: 0;
 }
 
 @import "src/schedule/schedule";

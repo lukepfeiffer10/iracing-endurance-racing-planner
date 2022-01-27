@@ -17,6 +17,7 @@ use crate::overview::Overview;
 use crate::overview::per_driver_lap_factors::DriverLapFactor;
 use crate::overview::time_of_day_lap_factors::TimeOfDayLapFactor;
 use crate::roster::{Driver, DriverRoster};
+use crate::schedule::fuel_stint_schedule::ScheduleDataRow;
 use crate::schedule::Schedule;
 
 mod bindings;
@@ -115,8 +116,10 @@ impl Component for App {
 
     fn view(&self) -> Html {
         html! {
-            <>
-                <Router<AppRoutes> render=Router::render(Self::switch) />
+            <div class="wrapper flex-container flex-column">
+                <div class="content">
+                    <Router<AppRoutes> render=Router::render(Self::switch) />
+                </div>
                 <footer>
                     <div class="mdc-tab-bar" role="tablist">
                         <div class="mdc-tab-scroller">
@@ -130,7 +133,7 @@ impl Component for App {
                         </div>
                     </div>
                 </footer>
-            </>
+            </div>
         }
     }
 
@@ -181,7 +184,8 @@ struct RacePlanner {
     fuel_stint_average_times: Option<FuelStintAverageTimes>,
     time_of_day_lap_factors: Vec<TimeOfDayLapFactor>,
     per_driver_lap_factors: Vec<DriverLapFactor>,
-    driver_roster: Vec<Driver>
+    driver_roster: Vec<Driver>,
+    schedule_rows: Option<Vec<ScheduleDataRow>>
 }
 
 impl RacePlanner {
@@ -192,7 +196,8 @@ impl RacePlanner {
             fuel_stint_average_times: None,
             time_of_day_lap_factors: vec![],
             per_driver_lap_factors: vec![],
-            driver_roster: vec![]
+            driver_roster: vec![],
+            schedule_rows: None
         }
     }
 }
@@ -206,7 +211,14 @@ pub enum DurationFormat {
 
 pub fn format_duration(duration: Duration, format: DurationFormat) -> String {
     match format {
-        DurationFormat::HourMinSec => format!("{:02}:{:02}:{:02}", duration.num_hours(), duration.num_minutes() % 60, duration.num_seconds() % 60),
+        DurationFormat::HourMinSec => {
+            let prefix = if duration.num_milliseconds().is_negative() {
+                "-"
+            } else {
+                ""
+            };
+            format!("{}{:02}:{:02}:{:02}", prefix, duration.num_hours().abs(), duration.num_minutes().abs() % 60, duration.num_seconds().abs() % 60)
+        },
         DurationFormat::MinSecMilli => {
             let prefix = if duration.num_milliseconds().is_negative() {
                 "-"

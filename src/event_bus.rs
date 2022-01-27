@@ -3,7 +3,7 @@ use std::collections::HashSet;
 use yew::services::ConsoleService;
 use yew::worker::*;
 use crate::overview::{overall_fuel_stint_config::OverallFuelStintConfigData, fuel_stint_times::StandardLapTime};
-use crate::schedule::fuel_stint_schedule::ScheduleRelatedData;
+use crate::schedule::fuel_stint_schedule::{ScheduleDataRow, ScheduleRelatedData};
 use crate::{Driver, EventConfigData, FuelStintAverageTimes, RacePlanner};
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -17,7 +17,8 @@ pub enum EventBusInput {
     PutOverallEventConfig(EventConfigData),
     GetFuelStintAverageTimes,
     PutFuelStintAverageTimes(FuelStintAverageTimes),
-    GetScheduleRelatedData,
+    GetScheduleAndRelatedData,
+    PutSchedule(Vec<ScheduleDataRow>)
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -28,7 +29,7 @@ pub enum EventBusOutput {
     SendDriverRoster(Vec<Driver>),
     SendOverallEventConfig(Option<EventConfigData>),
     SendFuelStintAverageTimes(Option<FuelStintAverageTimes>),
-    SendScheduleRelatedData(ScheduleRelatedData)
+    SendScheduleAndRelatedData(Option<Vec<ScheduleDataRow>>, ScheduleRelatedData)
 }
 
 pub struct EventBus {
@@ -99,7 +100,7 @@ impl Agent for EventBus {
             EventBusInput::PutFuelStintAverageTimes(data) => {
                 self.race_planner_data.fuel_stint_average_times = Some(data);
             }
-            EventBusInput::GetScheduleRelatedData => {
+            EventBusInput::GetScheduleAndRelatedData => {
                 for sub in self.subscribers.iter() {
                     let data = ScheduleRelatedData {
                         overall_event_config: self.race_planner_data.overall_event_config.clone(),
@@ -107,8 +108,11 @@ impl Agent for EventBus {
                         overall_fuel_stint_config: self.race_planner_data.overall_fuel_stint_config.clone(),
                         drivers: self.race_planner_data.driver_roster.clone()
                     };
-                    self.link.respond(*sub, EventBusOutput::SendScheduleRelatedData(data));
+                    self.link.respond(*sub, EventBusOutput::SendScheduleAndRelatedData(self.race_planner_data.schedule_rows.clone(), data));
                 }
+            }
+            EventBusInput::PutSchedule(data) => {
+                self.race_planner_data.schedule_rows = Some(data);
             }
         }
     }
