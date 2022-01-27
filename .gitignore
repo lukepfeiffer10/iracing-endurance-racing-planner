@@ -1,5 +1,5 @@
-/target
+target/
 .idea/
-/dist
-/node_modules/
+dist/
+node_modules/
 pkg/
