@@ -136,6 +136,19 @@ pub struct DriverRoster {
     producer: Box<dyn Bridge<EventBus>>,
 }
 
+impl DriverRoster {
+    /// Calculate the average iRating of all drivers in the roster
+    /// 
+    /// If there are no drivers, returns 0.
+    fn avg_ir(&self) -> i32 {
+        if self.drivers.len() > 0 {
+            self.drivers.iter().map(|d| d.irating).sum::<i32>() / (self.drivers.len() as i32)
+        } else {
+            0
+        }
+    }
+}
+
 impl Component for DriverRoster {
     type Message = DriverRosterMsg;
     type Properties = ();
@@ -181,7 +194,8 @@ impl Component for DriverRoster {
             DriverRosterMsg::UpdateDriverIrating(irating, index) => {
                 let driver_to_update = &mut self.drivers[index];
                 driver_to_update.irating = irating;
-                false
+                // Need to update the average iRating
+                true
             }
             DriverRosterMsg::UpdateDriverStintPreference(stint_preference, index) => {
                 let driver_to_update = &mut self.drivers[index];
@@ -200,6 +214,12 @@ impl Component for DriverRoster {
     }
 
     fn view(&self) -> Html {
+        let avg_ir_props = props!(MaterialTextFieldProps {
+            value: self.avg_ir().to_string(),
+            label: None,
+            id: "avg-ir".to_string(),
+        });
+
         html! {
             <div class="mdc-card">
                 <div class="mdc-card-wrapper__text-section">
@@ -240,6 +260,10 @@ impl Component for DriverRoster {
                         {"add"}
                     </button>
                 </div>
+                <div class="mdc-card-wrapper__text-section">
+                    <div class="card-title">{ "Average iRating" }</div>
+                </div>
+                <MaterialTextField with avg_ir_props />
             </div>
         }
     }
