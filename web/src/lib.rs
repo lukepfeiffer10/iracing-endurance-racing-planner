@@ -19,6 +19,7 @@ use crate::overview::time_of_day_lap_factors::TimeOfDayLapFactor;
 use crate::roster::{Driver, DriverRoster};
 use crate::schedule::fuel_stint_schedule::ScheduleDataRow;
 use crate::schedule::Schedule;
+use crate::landing::Landing;
 
 mod bindings;
 mod md_text_field;
@@ -27,6 +28,7 @@ mod duration_serde;
 mod overview;
 mod roster;
 mod schedule;
+mod landing;
 
 #[derive(Switch,Clone,Eq,PartialEq)]
 enum AppRoutes {
@@ -34,8 +36,10 @@ enum AppRoutes {
     Schedule,
     #[to = "/roster"]
     Roster,
-    #[to = "/"]
+    #[to = "/overview"]
     Overview,
+    #[to = "/"]
+    Landing,
 }
 
 impl AppRoutes {
@@ -43,7 +47,8 @@ impl AppRoutes {
         let icon = match self {
             AppRoutes::Schedule => "schedule",
             AppRoutes::Roster => "list",
-            AppRoutes::Overview => "home"
+            AppRoutes::Overview => "home",
+            _ => "N/A"
         };
         
         html! {
@@ -68,6 +73,7 @@ impl Display for AppRoutes {
             AppRoutes::Schedule => write!(f, "Schedule"),
             AppRoutes::Roster => write!(f, "Roster"),
             AppRoutes::Overview => write!(f, "Overview"),
+            AppRoutes::Landing => write!(f, "Landing"),
         }
     }
 }
@@ -162,6 +168,11 @@ impl App {
             AppRoutes::Schedule => {
                 return html! {
                     <Schedule />
+                }
+            }
+            AppRoutes::Landing => {
+                return html! {
+                    <Landing />
                 }
             }
         }
