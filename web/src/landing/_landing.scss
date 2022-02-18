@@ -1,0 +1,26 @@
+﻿#login-content {
+  height: 100%;
+  align-items: center;
+  justify-content: center;
+    
+  img {
+    cursor: pointer;
+    align-self: center;
+  }
+}
+
+#login-card {
+  width: 250px;
+  padding: $gutter;
+}
+
+#profile-picture {
+  background-size: 32px 32px;
+  border: 0;
+  -moz-border-radius: 50%;
+  border-radius: 50%;
+  display: block;
+  margin: 0px;
+  height: 32px;
+  width: 32px;
+}
