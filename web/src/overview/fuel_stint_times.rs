@@ -1,12 +1,13 @@
 ﻿use yew::prelude::*;
 use yew::props;
 use chrono::Duration;
-use crate::{format_duration, parse_duration_from_str, DurationFormat, FuelStintAverageTimes};
+use crate::planner::{format_duration, parse_duration_from_str, DurationFormat, FuelStintAverageTimes};
 use crate::md_text_field::{MaterialTextField, MaterialTextFieldProps};
-use yew::services::ConsoleService;
+use gloo_console::error;
 use crate::event_bus::{EventBus, EventBusOutput, EventBusInput};
 use serde::{Serialize, Deserialize};
 use crate::overview::overall_fuel_stint_config::OverallFuelStintConfigData;
+use yew_agent::{Bridge, Bridged};
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct StandardLapTime {
@@ -101,7 +102,6 @@ pub enum FuelStintTimesMsg {
 }
 
 pub struct FuelStintTimes {
-    link: ComponentLink<Self>,
     standard_fuel_stint: StintData,
     fuel_saving_stint: StintData,
     fuel_tank_size: i32,
@@ -113,8 +113,8 @@ impl Component for FuelStintTimes {
     type Message = FuelStintTimesMsg;
     type Properties = ();
 
-    fn create(_props: Self::Properties, link: ComponentLink<Self>) -> Self {
-        let mut event_bus_bridge = EventBus::bridge(link.batch_callback(|message| {
+    fn create(ctx: &Context<Self>) -> Self {
+        let mut event_bus_bridge = EventBus::bridge(ctx.link().batch_callback(|message| {
             match message {
                 EventBusOutput::OverallFuelStintConfig(data) => {
                     Some(FuelStintTimesMsg::UpdateFuelConfig(data))
@@ -128,7 +128,6 @@ impl Component for FuelStintTimes {
         event_bus_bridge.send(EventBusInput::GetFuelStintAverageTimes);
         Self {
             _producer: event_bus_bridge,
-            link,
             standard_fuel_stint: StintData::new(),
             fuel_saving_stint: StintData::new(),
             fuel_tank_size: 0,
@@ -136,8 +135,8 @@ impl Component for FuelStintTimes {
         }
     }
 
-    fn update(&mut self, msg: Self::Message) -> ShouldRender {
-        match msg { 
+    fn update(&mut self, _ctx: &Context<Self>, msg: Self::Message) -> bool {
+        match msg {
             FuelStintTimesMsg::UpdateLapTime(value, stint_type) => {
                 let parsed_lap_time = parse_duration_from_str(value.as_str(), DurationFormat::MinSecMilli);
                 match parsed_lap_time.map(|parsed_lap_time| {
@@ -155,7 +154,7 @@ impl Component for FuelStintTimes {
                 }) {
                     Ok(_) => true,
                     Err(message) => {
-                        ConsoleService::error(format!("{:?} stint lap time parse failed: {}", stint_type, message).as_str());
+                        error!(format!("{:?} stint lap time parse failed: {}", stint_type, message).as_str());
                         false
                     }
                 }
@@ -170,7 +169,7 @@ impl Component for FuelStintTimes {
                 }) {
                     Ok(_) => true,
                     Err(message) => {
-                        ConsoleService::error(format!("{:?} stint fuel per lap parse failed: {}", stint_type, message).as_str());
+                        error!(format!("{:?} stint fuel per lap parse failed: {}", stint_type, message).as_str());
                         false
                     }
                 }
@@ -190,29 +189,30 @@ impl Component for FuelStintTimes {
         }
     }
 
-    fn change(&mut self, _props: Self::Properties) -> ShouldRender {
+    fn changed(&mut self, _ctx: &Context<Self>) -> bool {
         false
     }
 
-    fn view(&self) -> Html {
-        let standard_fuel_lap_time_props = props!(MaterialTextFieldProps {
+    fn view(&self, ctx: &Context<Self>) -> Html {
+        let link = ctx.link();
+        let standard_fuel_lap_time_props = props!{MaterialTextFieldProps {
             value: format_duration(self.standard_fuel_stint.lap_time, DurationFormat::MinSecMilli),
-            on_change: self.link.callback(|value| FuelStintTimesMsg::UpdateLapTime(value, StintType::Standard))
-        });
-        let standard_fuel_per_lap_props = props!(MaterialTextFieldProps {
+            on_change: link.callback(|value| FuelStintTimesMsg::UpdateLapTime(value, StintType::Standard))
+        }};
+        let standard_fuel_per_lap_props = props!{MaterialTextFieldProps {
             value: format_fuel_as_string(self.standard_fuel_stint.fuel_per_lap),
-            on_change: self.link.callback(|value| FuelStintTimesMsg::UpdateFuelPerLap(value, StintType::Standard)),
+            on_change: link.callback(|value| FuelStintTimesMsg::UpdateFuelPerLap(value, StintType::Standard)),
             end_aligned: true
-        });
-        let fuel_saving_lap_time_props = props!(MaterialTextFieldProps {
+        }};
+        let fuel_saving_lap_time_props = props!{MaterialTextFieldProps {
             value: format_duration(self.fuel_saving_stint.lap_time, DurationFormat::MinSecMilli),
-            on_change: self.link.callback(|value| FuelStintTimesMsg::UpdateLapTime(value, StintType::FuelSaving))
-        });
-        let fuel_saving_fuel_per_lap_props = props!(MaterialTextFieldProps {
+            on_change: link.callback(|value| FuelStintTimesMsg::UpdateLapTime(value, StintType::FuelSaving))
+        }};
+        let fuel_saving_fuel_per_lap_props = props!{MaterialTextFieldProps {
             value: format_fuel_as_string(self.fuel_saving_stint.fuel_per_lap),
-            on_change: self.link.callback(|value| FuelStintTimesMsg::UpdateFuelPerLap(value, StintType::FuelSaving)),
+            on_change: link.callback(|value| FuelStintTimesMsg::UpdateFuelPerLap(value, StintType::FuelSaving)),
             end_aligned: true
-        });
+        }};
         
         html! {            
             <div id="fuel-stint-times" class="mdc-card">
@@ -238,10 +238,10 @@ impl Component for FuelStintTimes {
                         <tr class="mdc-data-table__row">
                           <th class="mdc-data-table__cell" scope="row">{ "Standard Fuel Stint" }</th>
                           <td class="mdc-data-table__cell">
-                            <MaterialTextField with standard_fuel_lap_time_props />
+                            <MaterialTextField ..standard_fuel_lap_time_props />
                           </td>
                           <td class="mdc-data-table__cell mdc-data-table__cell--numeric">
-                            <MaterialTextField with standard_fuel_per_lap_props />
+                            <MaterialTextField ..standard_fuel_per_lap_props />
                           </td>
                           <td class="mdc-data-table__cell mdc-data-table__cell--numeric">{ self.standard_fuel_stint.lap_count }</td>
                           <td class="mdc-data-table__cell">{ format_duration(self.standard_fuel_stint.lap_time_with_pit, DurationFormat::MinSecMilli) }</td>
@@ -252,10 +252,10 @@ impl Component for FuelStintTimes {
                         <tr class="mdc-data-table__row">
                           <th class="mdc-data-table__cell" scope="row">{ "Fuel Saving Stint" }</th>
                           <td class="mdc-data-table__cell">
-                            <MaterialTextField with fuel_saving_lap_time_props />
+                            <MaterialTextField ..fuel_saving_lap_time_props />
                           </td>
                           <td class="mdc-data-table__cell mdc-data-table__cell--numeric">
-                            <MaterialTextField with fuel_saving_fuel_per_lap_props />
+                            <MaterialTextField ..fuel_saving_fuel_per_lap_props />
                           </td>
                           <td class="mdc-data-table__cell mdc-data-table__cell--numeric">{ self.fuel_saving_stint.lap_count }</td>
                           <td class="mdc-data-table__cell">{ format_duration(self.fuel_saving_stint.lap_time_with_pit, DurationFormat::MinSecMilli) }</td>
@@ -271,7 +271,7 @@ impl Component for FuelStintTimes {
         }
     }
 
-    fn destroy(&mut self) {
+    fn destroy(&mut self, _ctx: &Context<Self>) {
         self._producer.send(EventBusInput::PutFuelStintAverageTimes(FuelStintAverageTimes {
             fuel_saving_stint: self.fuel_saving_stint.clone(),
             standard_fuel_stint: self.standard_fuel_stint.clone()

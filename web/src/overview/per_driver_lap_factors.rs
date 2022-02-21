@@ -1,7 +1,9 @@
 ﻿use chrono::Duration;
-use yew::{ComponentLink, Component, ShouldRender, Html, html, props, Bridged, Bridge};
-use yew::services::ConsoleService;
-use crate::{md_text_field::{MaterialTextField, MaterialTextFieldProps}, format_duration, DurationFormat, AppRoutes, EventBus, Driver, parse_duration_from_str};
+use yew::{Context, Component, Html, html, props};
+use gloo_console::error;
+use yew::html::Scope;
+use yew_agent::{Bridge,Bridged};
+use crate::{md_text_field::{MaterialTextField, MaterialTextFieldProps}, planner::{format_duration, DurationFormat, PlannerRoutes, parse_duration_from_str}, event_bus::EventBus, roster::Driver};
 use yew_router::prelude::*;
 use crate::event_bus::{EventBusInput, EventBusOutput};
 
@@ -19,7 +21,6 @@ impl DriverLapFactor {
 }
 
 pub struct PerDriverLapFactors {
-    link: ComponentLink<Self>,
     factors: Vec<DriverLapFactor>,
     standard_lap_time: Duration,
     _producer: Box<dyn Bridge<EventBus>>,
@@ -35,8 +36,8 @@ impl Component for PerDriverLapFactors {
     type Message = PerDriverLapFactorsMsg;
     type Properties = ();
 
-    fn create(_props: Self::Properties, link: ComponentLink<Self>) -> Self {
-        let mut event_bus_bridge = EventBus::bridge(link.batch_callback(|message| {
+    fn create(ctx: &Context<Self>) -> Self {
+        let mut event_bus_bridge = EventBus::bridge(ctx.link().batch_callback(|message| {
             match message {
                 EventBusOutput::SendDriverRoster(drivers) => {
                     Some(PerDriverLapFactorsMsg::LoadDrivers(drivers))
@@ -49,14 +50,13 @@ impl Component for PerDriverLapFactors {
         }));
         event_bus_bridge.send(EventBusInput::GetDriverRoster);
         Self {
-            link,
             factors: vec![],
             standard_lap_time: Duration::zero(),
             _producer: event_bus_bridge
         }
     }
 
-    fn update(&mut self, msg: Self::Message) -> ShouldRender {
+    fn update(&mut self, _ctx: &Context<Self>, msg: Self::Message) -> bool {
         match msg {
             PerDriverLapFactorsMsg::LoadDrivers(drivers) => {
                 self.factors = drivers
@@ -80,7 +80,7 @@ impl Component for PerDriverLapFactors {
                         true
                     },
                     Err(message) => {
-                        ConsoleService::error(format!("{} driver's lap factor lap time parse failed: {}", driver.driver_name, message).as_str());
+                        error!(format!("{} driver's lap factor lap time parse failed: {}", driver.driver_name, message).as_str());
                         false
                     }
                 }
@@ -95,20 +95,21 @@ impl Component for PerDriverLapFactors {
         }
     }
 
-    fn change(&mut self, _props: Self::Properties) -> ShouldRender {
+    fn changed(&mut self, _ctx: &Context<Self>) -> bool {
         false
     }
 
-    fn view(&self) -> Html {
+    fn view(&self, ctx: &Context<Self>) -> Html {
+        let link = ctx.link();
         html! {
             <div id="driver-lap-factors" class="mdc-card">
                 <div class="mdc-card-wrapper__text-section">
                     <div class="card-title">{ "Per Driver Lap Factors" }</div>
                 </div>
                 {
-                    if self.factors.len() == 0 {
+                    if self.factors.is_empty() {
                         html!{
-                            <p>{ "Add drivers on the "}<RouterAnchor<AppRoutes> route=AppRoutes::Roster>{"Roster"}</RouterAnchor<AppRoutes>>{" page"}</p>
+                            <p>{ "Add drivers on the "}<Link<PlannerRoutes> to={PlannerRoutes::Roster}>{"Roster"}</Link<PlannerRoutes>>{" page"}</p>
                         }
                     } else {
                         html!{                           
@@ -127,7 +128,7 @@ impl Component for PerDriverLapFactors {
                                         self.factors
                                             .iter()
                                             .enumerate()
-                                            .map(|(index,f)| render_driver_lap_factor(f, &self.link, index))
+                                            .map(|(index,f)| render_driver_lap_factor(f, link, index))
                                             .collect::<Vec<_>>()
                                     }
                                   </tbody>
@@ -142,20 +143,19 @@ impl Component for PerDriverLapFactors {
     }
 }
 
-fn render_driver_lap_factor(factor: &DriverLapFactor, link: &ComponentLink<PerDriverLapFactors>, index: usize) -> Html { 
-    let lap_time_props = props!(MaterialTextFieldProps {
+fn render_driver_lap_factor(factor: &DriverLapFactor, link: &Scope<PerDriverLapFactors>, index: usize) -> Html { 
+    let lap_time_props = props!{MaterialTextFieldProps {
         value: format_duration(factor.lap_time, DurationFormat::MinSecMilli),
-        label: None,
         on_change: link.callback(move |value| PerDriverLapFactorsMsg::UpdateDriverLapTime(value, index)),
         end_aligned: true,
-    });
+    }};
     html! {
         <tr class="mdc-data-table__row">
           <td class="mdc-data-table__cell" style={ format!("background-color: {}", factor.driver_color.clone()) }>
             <span>{ factor.driver_name.clone() }</span> 
           </td>
           <td class="mdc-data-table__cell">
-            <MaterialTextField with lap_time_props />
+            <MaterialTextField ..lap_time_props />
           </td>
           <td class="mdc-data-table__cell mdc-data-table__cell--numeric">{ format!("{:.2}", factor.factor) }</td>
         </tr>

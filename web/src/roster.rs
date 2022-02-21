@@ -1,5 +1,6 @@
 ﻿use yew::prelude::*;
-use yew::{Component, ComponentLink, Html, ShouldRender, props};
+use yew::{Component, Context, Html, props, html::{Scope}};
+use yew_agent::{Bridge, Bridged};
 use serde::{Serialize, Deserialize};
 use crate::bindings;
 use crate::event_bus::{EventBus, EventBusInput, EventBusOutput};
@@ -29,17 +30,15 @@ impl Driver {
         }
     }
     
-    fn get_view(&self, link: &ComponentLink<DriverRoster>, index: usize) -> Html {
-        let name_props = props!(MaterialTextFieldProps {
+    fn get_view(&self, link: &Scope<DriverRoster>, index: usize) -> Html {
+        let name_props = props!{MaterialTextFieldProps {
             value: self.name.clone(),
-            label: None,
             on_change: link.callback(move |value| {
                 DriverRosterMsg::UpdateDriverName(value, index)
             })
-        });        
-        let color_props = props!(MaterialTextFieldProps {
+        }};        
+        let color_props = props!{MaterialTextFieldProps {
             value: self.color.clone(),
-            label: None,
             on_change: link.callback(move |value| {
                 DriverRosterMsg::UpdateDriverColor(value, index)
             }),            
@@ -49,39 +48,36 @@ impl Driver {
                 on_click: None,
                 background_color: Some(self.color.clone()),
             }
-        });
-        let utc_offset_props = props!(MaterialTextFieldProps {
+        }};
+        let utc_offset_props = props!{MaterialTextFieldProps {
             value: self.utc_offset.to_string(),
-            label: None,
             end_aligned: true,
             on_change: link.callback(move |value: String| {
                 let value = value.parse::<i32>().unwrap();
                 DriverRosterMsg::UpdateDriverUtcOffset(value, index)
             }),
-        });
-        let irating_props = props!(MaterialTextFieldProps {
+        }};
+        let irating_props = props!{MaterialTextFieldProps {
             value: self.irating.to_string(),
-            label: None,
             end_aligned: true,
             on_change: link.callback(move |value: String| {
                 let value = value.parse::<i32>().unwrap();
                 DriverRosterMsg::UpdateDriverIrating(value, index)
             }),
-        });
-        let stint_preference_props = props!(MaterialTextFieldProps {
+        }};
+        let stint_preference_props = props!{MaterialTextFieldProps {
             value: self.stint_preference.to_string(),
-            label: None,
             end_aligned: true,
             on_change: link.callback(move |value: String| {
                 let value = value.parse::<i32>().unwrap();
                 DriverRosterMsg::UpdateDriverStintPreference(value, index)
             }),
-        });
+        }};
         
         html! {
             <tr class="mdc-data-table__row">
               <td class="mdc-data-table__cell">
-                <MaterialTextField with name_props />
+                <MaterialTextField ..name_props />
               </td>
               <td class="mdc-data-table__cell mdc-data-table__cell--numeric">
                 { self.total_stints }
@@ -90,16 +86,16 @@ impl Driver {
                 { format!("{}", self.fair_share) }
               </td>
               <td class="mdc-data-table__cell">
-                <MaterialTextField with color_props />
+                <MaterialTextField ..color_props />
               </td>
               <td class="mdc-data-table__cell mdc-data-table__cell--numeric">
-                <MaterialTextField with utc_offset_props />
+                <MaterialTextField ..utc_offset_props />
               </td>
               <td class="mdc-data-table__cell mdc-data-table__cell--numeric">
-                <MaterialTextField with irating_props />
+                <MaterialTextField ..irating_props />
               </td>
               <td class="mdc-data-table__cell mdc-data-table__cell--numeric">
-                <MaterialTextField with stint_preference_props />
+                <MaterialTextField ..stint_preference_props />
               </td>
             </tr>
         }
@@ -131,7 +127,6 @@ pub enum DriverRosterMsg {
 }
 
 pub struct DriverRoster {
-    link: ComponentLink<Self>,
     drivers: Vec<Driver>,
     producer: Box<dyn Bridge<EventBus>>,
 }
@@ -140,8 +135,8 @@ impl Component for DriverRoster {
     type Message = DriverRosterMsg;
     type Properties = ();
 
-    fn create(_props: Self::Properties, link: ComponentLink<Self>) -> Self {
-        let mut event_bus_bridge = EventBus::bridge(link.batch_callback(|message| {
+    fn create(ctx: &Context<Self>) -> Self {
+        let mut event_bus_bridge = EventBus::bridge(ctx.link().batch_callback(|message| {
             match message {
                 EventBusOutput::SendDriverRoster(drivers) => {
                     Some(DriverRosterMsg::LoadDrivers(drivers))
@@ -151,13 +146,12 @@ impl Component for DriverRoster {
         }));
         event_bus_bridge.send(EventBusInput::GetDriverRoster);
         Self {
-            link,
             drivers: Vec::new(),
             producer: event_bus_bridge
         }
     }
 
-    fn update(&mut self, msg: Self::Message) -> ShouldRender {
+    fn update(&mut self, _ctx: &Context<Self>, msg: Self::Message) -> bool {
         match msg { 
             DriverRosterMsg::AddDriver => {
                 self.drivers.push(Driver::new());
@@ -195,11 +189,11 @@ impl Component for DriverRoster {
         }
     }
 
-    fn change(&mut self, _props: Self::Properties) -> ShouldRender {
-        false
+    fn changed(&mut self, _ctx: &Context<Self>) -> bool {
+        true
     }
 
-    fn view(&self) -> Html {
+    fn view(&self, ctx: &Context<Self>) -> Html {
         html! {
             <div class="mdc-card">
                 <div class="mdc-card-wrapper__text-section">
@@ -224,7 +218,7 @@ impl Component for DriverRoster {
                             self.drivers
                                 .iter()
                                 .enumerate()
-                                .map(|(index, driver)| driver.get_view(&self.link, index))
+                                .map(|(index, driver)| driver.get_view(ctx.link(), index))
                                 .collect::<Vec<_>>()
                         }
                       </tbody>
@@ -234,7 +228,7 @@ impl Component for DriverRoster {
                 <div class="mdc-card__actions">
                     <button class="material-icons mdc-icon-button mdc-card__action mdc-card__action--icon" 
                           title="New Driver"
-                          onclick=self.link.callback(|_| DriverRosterMsg::AddDriver)>
+                          onclick={ctx.link().callback(|_| DriverRosterMsg::AddDriver)}>
                         
                         <div class="mdc-icon-button__ripple"></div>
                         {"add"}
@@ -244,13 +238,13 @@ impl Component for DriverRoster {
         }
     }
 
-    fn rendered(&mut self, first_render: bool) {
+    fn rendered(&mut self, _ctx: &Context<Self>, first_render: bool) {
         if first_render {
             bindings::enable_icon_button(".mdc-icon-button");
         }
     }
 
-    fn destroy(&mut self) {
+    fn destroy(&mut self, _ctx: &Context<Self>) {
         self.producer.send(EventBusInput::PutDriverRoster(self.drivers.clone()));
     }
 }

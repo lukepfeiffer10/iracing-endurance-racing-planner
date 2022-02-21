@@ -11,10 +11,13 @@ lto = true
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies.yew]
-version = "0.18.0"
+version = "0.19.3"
+
+[dependencies.yew-agent]
+version = "0.1.0"
 
 [dependencies.yew-router]
-version = "0.15.0"
+version = "0.16.0"
 
 [dependencies.yewtil]
 version = "0.4.0"
@@ -63,3 +66,13 @@ features = ["clock", "with_rsa" ]
 [dependencies.reqwest]
 version = "0.11.9"
 features = [ "json" ]
+
+[dependencies.web-sys]
+version = "0.3.56"
+features = [ "Location", "Window", "HtmlInputElement", "Element", "EventTarget" ]
+
+[dependencies.gloo-console]
+version = "0.2.1"
+
+[dependencies.gloo-storage]
+version = "0.2.0"

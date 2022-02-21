@@ -1,10 +1,10 @@
 ﻿use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
-use yew::services::ConsoleService;
-use yew::worker::*;
-use crate::overview::{overall_fuel_stint_config::OverallFuelStintConfigData, fuel_stint_times::StandardLapTime};
+use gloo_console::log;
+use yew_agent::{Agent, AgentLink, Context, HandlerId};
+use crate::overview::{overall_event_config::EventConfigData, overall_fuel_stint_config::OverallFuelStintConfigData, fuel_stint_times::StandardLapTime};
 use crate::schedule::fuel_stint_schedule::{ScheduleDataRow, ScheduleRelatedData};
-use crate::{Driver, EventConfigData, FuelStintAverageTimes, RacePlanner};
+use crate::{roster::{Driver}, planner::{FuelStintAverageTimes, RacePlanner}};
 
 #[derive(Serialize, Deserialize, Debug)]
 pub enum EventBusInput {
@@ -122,6 +122,6 @@ impl Agent for EventBus {
     }
 
     fn destroy(&mut self) {
-        ConsoleService::log("event bus destroyed")
+        log!("event bus destroyed")
     }
 }
