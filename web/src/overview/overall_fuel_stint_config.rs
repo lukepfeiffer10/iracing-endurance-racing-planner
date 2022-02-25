@@ -1,12 +1,14 @@
 ﻿use yew::prelude::*;
+use yew_agent::{Bridge, Bridged};
 use yew::props;
 use chrono::Duration;
 use crate::md_text_field::{MaterialTextFieldProps, MaterialTextField};
-use crate::{format_duration, parse_duration_from_str, DurationFormat};
-use yew::services::ConsoleService;
-use yew::{ web_sys::HtmlInputElement, NodeRef};
+use crate::planner::{format_duration, parse_duration_from_str, DurationFormat};
+use gloo_console::error;
+use yew::{NodeRef};
 use crate::event_bus::{EventBus, EventBusInput, EventBusOutput};
 use serde::{Serialize, Deserialize};
+use web_sys::HtmlInputElement;
 
 pub enum OverallFuelStintMessage {
     UpdatePitDuration(String),
@@ -49,7 +51,6 @@ impl Clone for OverallFuelStintConfigData {
 }
 
 pub struct OverallFuelStintConfig {
-    link: ComponentLink<Self>,
     data: OverallFuelStintConfigData,
     add_tire_time_input_ref: NodeRef,
     event_bus: Box<dyn Bridge<EventBus>>
@@ -59,8 +60,8 @@ impl Component for OverallFuelStintConfig {
     type Message = OverallFuelStintMessage;
     type Properties = ();
 
-    fn create(_props: Self::Properties, link: ComponentLink<Self>) -> Self {
-        let mut event_bus = EventBus::bridge(link.batch_callback(|message| {
+    fn create(ctx: &Context<Self>) -> Self {
+        let mut event_bus = EventBus::bridge(ctx.link().batch_callback(|message| {
             match message {
                 EventBusOutput::SendOverallFuelStintConfig(config) => {
                     Some(OverallFuelStintMessage::OnCreate(config))
@@ -70,14 +71,13 @@ impl Component for OverallFuelStintConfig {
         }));
         event_bus.send(EventBusInput::GetOverallFuelStintConfig);
         Self {
-            link,
             data: OverallFuelStintConfigData::new(),
             add_tire_time_input_ref: NodeRef::default(),
             event_bus
         }
     }
 
-    fn update(&mut self, msg: Self::Message) -> ShouldRender {
+    fn update(&mut self, _ctx: &Context<Self>, msg: Self::Message) -> bool {
         let mut should_render = false;
         match msg {
             OverallFuelStintMessage::UpdatePitDuration(value) => {
@@ -88,7 +88,7 @@ impl Component for OverallFuelStintConfig {
                         should_render = true;
                     }
                     Err(message) => {
-                        ConsoleService::error(format!("pit duration parse failed: {}", message).as_str());
+                        error!(format!("pit duration parse failed: {}", message).as_str());
                     }
                 }
             }
@@ -99,7 +99,7 @@ impl Component for OverallFuelStintConfig {
                         should_render = true;
                     }
                     Err(e) => {
-                        ConsoleService::error(format!("fuel tank size parse failed: {:?}", e).as_str());
+                        error!(format!("fuel tank size parse failed: {:?}", e).as_str());
                     }
                 }
             }
@@ -111,7 +111,7 @@ impl Component for OverallFuelStintConfig {
                         should_render = true;
                     }
                     Err(message) => {
-                        ConsoleService::error(format!("tire change time parse failed: {}", message).as_str());
+                        error!(format!("tire change time parse failed: {}", message).as_str());
                     }
                 }
             }
@@ -127,32 +127,33 @@ impl Component for OverallFuelStintConfig {
         should_render
     }
 
-    fn change(&mut self, _props: Self::Properties) -> ShouldRender {
+    fn changed(&mut self, _ctx: &Context<Self>) -> bool {
         false
     }
 
-    fn view(&self) -> Html {        
-        let pit_duration_props = props!(MaterialTextFieldProps {
+    fn view(&self, ctx: &Context<Self>) -> Html { 
+        let link = ctx.link();
+        let pit_duration_props = props!{MaterialTextFieldProps {
             value: format_duration(self.data.pit_duration, DurationFormat::MinSecMilli),
             label: Some("Pit Duration (MM:SS.mmm)".to_string()),
             id: "pit-duration".to_string(),
-            on_change: self.link.callback(|value| OverallFuelStintMessage::UpdatePitDuration(value))
-        });
-        let fuel_tank_size_props = props!(MaterialTextFieldProps {
+            on_change: link.callback(|value| OverallFuelStintMessage::UpdatePitDuration(value))
+        }};
+        let fuel_tank_size_props = props!{MaterialTextFieldProps {
             value: self.data.fuel_tank_size.to_string(),
             label: Some("Fuel Tank Size".to_string()),
             id: "fuel-tank-size".to_string(),
-            on_change: self.link.callback(|value| OverallFuelStintMessage::UpdateFuelTankSize(value))
-        });
-        let tire_change_time_props = props!(MaterialTextFieldProps {
+            on_change: link.callback(|value| OverallFuelStintMessage::UpdateFuelTankSize(value))
+        }};
+        let tire_change_time_props = props!{MaterialTextFieldProps {
             value: format_duration(self.data.tire_change_time, DurationFormat::MinSecMilli),
             label: Some("Tire Change Time (MM:SS.mmm)".to_string()),
             id: "tire-change-time".to_string(),
-            on_change: self.link.callback(|value| OverallFuelStintMessage::UpdateTireChangeTime(value))
-        });
+            on_change: link.callback(|value| OverallFuelStintMessage::UpdateTireChangeTime(value))
+        }};
         
         let add_tire_time_input_ref = self.add_tire_time_input_ref.clone();
-        let add_tire_time_callback = self.link.batch_callback(move |_| {
+        let add_tire_time_callback = link.batch_callback(move |_| {
             let input = add_tire_time_input_ref.cast::<HtmlInputElement>();            
             input.map(|input| OverallFuelStintMessage::UpdateAddTireTire(input.checked()))
         });
@@ -161,17 +162,17 @@ impl Component for OverallFuelStintConfig {
                 <div class="mdc-card-wrapper__text-section">
                     <div class="card-title">{ "Overall Fuel Stint Config" }</div>
                 </div>
-                <MaterialTextField with pit_duration_props />
-                <MaterialTextField with fuel_tank_size_props />
-                <MaterialTextField with tire_change_time_props />
+                <MaterialTextField ..pit_duration_props />
+                <MaterialTextField ..fuel_tank_size_props />
+                <MaterialTextField ..tire_change_time_props />
                 <div class="mdc-form-field">
                   <div class="mdc-checkbox">
-                    <input ref=self.add_tire_time_input_ref.clone()
+                    <input ref={self.add_tire_time_input_ref.clone()}
                             type="checkbox"
                            class="mdc-checkbox__native-control"
                            id="add-tire-time"
-                            checked=self.data.add_tire_time
-                            oninput=add_tire_time_callback/>
+                            checked={self.data.add_tire_time}
+                            oninput={add_tire_time_callback}/>
                     <div class="mdc-checkbox__background">
                       <svg class="mdc-checkbox__checkmark"
                            viewBox="0 0 24 24">

@@ -1,10 +1,12 @@
-﻿use yew::{ComponentLink, Component, ShouldRender, Html, html, props, classes, Bridge, Bridged};
+﻿use yew::{Context, Component, Html, html, props, classes};
+use yew_agent::{Bridge, Bridged};
 use chrono::{Duration, NaiveTime};
 use crate::md_text_field::{MaterialTextField, MaterialTextFieldProps, MaterialTextFieldIcon, MaterialTextFieldIconStyle};
-use crate::{format_duration, DurationFormat, parse_duration_from_str};
+use crate::planner::{format_duration, DurationFormat, parse_duration_from_str};
 use crate::event_bus::{EventBus, EventBusOutput};
-use yew::services::ConsoleService;
+use gloo_console::error;
 use boolinator::Boolinator;
+use yew::html::Scope;
 
 const TIME_OF_DAY_TIME_FORMAT: &str = "%I:%M %p";
 
@@ -63,7 +65,6 @@ pub enum TimeOfDayLapFactorsMsg {
 }
 
 pub struct TimeOfDayLapFactors {
-    link: ComponentLink<Self>,
     factors: Vec<TimeOfDayLapFactor>,
     reference_lap_time: Duration,
     _producer: Box<dyn Bridge<EventBus>>,
@@ -73,8 +74,8 @@ impl Component for TimeOfDayLapFactors {
     type Message = TimeOfDayLapFactorsMsg;
     type Properties = ();
 
-    fn create(_props: Self::Properties, link: ComponentLink<Self>) -> Self {
-        let producer = EventBus::bridge(link.batch_callback(|message| {
+    fn create(ctx: &Context<Self>) -> Self {
+        let producer = EventBus::bridge(ctx.link().batch_callback(|message| {
             match message {
                 EventBusOutput::StandardLapTime(data) => {
                     Some(TimeOfDayLapFactorsMsg::UpdateReferenceLapTime(data.lap_time))
@@ -123,14 +124,13 @@ impl Component for TimeOfDayLapFactors {
                 has_edited_lap_time: false
             }];
         Self {
-            link,
             factors,
             reference_lap_time: Duration::zero(),
             _producer: producer
         }
     }
 
-    fn update(&mut self, msg: Self::Message) -> ShouldRender {
+    fn update(&mut self, _ctx: &Context<Self>, msg: Self::Message) -> bool {
         match msg { 
             TimeOfDayLapFactorsMsg::UpdateReferenceLapTime(lap_time) => {
                 self.reference_lap_time = lap_time;
@@ -150,7 +150,7 @@ impl Component for TimeOfDayLapFactors {
                         true
                     },
                     Err(e) => {
-                        ConsoleService::error(format!("the factor lap time parse failed: {}", e).as_str());
+                        error!(format!("the factor lap time parse failed: {}", e).as_str());
                         false
                     }
                 }
@@ -169,7 +169,7 @@ impl Component for TimeOfDayLapFactors {
                         true
                     }
                     Err(e) => {
-                        ConsoleService::error(format!("the time of day start time parse failed: {:?}", e).as_str());
+                        error!(format!("the time of day start time parse failed: {:?}", e).as_str());
                         false
                     }
                 }
@@ -182,11 +182,11 @@ impl Component for TimeOfDayLapFactors {
         }
     }
 
-    fn change(&mut self, _props: Self::Properties) -> ShouldRender {
+    fn changed(&mut self, _ctx: &Context<Self>) -> bool {
         false
     }
 
-    fn view(&self) -> Html {
+    fn view(&self, ctx: &Context<Self>) -> Html {        
         html! {
             <div id="time-of-day-lap-factors" class="mdc-card">
                 <div class="mdc-card-wrapper__text-section">
@@ -209,7 +209,7 @@ impl Component for TimeOfDayLapFactors {
                             self.factors
                                 .iter()
                                 .enumerate()
-                                .map(|(index,f)| render_time_of_day_lap_factor(f, &self.link, index))
+                                .map(|(index,f)| render_time_of_day_lap_factor(f, ctx.link(), index))
                                 .collect::<Vec<_>>()
                         }
                       </tbody>
@@ -221,15 +221,13 @@ impl Component for TimeOfDayLapFactors {
     }
 }
 
-fn render_time_of_day_lap_factor(factor: &TimeOfDayLapFactor, link: &ComponentLink<TimeOfDayLapFactors>, index: usize) -> Html {
-    let time_of_day_props = props!(MaterialTextFieldProps {
+fn render_time_of_day_lap_factor(factor: &TimeOfDayLapFactor, link: &Scope<TimeOfDayLapFactors>, index: usize) -> Html {
+    let time_of_day_props = props!{MaterialTextFieldProps {
         value: factor.time_of_day.clone(),
-        label: None,
         on_change: link.callback(move |value| TimeOfDayLapFactorsMsg::UpdateTimeOfDay(value, index)),
-    });
-    let lap_time_props = props!(MaterialTextFieldProps {
+    }};
+    let lap_time_props = props!{MaterialTextFieldProps {
         value: format_duration(factor.lap_time, DurationFormat::MinSecMilli),
-        label: None,
         on_change: link.callback(move |value| TimeOfDayLapFactorsMsg::UpdateLapTime(value, index)),
         end_aligned: true,        
         icon: Some(MaterialTextFieldIcon {
@@ -238,23 +236,22 @@ fn render_time_of_day_lap_factor(factor: &TimeOfDayLapFactor, link: &ComponentLi
             on_click: Some(link.callback(move |_| TimeOfDayLapFactorsMsg::ResetLapTimeToReference(index))),
             background_color: None
         })
-    });
-    let tod_start_props = props!(MaterialTextFieldProps {
+    }};
+    let tod_start_props = props!{MaterialTextFieldProps {
         value: factor.tod_start.format(TIME_OF_DAY_TIME_FORMAT).to_string(),
-        label: None,
         on_change: link.callback(move |value| TimeOfDayLapFactorsMsg::UpdateTimeOfDayStart(value, index)),
         end_aligned: true
-    });
+    }};
     html! {
         <tr class="mdc-data-table__row">
           <td class="mdc-data-table__cell">
-            <MaterialTextField with time_of_day_props />
+            <MaterialTextField ..time_of_day_props />
           </td>
-          <td class=classes!("mdc-data-table__cell", factor.has_edited_lap_time.as_some("show-reset"))>
-            <MaterialTextField with lap_time_props />
+          <td class={classes!("mdc-data-table__cell", factor.has_edited_lap_time.as_some("show-reset"))}>
+            <MaterialTextField ..lap_time_props />
           </td>
           <td class="mdc-data-table__cell">
-            <MaterialTextField with tod_start_props />
+            <MaterialTextField ..tod_start_props />
           </td>
           <td class="mdc-data-table__cell">{ format_duration(factor.delta, DurationFormat::MinSecMilli) }</td>
           <td class="mdc-data-table__cell mdc-data-table__cell--numeric">{ format!("{:.2}", factor.factor) }</td>

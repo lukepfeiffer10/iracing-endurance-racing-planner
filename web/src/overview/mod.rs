@@ -1,4 +1,4 @@
-﻿use yew::{Component, ComponentLink, Html, html, ShouldRender};
+﻿use yew::{Component, Context, Html, html};
 use self::overall_event_config::EventConfig;
 use self::overall_fuel_stint_config::OverallFuelStintConfig;
 use self::fuel_stint_times::FuelStintTimes;
@@ -17,19 +17,19 @@ impl Component for Overview {
     type Message = ();
     type Properties = ();
 
-    fn create(_props: Self::Properties, _link: ComponentLink<Self>) -> Self {
+    fn create(_ctx: &Context<Self>) -> Self {
         Self {}
     }
 
-    fn update(&mut self, _msg: Self::Message) -> ShouldRender {
+    fn update(&mut self, _ctx: &Context<Self>, _msg: Self::Message) -> bool {
         false
     }
 
-    fn change(&mut self, _props: Self::Properties) -> ShouldRender {
+    fn changed(&mut self, _ctx: &Context<Self>) -> bool {
         false
     }
 
-    fn view(&self) -> Html {
+    fn view(&self, _ctx: &Context<Self>) -> Html {
         html!{
             <div class="mdc-typography flex-container flex-row">
                 <div id="left-column" class="flex-container flex-column">

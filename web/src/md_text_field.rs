@@ -1,8 +1,10 @@
 ﻿use yew::prelude::*;
 use yew::Properties;
+use yew::events::Event;
 use boolinator::{Boolinator};
 use std::fmt::{Formatter, Display};
-use yewtil::NeqAssign;
+use web_sys::{EventTarget, HtmlInputElement};
+use wasm_bindgen::JsCast;
 
 pub enum MaterialTextFieldMessage {
     ChangeValue(String)
@@ -59,42 +61,36 @@ pub struct MaterialTextFieldProps {
     pub icon: Option<MaterialTextFieldIcon>,
 }
 
-pub struct MaterialTextField {
-    link: ComponentLink<Self>,
-    props: MaterialTextFieldProps,
-}
+pub struct MaterialTextField;
 
 impl Component for MaterialTextField {
     type Message = MaterialTextFieldMessage;
     type Properties = MaterialTextFieldProps;
 
-    fn create(props: Self::Properties, link: ComponentLink<Self>) -> Self {
-        Self {
-            link,
-            props,
-        }
+    fn create(_ctx: &Context<Self>) -> Self {
+        Self
     }
 
-    fn update(&mut self, msg: Self::Message) -> ShouldRender {
+    fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
         match msg {
             MaterialTextFieldMessage::ChangeValue(value) => {
-                self.props.on_change.emit(value);
+                ctx.props().on_change.emit(value);
                 false
             }
         }
     }
 
-    fn change(&mut self, props: Self::Properties) -> ShouldRender {
-        self.props.neq_assign(props)
+    fn changed(&mut self, _ctx: &Context<Self>) -> bool {
+        true
     }
 
-    fn view(&self) -> Html {
-        let Self::Properties { id, value, label, disabled, end_aligned, icon, .. } = self.props.clone();
-        let onchange = self.link.batch_callback(|data: ChangeData| {
-            match data {
-                ChangeData::Value(value) => Some(MaterialTextFieldMessage::ChangeValue(value)),
-                _ => None
-            }
+    fn view(&self, ctx: &Context<Self>) -> Html {
+        let Self::Properties { id, value, label, disabled, end_aligned, icon, .. } = ctx.props().clone();
+        let onchange = ctx.link().batch_callback(|event: Event| {
+            let target: Option<EventTarget> = event.target();
+            let input = target.and_then(|t| t.dyn_into::<HtmlInputElement>().ok());
+
+            input.map(|input| MaterialTextFieldMessage::ChangeValue(input.value()))
         });
         let classes = classes!("mdc-text-field", 
             "mdc-text-field--filled", 
@@ -104,11 +100,11 @@ impl Component for MaterialTextField {
             icon.clone().map(|value| format!("mdc-text-field--with-{}-icon", value.style))
         );
         html! {
-            <label class=classes>
+            <label class={classes}>
                 <span class="mdc-text-field__ripple"></span>
                 { render_label(label, id.clone()) }
                 { render_icon(icon) }
-                <input class="mdc-text-field__input" type="text" disabled=disabled value=value onchange=onchange aria-labelledby=id.clone() />
+                <input class="mdc-text-field__input" type="text" disabled={disabled} value={value} onchange={onchange} aria-labelledby={id.clone()} />
                 <span class="mdc-line-ripple"></span>
             </label>
         }
@@ -119,7 +115,7 @@ fn render_label(label: Option<String>, id: String) -> Html {
     match label {
         None => html! {},
         Some(value) => html! {
-            <span class="mdc-floating-label" id=id>{ value }</span>
+            <span class="mdc-floating-label" id={id}>{ value }</span>
         }
     }
 }
@@ -143,10 +139,10 @@ fn render_icon(icon: Option<MaterialTextFieldIcon>) -> Html {
             
             match value.on_click {
                 Some(callback) => html! {
-                    <i class=icon_classes style=style tabindex="0" role="button" onclick=callback>{ value.icon }</i>
+                    <i class={icon_classes} style={style} tabindex="0" role="button" onclick={callback}>{ value.icon }</i>
                 },
                 None => html! {
-                    <i class=icon_classes style=style>{ value.icon }</i>
+                    <i class={icon_classes} style={style}>{ value.icon }</i>
                 }
             }            
         }

@@ -2,33 +2,28 @@
 use std::error::Error;
 use std::fmt::{Debug, Display, Formatter};
 use std::rc::Rc;
+use gloo_console::error;
+use gloo_storage::{SessionStorage, Storage};
 use jwt_compact::{Claims, ParseError, UntrustedToken, ValidationError, alg::{RsaPublicKey, Rsa}, AlgorithmExt, jwk::{JsonWebKey}};
 use oauth2::{AuthUrl, ClientId, CsrfToken, RedirectUrl, ResponseType, RevocationUrl, Scope, TokenUrl};
 use oauth2::basic::{BasicClient};
 use oauth2::url::Url;
 use serde::{Serialize, Deserialize};
 use wasm_bindgen_futures::{spawn_local};
-use yew::{Component, ComponentLink, Html, ShouldRender};
-use yew::format::{Text};
+use yew::{Component, Html};
 use yew::prelude::*;
-use yew::services::storage::Area;
-use yew::services::{ConsoleService, StorageService};
-use yew::web_sys::{Location, Window, window};
+use web_sys::{Location, Window, window};
+use yew_router::prelude::*;
+use crate::planner::PlannerRoutes;
+use crate::{UserInfo, UserInfoContext};
 
 const NONCE_KEY: &str = "nonce";
 const STATE_KEY: &str = "state";
 
-pub struct User {
-    email: String,
-    picture: String,
-    name: String
-}
-
 pub struct Landing {
-    link: ComponentLink<Self>,
     google_login_image: String,
     google_oauth_client: Rc<BasicClient>,
-    user: Option<User>,
+    user: Option<UserInfo>,
 }
 
 #[derive(Clone)]
@@ -42,34 +37,33 @@ pub enum MouseEventType {
 pub enum LandingMsg {
     OnMouseEvent(MouseEventType),
     OnLoginClick,
-    UpdateUser(User),
+    UpdateUser(UserInfo),
 }
 
 impl Component for Landing {
     type Message = LandingMsg;
     type Properties = ();
 
-    fn create(_props: Self::Properties, link: ComponentLink<Self>) -> Self {
+    fn create(ctx: &Context<Self>) -> Self {
         let client = Rc::new(create_auth_client());
-        let link_ref = link.clone();
+        let link_ref = ctx.link().clone();
         spawn_local(async move {
             match handle_auth_code_redirect().await {
                 Ok(user) => {
                     if let Some(user) = user { link_ref.send_message(LandingMsg::UpdateUser(user)) }                    
                 },
-                Err(e) => ConsoleService::error(e.to_string().as_str())
+                Err(e) => error!(e.to_string().as_str())
             }
         });
         
         Self {
-            link,
             google_login_image: "btn_google_signin_light_normal_web.png".to_string(),
             google_oauth_client: client,
             user: None
         }
     }
 
-    fn update(&mut self, msg: Self::Message) -> ShouldRender {
+    fn update(&mut self, _ctx: &Context<Self>, msg: Self::Message) -> bool {
         match msg {
             LandingMsg::OnMouseEvent(event_type) => {
                 self.google_login_image = match event_type {
@@ -95,17 +89,18 @@ impl Component for Landing {
                     .set_response_type(&ResponseType::new("token id_token".to_string()))
                     .url();
                 
-                let mut session_storage = StorageService::new(Area::Session).expect("no session storage exists");
-                session_storage.store(NONCE_KEY, Text::Ok(nonce.secret().to_owned()));
-                session_storage.store(STATE_KEY, Text::Ok(csrf_state.secret().to_owned()));
+                SessionStorage::set(NONCE_KEY, nonce.secret().to_owned()).expect("can't set session storage");
+                SessionStorage::set(STATE_KEY, csrf_state.secret().to_owned()).expect("can't set session storage");
                 
                 let window: Window = window().expect("no global `window` object exists");
                 let location: Location = window.location();
                 location.set_href(authorize_url.as_str()).expect("location couldn't be changed");
                 false
             }
-            LandingMsg::UpdateUser(user) => {
+            LandingMsg::UpdateUser(user) => {                
                 self.user = Some(user);
+                let (user_info_context, _) = _ctx.link().context::<UserInfoContext>(Callback::noop()).unwrap();
+                user_info_context.dispatch(self.user.clone());
                 let window: Window = window().expect("no global `window` object exists");
                 let location: Location = window.location();
                 location.set_hash("").expect("url hash/fragment could not be reset");
@@ -114,13 +109,14 @@ impl Component for Landing {
         }
     }
 
-    fn change(&mut self, _props: Self::Properties) -> ShouldRender {
+    fn changed(&mut self, _ctx: &Context<Self>) -> bool {
         false
     }
 
-    fn view(&self) -> Html {
+    fn view(&self, ctx: &Context<Self>) -> Html {
+        let link = ctx.link();
         let mouse_events = |event_type: MouseEventType| {
-            self.link.callback(move |_event: MouseEvent| {
+            link.callback(move |_event: MouseEvent| {
                 LandingMsg::OnMouseEvent(event_type.clone())
             })
         };
@@ -128,19 +124,15 @@ impl Component for Landing {
         let on_mouse_out = mouse_events(MouseEventType::Out);
         let on_mouse_down = mouse_events(MouseEventType::Down);
         let on_mouse_up = mouse_events(MouseEventType::Up);
-        let on_login_click = self.link.callback(|_| {
+        let on_login_click = link.callback(|_| {
             LandingMsg::OnLoginClick
         });
         
         match &self.user {
-            Some(user) => {
+            Some(_) => {
                 html! {
-                    <div class="mdc-card">
-                        <div class="mdc-card-wrapper__text-section">
-                            <div class="card-title">{ "User info" }</div>
-                        </div>
-                        <img id="profile-picture" src=user.picture.clone() />
-                        <p>{ user.email.clone() } { user.name.clone() }</p>
+                    <div class="content">
+                        <Link<PlannerRoutes> to={PlannerRoutes::Overview}>{ "New plan" }</Link<PlannerRoutes>>
                     </div>
                 }
             }
@@ -151,12 +143,12 @@ impl Component for Landing {
                             <div class="mdc-card-wrapper__text-section">
                                 <div class="card-title">{ "Login" }</div>
                             </div>
-                            <img src=format!("images/{}", self.google_login_image) alt="Sign in with Google" width="191" height="46"
-                                onmouseover=on_mouse_over
-                                onmouseout=on_mouse_out
-                                onmousedown=on_mouse_down
-                                onmouseup=on_mouse_up
-                                onclick=on_login_click />
+                            <img src={format!("images/{}", self.google_login_image)} alt="Sign in with Google" width="191" height="46"
+                                onmouseover={on_mouse_over}
+                                onmouseout={on_mouse_out}
+                                onmousedown={on_mouse_down}
+                                onmouseup={on_mouse_up}
+                                onclick={on_login_click} />
                         </div>
                     </div>
                 }
@@ -164,7 +156,7 @@ impl Component for Landing {
         }
     }
 
-    fn rendered(&mut self, _first_render: bool) {
+    fn rendered(&mut self, _ctx: &Context<Self>, _first_render: bool) {
     }
 }
 
@@ -248,7 +240,7 @@ impl From<&str> for AuthError {
     }
 }
 
-async fn handle_auth_code_redirect() -> Result<Option<User>, AuthError> {    
+async fn handle_auth_code_redirect() -> Result<Option<UserInfo>, AuthError> {    
     let window: Window = window().expect("no global `window` object exists");
     let location: Location = window.location();
     let url = location.href().expect("no location `href` exists");
@@ -263,10 +255,9 @@ async fn handle_auth_code_redirect() -> Result<Option<User>, AuthError> {
                     (key, value)
                 })
                 .collect::<Vec<_>>();
-
-            let mut session_storage = StorageService::new(Area::Session)?;
-            validate_state_parameter(&mut session_storage, &fragments)?;
-            let user = validate_id_token(&mut session_storage, &fragments).await?;
+            
+            validate_state_parameter(&fragments)?;
+            let user = validate_id_token(&fragments).await?;
             
             Ok(Some(user))
         } else {
@@ -276,15 +267,15 @@ async fn handle_auth_code_redirect() -> Result<Option<User>, AuthError> {
     Ok(None)    
 }
 
-fn validate_state_parameter(storage: &mut StorageService, fragments: &[(&str, &str)]) -> Result<(), AuthError> {
+fn validate_state_parameter(fragments: &[(&str, &str)]) -> Result<(), AuthError> {
     let url_state = fragments.iter().find(|(key, _)| *key == "state");
     match url_state {
         Some((_, state)) => {
-            let stored_state = storage.restore::<Text>(STATE_KEY);
+            let stored_state = SessionStorage::get(STATE_KEY);
             stored_state
                 .map_err(|_| AuthError::MissingStateInStorage)
-                .and_then(|stored_state| {
-                    storage.remove(STATE_KEY);
+                .and_then(|stored_state: String| {
+                    SessionStorage::delete(STATE_KEY);
                     if *state == stored_state.as_str() {
                         Ok(())
                     } else {
@@ -298,7 +289,7 @@ fn validate_state_parameter(storage: &mut StorageService, fragments: &[(&str, &s
     }
 }
 
-async fn validate_id_token(storage: &mut StorageService, fragments: &[(&str, &str)]) -> Result<User, AuthError> {
+async fn validate_id_token(fragments: &[(&str, &str)]) -> Result<UserInfo, AuthError> {
     let id_token = fragments.iter().find(|(key, _)| *key == "id_token");
     match id_token {
         Some((_, value)) => {
@@ -323,7 +314,7 @@ async fn validate_id_token(storage: &mut StorageService, fragments: &[(&str, &st
                             let token_message = Rsa::rs256().validate_integrity::<GoogleOpenIdClaims>(&token, &rsa_public_key);
                             match token_message {
                                 Ok(data) => {
-                                    validate_nonce(storage, data.claims())
+                                    validate_nonce(data.claims())
                                 }
                                 Err(message) => {
                                     Err(AuthError::TokenValidationError(message))
@@ -377,16 +368,16 @@ async fn get_google_signing_keys() -> Result<GoogleSigningKeysResponse<'static>,
     Ok(signing_keys)
 }
 
-fn validate_nonce(storage: &mut StorageService, data: &Claims<GoogleOpenIdClaims>) -> Result<User, AuthError> {
-    let nonce = storage.restore::<Text>(NONCE_KEY);
+fn validate_nonce(data: &Claims<GoogleOpenIdClaims>) -> Result<UserInfo, AuthError> {
+    let nonce = SessionStorage::get(NONCE_KEY);
     nonce
         .map_err(|_| AuthError::MissingNonceInStorage)
-        .and_then(|nonce| {
-            storage.remove(NONCE_KEY);
+        .and_then(|nonce: String| {
+            SessionStorage::delete(NONCE_KEY);
             if data.custom.nonce != nonce {
                 return Err(AuthError::MismatchedNonce);
             }
-            Ok(User {
+            Ok(UserInfo {
                 email: data.custom.email.clone(),
                 picture: data.custom.picture.clone(),
                 name: data.custom.name.clone()

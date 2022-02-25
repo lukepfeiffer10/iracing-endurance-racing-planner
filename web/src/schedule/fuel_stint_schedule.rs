@@ -1,17 +1,18 @@
 ﻿use std::fmt::{Display, Formatter};
 use std::str::FromStr;
-use chrono::{DateTime, NaiveDateTime, NaiveTime, Timelike, Utc};
+use chrono::{DateTime, Duration, NaiveDateTime, NaiveTime, Timelike, Utc};
 use serde::{Serialize, Deserialize};
 use yew::prelude::*;
-use yew::{Component, ComponentLink, Html, props, ShouldRender};
-use yew::services::ConsoleService;
-use yew::web_sys::{Element};
+use yew::{Component, Context, Html, props, html::Scope};
+use gloo_console::error;
+use web_sys::{Element};
+use yew_agent::{Bridge, Bridged};
 use yew_router::prelude::*;
-use yew_mdc::components::{Select, SelectItem};
-use yew_mdc::components::select::SelectChangeEventData;
-use yew_mdc::mdc_sys::MDCDataTable;
-use crate::{Duration, DurationFormat, EventBus, EventConfigData, format_duration, FuelStintAverageTimes, AppRoutes, OverallFuelStintConfigData, Driver};
-use crate::event_bus::{EventBusInput, EventBusOutput};
+use yew_mdc::{components::{Select, SelectItem, select::SelectChangeEventData}, mdc_sys::MDCDataTable};
+use crate::planner::{DurationFormat, format_duration, FuelStintAverageTimes, PlannerRoutes};
+use crate::overview::{overall_event_config::EventConfigData, overall_fuel_stint_config::OverallFuelStintConfigData};
+use crate::roster::Driver;
+use crate::event_bus::{EventBusInput, EventBusOutput, EventBus};
 use crate::md_text_field::{MaterialTextFieldProps, MaterialTextField};
 
 #[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
@@ -159,7 +160,7 @@ impl ScheduleDataRow {
         }
     }
     
-    fn get_view(&self, link: &ComponentLink<FuelStintSchedule>, index: usize, drivers: Option<&Vec<Driver>>) -> Html {
+    fn get_view(&self, link: &Scope<FuelStintSchedule>, index: usize, drivers: Option<&Vec<Driver>>) -> Html {
         let time_format = "%l:%M %p"; // (H)H:MM AM|PM
         let actual_end_on_change = link.batch_callback(move |value: String| {
             let value_as_str = value.as_str();
@@ -171,7 +172,7 @@ impl ScheduleDataRow {
             match actual_end_time {
                 Ok(value) => Some(FuelStintScheduleMsg::UpdateActualEndTime(value, index)),
                 Err(e) => {
-                    ConsoleService::error(format!("The actual end time could not be parsed: {}", e).as_str());
+                    error!(format!("The actual end time could not be parsed: {}", e).as_str());
                     None
                 }
             }
@@ -194,7 +195,7 @@ impl ScheduleDataRow {
             match stint_type { 
                 Ok(stint_type) => Some(FuelStintScheduleMsg::UpdateFuelStintType(stint_type, index)),
                 Err(s) => {
-                    ConsoleService::error(s.as_str());
+                    error!(s.as_str());
                     None
                 }
             }
@@ -205,11 +206,11 @@ impl ScheduleDataRow {
         
         let row_id = format!("row-{}", index);
         html! {
-            <tr data-row-id=row_id.clone() class="mdc-data-table__row">
+            <tr data-row-id={row_id.clone()} class="mdc-data-table__row">
                 <td class="mdc-data-table__cell mdc-data-table__cell--checkbox">
                     <div class="mdc-touch-target-wrapper">
                         <div class="mdc-checkbox mdc-checkbox--touch mdc-data-table__row-checkbox">
-                            <input type="checkbox" class="mdc-checkbox__native-control" aria-labelledby=row_id.clone() />
+                            <input type="checkbox" class="mdc-checkbox__native-control" aria-labelledby={row_id.clone()} />
                             <div class="mdc-checkbox__background">
                                 <svg class="mdc-checkbox__checkmark" viewBox="0 0 24 24">
                                     <path class="mdc-checkbox__checkmark-path" fill="none" d="M1.73,12.91 8.1,19.28 22.79,4.59"/>
@@ -221,19 +222,19 @@ impl ScheduleDataRow {
                     </div>
                 </td>
                 <td class="mdc-data-table__cell">
-                    <Select id=format!("stint-type-{}", index) 
+                    <Select id={format!("stint-type-{}", index)} 
                         select_width_class="select-width"
-                        fixed_position=true
-                        selected_value=Some(self.stint_type.to_string())
-                        onchange=stint_type_onchange>
-                        <SelectItem text=StintType::FuelSavingNoTires.to_string() 
-                            value=StintType::FuelSavingNoTires.to_string() />
-                        <SelectItem text=StintType::FuelSavingWithTires.to_string() 
-                            value=StintType::FuelSavingWithTires.to_string() />
-                        <SelectItem text=StintType::StandardNoTires.to_string() 
-                            value=StintType::StandardNoTires.to_string() />
-                        <SelectItem text=StintType::StandardWithTires.to_string() 
-                            value=StintType::StandardWithTires.to_string() />
+                        fixed_position={true}
+                        selected_value={Some(self.stint_type.to_string())}
+                        onchange={stint_type_onchange}>
+                        <SelectItem text={StintType::FuelSavingNoTires.to_string()} 
+                            value={StintType::FuelSavingNoTires.to_string()} />
+                        <SelectItem text={StintType::FuelSavingWithTires.to_string()} 
+                            value={StintType::FuelSavingWithTires.to_string()} />
+                        <SelectItem text={StintType::StandardNoTires.to_string()} 
+                            value={StintType::StandardNoTires.to_string()} />
+                        <SelectItem text={StintType::StandardWithTires.to_string()} 
+                            value={StintType::StandardWithTires.to_string()} />
                     </Select>                        
                 </td>
                 <td class="mdc-data-table__cell mdc-data-table__cell--numeric">{ self.fuel_stint_number }</td>
@@ -242,22 +243,22 @@ impl ScheduleDataRow {
                 <td class="mdc-data-table__cell mdc-data-table__cell--numeric">{ self.tod_start.format(time_format) }</td>
                 <td class="mdc-data-table__cell mdc-data-table__cell--numeric">{ self.tod_end.format(time_format) }</td>
                 <td class="mdc-data-table__cell">
-                    <MaterialTextField with actual_end_props />
+                    <MaterialTextField ..actual_end_props />
                 </td>
                 <td class="mdc-data-table__cell mdc-data-table__cell--numeric">{ format_duration(self.duration_delta, DurationFormat::HourMinSec) }</td>
                 <td class="mdc-data-table__cell mdc-data-table__cell--numeric">
-                    <MaterialTextField with damage_modifier_props />
+                    <MaterialTextField ..damage_modifier_props />
                 </td>
                 <td class="mdc-data-table__cell mdc-data-table__cell--numeric">{ self.calculated_laps }</td>
                 <td class="mdc-data-table__cell mdc-data-table__cell--numeric">
-                    <MaterialTextField with actual_laps_props />
+                    <MaterialTextField ..actual_laps_props />
                 </td>
                 <td class="mdc-data-table__cell">
-                    <Select id=format!("driver-name-{}", index)
+                    <Select id={format!("driver-name-{}", index)}
                         select_width_class="select-width"
-                        fixed_position=true
-                        selected_value=Some(self.driver_name.to_string())
-                        onchange=driver_name_on_change>
+                        fixed_position={true}
+                        selected_value={Some(self.driver_name.to_string())}
+                        onchange={driver_name_on_change}>
                         <SelectItem text="" value="" />
                         {
                             drivers
@@ -302,7 +303,7 @@ fn calculate_stint_duration_and_laps(stint_utc_start: DateTime<Utc>, stint_type:
 
 fn get_driver_select_view(driver: &Driver) -> Html {
     html!{
-        <SelectItem text=driver.name.clone() value=driver.name.clone() />
+        <SelectItem text={driver.name.clone()} value={driver.name.clone()} />
     }
 }
 
@@ -322,7 +323,6 @@ pub enum FuelStintScheduleMsg {
 }
 
 pub struct FuelStintSchedule {
-    link: ComponentLink<Self>,
     _producer: Box<dyn Bridge<EventBus>>,
     schedule_rows: Vec<ScheduleDataRow>,
     overall_event_config: Option<EventConfigData>,
@@ -334,7 +334,7 @@ pub struct FuelStintSchedule {
 }
 
 impl FuelStintSchedule {
-    fn create_schedule(&mut self) -> ShouldRender {
+    fn create_schedule(&mut self) -> bool {
         if self.overall_event_config.is_some() && 
             self.fuel_stint_times.is_some() && 
             self.overall_fuel_stint_config.is_some() && 
@@ -427,8 +427,8 @@ impl Component for FuelStintSchedule {
     type Message = FuelStintScheduleMsg;
     type Properties = ();
 
-    fn create(_props: Self::Properties, link: ComponentLink<Self>) -> Self {
-        let mut event_bus_bridge = EventBus::bridge(link.batch_callback(|message| {
+    fn create(ctx: &Context<Self>) -> Self {
+        let mut event_bus_bridge = EventBus::bridge(ctx.link().batch_callback(|message| {
             match message {
                 EventBusOutput::SendScheduleAndRelatedData(schedule_rows,data) => {
                     Some(FuelStintScheduleMsg::OnCreate(schedule_rows, data))
@@ -438,7 +438,6 @@ impl Component for FuelStintSchedule {
         }));
         event_bus_bridge.send(EventBusInput::GetScheduleAndRelatedData);
         Self {
-            link,
             _producer: event_bus_bridge,
             schedule_rows: vec![],
             overall_event_config: None,
@@ -450,7 +449,7 @@ impl Component for FuelStintSchedule {
         }
     }
 
-    fn update(&mut self, msg: Self::Message) -> ShouldRender {
+    fn update(&mut self, _ctx: &Context<Self>, msg: Self::Message) -> bool {
         match msg {
             FuelStintScheduleMsg::OnCreate(schedule_rows, data) => {
                 self.overall_event_config = data.overall_event_config;
@@ -550,11 +549,11 @@ impl Component for FuelStintSchedule {
         }
     }
 
-    fn change(&mut self, _props: Self::Properties) -> ShouldRender {
+    fn changed(&mut self, _ctx: &Context<Self>) -> bool {
         false
     }
 
-    fn view(&self) -> Html {
+    fn view(&self, ctx: &Context<Self>) -> Html {
         html!{
             <div id="fuel-stint-schedule" class="mdc-card">
                 <div class="mdc-card-wrapper__text-section">
@@ -563,12 +562,12 @@ impl Component for FuelStintSchedule {
                 {
                     if self.schedule_rows.len() == 0 {
                         html!{
-                            <p>{ "Complete the event config, fuel stint average times, and fuel stint config on the "}<RouterAnchor<AppRoutes> route=AppRoutes::Overview>{"Overview"}</RouterAnchor<AppRoutes>>{" page"}</p>
+                            <p>{ "Complete the event config, fuel stint average times, and fuel stint config on the "}<Link<PlannerRoutes> to={PlannerRoutes::Overview}>{"Overview"}</Link<PlannerRoutes>>{" page"}</p>
                         }
                     } else {
                         html! {
                             <div class="mdc-data-table"
-                                    ref=self.mdc_data_table_node_ref.clone()>
+                                    ref={self.mdc_data_table_node_ref.clone()}>
                               <div class="mdc-data-table__table-container">
                                 <table class="mdc-data-table__table">
                                   <thead>
@@ -610,7 +609,7 @@ impl Component for FuelStintSchedule {
                                         self.schedule_rows
                                             .iter()
                                             .enumerate()
-                                            .map(|(index, row)| row.get_view(&self.link, index, self.drivers.as_ref()))
+                                            .map(|(index, row)| row.get_view(ctx.link(), index, self.drivers.as_ref()))
                                             .collect::<Vec<_>>()
                                     }
                                   </tbody>
@@ -624,7 +623,7 @@ impl Component for FuelStintSchedule {
         }
     }
 
-    fn rendered(&mut self, _first_render: bool) {
+    fn rendered(&mut self, _ctx: &Context<Self>, _first_render: bool) {
         if !self.schedule_rows.is_empty() && self.data_table.is_none() {
             self.data_table = self.mdc_data_table_node_ref
                 .cast::<Element>()
@@ -632,7 +631,7 @@ impl Component for FuelStintSchedule {
         }
     }
 
-    fn destroy(&mut self) {
+    fn destroy(&mut self, _ctx: &Context<Self>) {
         if !self.schedule_rows.is_empty() {
             self._producer.send(EventBusInput::PutSchedule(self.schedule_rows.clone()));
         }
