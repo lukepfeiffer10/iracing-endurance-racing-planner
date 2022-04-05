@@ -3,7 +3,9 @@ use std::rc::Rc;
 use yew::prelude::*;
 use yew_router::prelude::*;
 use wasm_bindgen::prelude::*;
-use yew_mdc::components::{top_app_bar::{TopAppBar, Section, section::Align}, IconButton};
+use yew_agent::Bridged;
+use yew_mdc::components::{top_app_bar::{TopAppBar, Section, section::Align}, IconButton, Menu, MenuItem, menu::Corner, Drawer, DrawerContent, TextField};
+use crate::event_bus::{EventBus, EventBusInput};
 use crate::planner::Planner;
 use crate::landing::{Landing};
 
@@ -57,51 +59,201 @@ pub struct UserInfo {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct UserInfoMessage {
-    pub user_info: Option<UserInfo>
+pub struct AppState {
+    pub user_info: Option<UserInfo>,
+    pub nav_sidebar_open: bool,
+    pub page_title: Option<String>
 }
 
-impl Reducible for UserInfoMessage {
-    type Action = Option<UserInfo>;
+pub enum AppStateAction {
+    SetUser(Option<UserInfo>),
+    SetSidebarOpen(bool),
+    SetPageTitle(String)
+}
+
+impl Reducible for AppState {
+    type Action = AppStateAction;
 
     fn reduce(self: Rc<Self>, action: Self::Action) -> Rc<Self> {
-        Self {
-            user_info: action
+        let clone = self.as_ref().clone();
+        match action {
+            AppStateAction::SetUser(user) => Self { user_info: user, ..clone },
+            AppStateAction::SetSidebarOpen(value) => Self { nav_sidebar_open: value, ..clone },
+            AppStateAction::SetPageTitle(title) => Self { page_title: Some(title), ..clone }
         }.into()
     }
 }
 
-pub type UserInfoContext = UseReducerHandle<UserInfoMessage>;
+pub type AppStateContext = UseReducerHandle<AppState>;
 
 #[function_component(App)]
 pub fn app() -> Html {
-    let user_info_context = use_reducer(|| UserInfoMessage { user_info: None });
+    let app_state_context = use_reducer(|| AppState { 
+        user_info: None, 
+        nav_sidebar_open: false,
+        page_title: None
+    });
+    let nav_sidebar_open = app_state_context.nav_sidebar_open;
+    let my_plans_onclick = {
+        let app_state_context = app_state_context.clone();
+        Callback::from(move |_| {
+            app_state_context.dispatch(AppStateAction::SetPageTitle(AppRoutes::Landing.to_string()));            
+        })
+    };
     html! {
         <BrowserRouter>
-            <ContextProvider<UserInfoContext> context={user_info_context}>
-                <div class="wrapper flex-container flex-column">
+            <ContextProvider<AppStateContext> context={app_state_context}>
+                <Drawer id="nav-sidebar" dismissible={true} open={nav_sidebar_open}>
+                    <DrawerContent>
+                        <nav class="mdc-deprecated-list">
+                            <div onclick={ my_plans_onclick }>
+                                <Link<AppRoutes> to={AppRoutes::Landing} classes="mdc-deprecated-list-item">
+                                    <span class="mdc-deprecated-list-item__ripple"></span>
+                                    <i class="material-icons mdc-deprecated-list-item__graphic" aria-hidden="true">{ "view_list" }</i>
+                                    <span class="mdc-deprecated-list-item__text">{ "My Plans" }</span>
+                                </Link<AppRoutes>>
+                            </div>
+                        </nav>
+                    </DrawerContent>
+                </Drawer>
+                <div class="wrapper flex-container flex-column mdc-drawer-app-content">
                     <Header />
                     <Switch<AppRoutes> render={Switch::render(switch)} />
                 </div>
-            </ContextProvider<UserInfoContext>>
+            </ContextProvider<AppStateContext>>
         </BrowserRouter>
     }
 }
 
+struct HeaderState {
+    profile_menu_open: bool,
+    is_editing_title: bool,
+    page_title: String
+}
+
 #[function_component(Header)]
 pub fn header() -> Html {
-    let user_info_context = use_context::<UserInfoContext>().unwrap();
+    let app_state_context = use_context::<AppStateContext>().unwrap();
     let current_route: AppRoutes = use_route().unwrap();
-    if current_route == AppRoutes::Landing && user_info_context.user_info.is_none() {
+    let state = use_state(|| HeaderState { profile_menu_open: false, 
+        is_editing_title: false,
+        page_title: app_state_context.page_title.clone().unwrap_or_else(|| current_route.to_string())
+    });
+    let event_bus = use_mut_ref(|| {
+        EventBus::bridge(Callback::noop())
+    });
+    
+    let profile_picture_onclick = {
+        let state = state.clone();        
+        Callback::from(move |_| state.set(HeaderState { 
+            profile_menu_open: !state.profile_menu_open,
+            page_title: state.page_title.clone(),
+            ..*state
+        }))
+    };
+    
+    let profile_menu_onclose = {
+        let state = state.clone();
+        Callback::from(move |_| state.set(HeaderState { 
+            profile_menu_open: false,
+            page_title: state.page_title.clone(),
+            ..*state 
+        }))
+    };
+    
+    let top_bar_menu_onclick = {
+        let app_state_context = app_state_context.clone();
+        Callback::from(move |_| app_state_context.dispatch(AppStateAction::SetSidebarOpen(!app_state_context.nav_sidebar_open)))
+    };
+    
+    if current_route == AppRoutes::Landing && app_state_context.user_info.is_none() {
         return html! {}
     }
     else {
-        let user_section = if let Some(user) = &user_info_context.user_info {
+        let profile_picture_section = if let Some(user) = &app_state_context.user_info {
             html! {                
-                <Section align={Align::End}>                    
-                    <img id="profile-picture" src={user.picture.clone()} />
-                    <span>{ user.email.clone() } { user.name.clone() }</span>
+                <Section align={Align::End}>                
+                    <div class="mdc-menu-surface--anchor">
+                        <img id="profile-picture" class="mdc-top-app-bar__action-item" src={user.picture.clone()} onclick={profile_picture_onclick} />
+                        <Menu open={state.profile_menu_open} onclose={profile_menu_onclose} corner={Corner::BottomLeft} fixed_position={true}>
+                            <MenuItem text={user.name.clone()} />
+                            <MenuItem text={user.email.clone()} />
+                        </Menu>
+                    </div>
                 </Section>
+            }
+        } else {
+            html! {}
+        };
+
+        let page_title = app_state_context.page_title.clone().unwrap_or_else(|| current_route.to_string());
+        let page_title_html = {             
+            if state.is_editing_title {
+                let page_title = state.page_title.clone();
+                
+                let title_change = {
+                    let state = state.clone();
+                    Callback::from(move |value| state.set(HeaderState {
+                        is_editing_title: true,
+                        page_title: value,
+                        ..*state
+                    }))
+                };
+                html! {
+                    <span class="mdc-top-app-bar__title">
+                        <TextField value={ page_title.clone() } onchange={ title_change } classes={ "header-text-field" } />
+                    </span>
+                }
+            } else {
+                html! {
+                    <span class="mdc-top-app-bar__title">{ page_title.clone() }</span>
+                }
+            }
+        };
+
+        let edit_button = if current_route == AppRoutes::Planner {
+            if state.is_editing_title {
+                let done_button_click = {
+                    let app_state = app_state_context.clone();
+                    let state = state.clone();
+                    Callback::from(move |_| {
+                        state.set(HeaderState {
+                            is_editing_title: false,
+                            page_title: state.page_title.clone(),
+                            ..*state
+                        });
+                        (*event_bus.borrow_mut()).send(EventBusInput::PutPlannerTitle(state.page_title.clone()));
+                        app_state.dispatch(AppStateAction::SetPageTitle(state.page_title.clone()))
+                    })
+                };
+                let cancel_button_click = {
+                    let state = state.clone();
+                    Callback::from(move |_| {
+                        state.set(HeaderState {
+                            is_editing_title: false,
+                            page_title: page_title.clone(),
+                            ..*state
+                        })
+                    })
+                };
+                html! {
+                    <>
+                        <IconButton classes="material-icons mdc-top-app-bar__navigation-icon" onclick={done_button_click}>{ "done" }</IconButton>
+                        <IconButton classes="material-icons mdc-top-app-bar__navigation-icon" onclick={cancel_button_click}>{ "cancel" }</IconButton>
+                    </>
+                }
+            } else {
+                let edit_button_click = {
+                    let state = state.clone();
+                    Callback::from(move |_| state.set(HeaderState {
+                        is_editing_title: true,
+                        page_title: page_title.clone(),
+                        ..*state
+                    }))
+                };
+                html! {
+                    <IconButton classes="material-icons mdc-top-app-bar__navigation-icon" onclick={edit_button_click}>{ "edit" }</IconButton>
+                }
             }
         } else {
             html! {}
@@ -110,10 +262,11 @@ pub fn header() -> Html {
         return html! {
             <TopAppBar id="app-header">
                 <Section>
-                    <IconButton classes="material-icons mdc-top-app-bar__navigation-icon">{ "menu" }</IconButton>
-                    <span class="mdc-top-app-bar__title">{ current_route }</span>
+                    <IconButton classes="material-icons mdc-top-app-bar__navigation-icon" onclick={top_bar_menu_onclick}>{ "menu" }</IconButton>
+                    { page_title_html }
+                    { edit_button }
                 </Section>
-                { user_section }
+                { profile_picture_section }
             </TopAppBar>
         }
     }

@@ -24,3 +24,14 @@
   height: 32px;
   width: 32px;
 }
+
+.plan-card {
+  height: 150px;
+  width: 150px;
+  
+  .mdc-card__primary-action {
+    flex-grow: 1;
+    align-items: center;
+    padding-top: 50px;
+  }
+}

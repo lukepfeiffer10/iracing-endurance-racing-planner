@@ -9,8 +9,9 @@ use yew_agent::{Bridge, Bridged};
 use serde::{Serialize, Deserialize};
 use yew::html::Scope;
 use yew_router::scope_ext::HistoryHandle;
+use crate::{AppStateAction, AppStateContext};
 use crate::bindings::enable_tab_bar;
-use crate::event_bus::EventBus;
+use crate::event_bus::{EventBus, EventBusInput, EventBusOutput};
 use crate::overview::fuel_stint_times::{StintData};
 use crate::overview::overall_event_config::{EventConfigData};
 use crate::overview::overall_fuel_stint_config::OverallFuelStintConfigData;
@@ -84,10 +85,21 @@ impl Component for Planner {
     type Properties = ();
 
     fn create(ctx: &Context<Self>) -> Self {
-        let event_bus_bridge = EventBus::bridge(ctx.link().batch_callback(|_| None));
+        let link = ctx.link().clone();
+        let mut event_bus_bridge = EventBus::bridge(ctx.link().batch_callback(move |event| { 
+            match event {
+                EventBusOutput::SendPlannerTitle(title) => {
+                    let (app_state_context, _) = link.context::<AppStateContext>(Callback::noop()).unwrap();
+                    app_state_context.dispatch(AppStateAction::SetPageTitle(title));
+                    None
+                },
+                _ => None
+            }
+        }));
         let route_listener = ctx.link()
             .add_history_listener(ctx.link().callback(|_| PlannerMsg::UpdateTab))
-            .unwrap();
+            .unwrap();        
+        event_bus_bridge.send(EventBusInput::GetPlannerTitle);
         Self {
             _event_bus_bridge: event_bus_bridge,
             _route_listener: route_listener
@@ -106,9 +118,7 @@ impl Component for Planner {
         }
     }
 
-    fn changed(&mut self, _ctx: &Context<Self>) -> bool {
-        false
-    }
+    fn changed(&mut self, _ctx: &Context<Self>) -> bool { false }
 
     fn view(&self, ctx: &Context<Self>) -> Html {
         let link = ctx.link();
@@ -138,7 +148,7 @@ impl Component for Planner {
     fn rendered(&mut self, _ctx: &Context<Self>, first_render: bool) {
         if first_render {
             enable_tab_bar(".mdc-tab-bar");
-        }
+        }        
     }
 }
 
@@ -183,7 +193,8 @@ pub struct RacePlanner {
     pub time_of_day_lap_factors: Vec<TimeOfDayLapFactor>,
     pub per_driver_lap_factors: Vec<DriverLapFactor>,
     pub driver_roster: Vec<Driver>,
-    pub schedule_rows: Option<Vec<ScheduleDataRow>>
+    pub schedule_rows: Option<Vec<ScheduleDataRow>>,
+    pub title: String,
 }
 
 impl RacePlanner {
@@ -195,7 +206,8 @@ impl RacePlanner {
             time_of_day_lap_factors: vec![],
             per_driver_lap_factors: vec![],
             driver_roster: vec![],
-            schedule_rows: None
+            schedule_rows: None,
+            title: "New Plan".to_string()
         }
     }
 }
