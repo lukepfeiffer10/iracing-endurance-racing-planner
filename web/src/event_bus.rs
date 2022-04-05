@@ -18,7 +18,9 @@ pub enum EventBusInput {
     GetFuelStintAverageTimes,
     PutFuelStintAverageTimes(FuelStintAverageTimes),
     GetScheduleAndRelatedData,
-    PutSchedule(Vec<ScheduleDataRow>)
+    PutSchedule(Vec<ScheduleDataRow>),
+    GetPlannerTitle,
+    PutPlannerTitle(String)
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -29,7 +31,8 @@ pub enum EventBusOutput {
     SendDriverRoster(Vec<Driver>),
     SendOverallEventConfig(Option<EventConfigData>),
     SendFuelStintAverageTimes(Option<FuelStintAverageTimes>),
-    SendScheduleAndRelatedData(Option<Vec<ScheduleDataRow>>, ScheduleRelatedData)
+    SendScheduleAndRelatedData(Option<Vec<ScheduleDataRow>>, ScheduleRelatedData),
+    SendPlannerTitle(String)
 }
 
 pub struct EventBus {
@@ -113,6 +116,14 @@ impl Agent for EventBus {
             }
             EventBusInput::PutSchedule(data) => {
                 self.race_planner_data.schedule_rows = Some(data);
+            }
+            EventBusInput::GetPlannerTitle => {
+                for sub in self.subscribers.iter() {
+                    self.link.respond(*sub, EventBusOutput::SendPlannerTitle(self.race_planner_data.title.clone()))
+                }
+            }
+            EventBusInput::PutPlannerTitle(title) => {
+                self.race_planner_data.title = title;
             }
         }
     }

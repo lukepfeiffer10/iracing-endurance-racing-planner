@@ -14,8 +14,9 @@ use yew::{Component, Html};
 use yew::prelude::*;
 use web_sys::{Location, Window, window};
 use yew_router::prelude::*;
+use yew_mdc::components::{Card, PrimaryAction}; 
+use crate::{UserInfo, AppStateContext, AppStateAction};
 use crate::planner::PlannerRoutes;
-use crate::{UserInfo, UserInfoContext};
 
 const NONCE_KEY: &str = "nonce";
 const STATE_KEY: &str = "state";
@@ -47,6 +48,7 @@ impl Component for Landing {
     fn create(ctx: &Context<Self>) -> Self {
         let client = Rc::new(create_auth_client());
         let link_ref = ctx.link().clone();
+        let (app_state_context, _) = link_ref.context::<AppStateContext>(Callback::noop()).unwrap();
         spawn_local(async move {
             match handle_auth_code_redirect().await {
                 Ok(user) => {
@@ -59,7 +61,7 @@ impl Component for Landing {
         Self {
             google_login_image: "btn_google_signin_light_normal_web.png".to_string(),
             google_oauth_client: client,
-            user: None
+            user: app_state_context.user_info.clone()
         }
     }
 
@@ -99,8 +101,8 @@ impl Component for Landing {
             }
             LandingMsg::UpdateUser(user) => {                
                 self.user = Some(user);
-                let (user_info_context, _) = _ctx.link().context::<UserInfoContext>(Callback::noop()).unwrap();
-                user_info_context.dispatch(self.user.clone());
+                let (user_info_context, _) = _ctx.link().context::<AppStateContext>(Callback::noop()).unwrap();
+                user_info_context.dispatch(AppStateAction::SetUser(self.user.clone()));
                 let window: Window = window().expect("no global `window` object exists");
                 let location: Location = window.location();
                 location.set_hash("").expect("url hash/fragment could not be reset");
@@ -130,14 +132,23 @@ impl Component for Landing {
         
         match &self.user {
             Some(_) => {
-                html! {
+                let new_plan_click = {
+                    let history = link.history().unwrap();
+                    Callback::from(move |_| history.push(PlannerRoutes::Overview))
+                };
+                return html! {
                     <div class="content">
-                        <Link<PlannerRoutes> to={PlannerRoutes::Overview}>{ "New plan" }</Link<PlannerRoutes>>
+                        <Card classes="plan-card">
+                            <PrimaryAction onclick={ new_plan_click }>
+                                <i class="material-icons">{ "add" }</i>
+                                <span>{ "New Plan" }</span>
+                            </PrimaryAction>
+                        </Card>
                     </div>
                 }
             }
             None => {
-                html! {
+                return html! {
                     <div id="login-content" class="flex-container flex-column">
                         <div id="login-card" class="mdc-card">
                             <div class="mdc-card-wrapper__text-section">

@@ -1,0 +1,7 @@
+﻿@use "@material/textfield/mdc-text-field";
+@use "@material/textfield";
+
+.header-text-field {
+  @include textfield.ink-color(white);
+  @include textfield.caret-color(white)
+}

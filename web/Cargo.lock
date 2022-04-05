@@ -1880,7 +1880,7 @@ dependencies = [
 [[package]]
 name = "yew-mdc"
 version = "0.1.0"
-source = "git+https://github.com/lukepfeiffer10/yew-mdc.git#0bf9f1401c91233b0dfb158a7828c3a3c92473a0"
+source = "git+https://github.com/lukepfeiffer10/yew-mdc.git#91a951926be9e15d9ebfa24928b6d7962afc35bb"
 dependencies = [
  "boolinator",
  "cfg-if 0.1.10",

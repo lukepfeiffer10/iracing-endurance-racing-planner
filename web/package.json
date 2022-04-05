@@ -9,8 +9,12 @@
   },
   "devDependencies": {
     "@wasm-tool/wasm-pack-plugin": "^1.1.0",
+    "autoprefixer": "^10.4.4",
     "copy-webpack-plugin": "^10.2.0",
     "css-loader": "^6.5.1",
+    "extract-loader": "^5.1.0",
+    "file-loader": "^6.2.0",
+    "postcss-loader": "^6.2.1",
     "rimraf": "^3.0.0",
     "sass": "^1.45.1",
     "sass-loader": "^12.4.0",
