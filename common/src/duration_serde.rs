@@ -11,7 +11,7 @@ pub fn deserialize<'de, D>(d: D) -> Result<Duration, D::Error>
     d.deserialize_i64(DurationVisitor)
 }
 
-pub fn serialize<S>(duration: &Duration, serializer: S) -> Result<S::Ok, S::Error> 
+pub fn serialize<S>(duration: &Duration, serializer: S) -> Result<S::Ok, S::Error>
     where S: Serializer
 {
     serializer.serialize_i64(duration.num_milliseconds())
@@ -29,5 +29,9 @@ impl<'de> Visitor<'de> for DurationVisitor {
 
     fn visit_i64<E>(self, v: i64) -> Result<Self::Value, E> where E: Error {
         Ok(Duration::milliseconds(v))
+    }
+
+    fn visit_u64<E>(self, v: u64) -> Result<Self::Value, E> where E: Error {
+        self.visit_i64(v as i64)
     }
 }
