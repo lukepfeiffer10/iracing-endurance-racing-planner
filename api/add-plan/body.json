@@ -1,0 +1,35 @@
+{
+  "driverRoster": [
+    {
+      "color": "blue",
+      "fairShare": true,
+      "irating": 4000,
+      "name": "Luke",
+      "stintPreference": 2,
+      "totalStints": 4,
+      "utcOffset": -7
+    },
+    {
+      "color": "purple",
+      "fairShare": true,
+      "irating": 4000,
+      "name": "Geoff",
+      "stintPreference": 2,
+      "totalStints": 4,
+      "utcOffset": -5
+    }
+  ],
+  "fuelStintAverageTimes": null,
+  "id": null,
+  "overallEventConfig": null,
+  "overallFuelStintConfig": {
+    "addTireTime": true,
+    "fuelTankSize": 99,
+    "pitDuration": 120000,
+    "tireChangeTime": 27000
+  },
+  "perDriverLapFactors": [],
+  "scheduleRows": null,
+  "timeOfDayLapFactors": [],
+  "title": "24hrs of Nurb"
+}

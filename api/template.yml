@@ -1,0 +1,42 @@
+﻿AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+
+Resources:
+  Api:
+    Type: AWS::Serverless::HttpApi
+    Properties:
+      StageName: Prod
+  AddPlan:
+    Type: AWS::Serverless::Function
+    Properties:
+      MemorySize: 128
+      Architectures: [ "arm64" ]
+      Handler: bootstrap
+      Runtime: provided.al2
+      Timeout: 5
+      CodeUri: target/lambda/add-plan/
+      Events:
+        HttpApiEvent:
+          Type: HttpApi
+          Properties:
+            ApiId: Api
+            Method: post
+            Path: /plans
+            PayloadFormatVersion: "2.0"
+  GetPlan:
+    Type: AWS::Serverless::Function
+    Properties:
+      MemorySize: 128
+      Architectures: [ "arm64" ]
+      Handler: bootstrap
+      Runtime: provided.al2
+      Timeout: 5
+      CodeUri: target/lambda/get-plan/
+      Events:
+        HttpApiEvent:
+          Type: HttpApi
+          Properties:
+            ApiId: Api
+            Method: get
+            Path: /plans/{id}
+            PayloadFormatVersion: "2.0"
