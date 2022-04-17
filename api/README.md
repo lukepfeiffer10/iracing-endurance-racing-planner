@@ -23,9 +23,24 @@ cargo lambda build --release --target aarch64-unknown-linux-gnu
 ```
 
 ### 2. Running locally
+Create a local docker network
+
+```shell
+docker network create -d bridge race-planner
+```
+
+Create a local postgres container for the database and run the migrations from the db crate
+
+```shell
+docker run --name planner-db -p 5432:5432 -v planner-db-data:/var/lib/postgresql/data -e POSTGRES_USER=race_planner -e POSTGRES_PASSWORD=RacingPlanner!2 -d postgres
+
+cd ../db
+cargo run
+```
+
 Install the [AWS SAM CLI](https://github.com/aws/aws-sam-cli)
 
 Run the following command to start a local docker container to mimic the AWS stack
 ```shell
-sam local start-api
+sam local start-api --docker-network race-planner
 ```

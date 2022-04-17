@@ -1,0 +1,18 @@
+[package]
+name = "db"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies.barrel]
+version = "0.7.0"
+features = ["pg"]
+
+[dependencies.refinery]
+version = "0.8.4"
+features = ["postgres"]
+
+[dependencies.postgres]
+version = "0.19.2"
+features = ["with-chrono-0_4", "with-uuid-0_8"]
