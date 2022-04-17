@@ -1,2 +1,6 @@
 ﻿[workspace]
-members = ["add-plan","get-plan"]
+members = [
+    "add-plan",
+    "get-plan",
+    "get-user"
+]

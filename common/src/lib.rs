@@ -1,4 +1,5 @@
 mod duration_serde;
+pub mod user;
 
 use chrono::{DateTime, Duration, NaiveDateTime, NaiveTime, Utc};
 use serde::{Serialize, Deserialize};
