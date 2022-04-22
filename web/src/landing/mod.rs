@@ -2,9 +2,10 @@
 use std::error::Error;
 use std::fmt::{Debug, Display, Formatter};
 use std::rc::Rc;
-use gloo_console::error;
-use gloo_storage::{SessionStorage, Storage};
-use jwt_compact::{Claims, ParseError, UntrustedToken, ValidationError, alg::{RsaPublicKey, Rsa}, AlgorithmExt, jwk::{JsonWebKey}};
+use endurance_racing_planner_common::user::User;
+use gloo_console::{error};
+use gloo_storage::{LocalStorage, SessionStorage, Storage};
+use jwt_compact::{Claims, ParseError, UntrustedToken, ValidationError, alg::{RsaPublicKey, Rsa}, AlgorithmExt, jwk::{JsonWebKey}, Token};
 use oauth2::{AuthUrl, ClientId, CsrfToken, RedirectUrl, ResponseType, RevocationUrl, Scope, TokenUrl};
 use oauth2::basic::{BasicClient};
 use oauth2::url::Url;
@@ -20,11 +21,13 @@ use crate::planner::PlannerRoutes;
 
 const NONCE_KEY: &str = "nonce";
 const STATE_KEY: &str = "state";
+const ID_TOKEN_KEY: &str = "id_token";
 
 pub struct Landing {
     google_login_image: String,
     google_oauth_client: Rc<BasicClient>,
     user: Option<UserInfo>,
+    is_loading: bool,
 }
 
 #[derive(Clone)]
@@ -39,6 +42,7 @@ pub enum LandingMsg {
     OnMouseEvent(MouseEventType),
     OnLoginClick,
     UpdateUser(UserInfo),
+    OnLoading,
 }
 
 impl Component for Landing {
@@ -50,18 +54,36 @@ impl Component for Landing {
         let link_ref = ctx.link().clone();
         let (app_state_context, _) = link_ref.context::<AppStateContext>(Callback::noop()).unwrap();
         spawn_local(async move {
-            match handle_auth_code_redirect().await {
-                Ok(user) => {
-                    if let Some(user) = user { link_ref.send_message(LandingMsg::UpdateUser(user)) }                    
-                },
-                Err(e) => error!(e.to_string().as_str())
+            let token_result: gloo_storage::Result<String> = LocalStorage::get(ID_TOKEN_KEY);
+            if let Ok(id_token) = token_result {
+                link_ref.send_message(LandingMsg::OnLoading);
+                match get_me().await {
+                    Ok(user) => {
+                        let parsed_token = UntrustedToken::new(&id_token).unwrap();
+                        let claims = parsed_token.deserialize_claims_unchecked::<GoogleOpenIdClaims>().unwrap();
+                        link_ref.send_message(LandingMsg::UpdateUser(UserInfo {
+                            name: user.name,
+                            email: user.email,
+                            picture: claims.custom.picture
+                        }))
+                    },
+                    Err(_) => link_ref.send_message(LandingMsg::OnLoginClick)
+                }
+            } else {
+                match handle_auth_code_redirect().await {
+                    Ok(user) => {
+                        if let Some(user) = user { link_ref.send_message(LandingMsg::UpdateUser(user)) }
+                    },
+                    Err(e) => error!(e.to_string().as_str())
+                }
             }
         });
         
         Self {
             google_login_image: "btn_google_signin_light_normal_web.png".to_string(),
             google_oauth_client: client,
-            user: app_state_context.user_info.clone()
+            user: app_state_context.user_info.clone(),
+            is_loading: false
         }
     }
 
@@ -101,11 +123,16 @@ impl Component for Landing {
             }
             LandingMsg::UpdateUser(user) => {                
                 self.user = Some(user);
+                self.is_loading = false;
                 let (user_info_context, _) = _ctx.link().context::<AppStateContext>(Callback::noop()).unwrap();
                 user_info_context.dispatch(AppStateAction::SetUser(self.user.clone()));
                 let window: Window = window().expect("no global `window` object exists");
                 let location: Location = window.location();
                 location.set_hash("").expect("url hash/fragment could not be reset");
+                true
+            }
+            LandingMsg::OnLoading => {
+                self.is_loading = true;
                 true
             }
         }
@@ -148,20 +175,26 @@ impl Component for Landing {
                 }
             }
             None => {
-                return html! {
-                    <div id="login-content" class="flex-container flex-column">
-                        <div id="login-card" class="mdc-card">
-                            <div class="mdc-card-wrapper__text-section">
-                                <div class="card-title">{ "Login" }</div>
+                if self.is_loading {
+                    return html! {
+                        <h1>{ "Loading..." }</h1>
+                    }
+                } else {
+                    return html! {                    
+                        <div id="login-content" class="flex-container flex-column">
+                            <div id="login-card" class="mdc-card">
+                                <div class="mdc-card-wrapper__text-section">
+                                    <div class="card-title">{ "Login" }</div>
+                                </div>
+                                <img src={format!("images/{}", self.google_login_image)} alt="Sign in with Google" width="191" height="46"
+                                    onmouseover={on_mouse_over}
+                                    onmouseout={on_mouse_out}
+                                    onmousedown={on_mouse_down}
+                                    onmouseup={on_mouse_up}
+                                    onclick={on_login_click} />
                             </div>
-                            <img src={format!("images/{}", self.google_login_image)} alt="Sign in with Google" width="191" height="46"
-                                onmouseover={on_mouse_over}
-                                onmouseout={on_mouse_out}
-                                onmousedown={on_mouse_down}
-                                onmouseup={on_mouse_up}
-                                onclick={on_login_click} />
                         </div>
-                    </div>
+                    }
                 }
             }
         }
@@ -231,8 +264,8 @@ enum AuthError {
 impl Display for AuthError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            AuthError::TokenParseError(e) => write!(f, "{}", e.to_string()),
-            AuthError::TokenValidationError(e) => write!(f, "{}",  e.to_string()),
+            AuthError::TokenParseError(e) => write!(f, "{}", e),
+            AuthError::TokenValidationError(e) => write!(f, "{}",  e),
             AuthError::MismatchedNonce => write!(f, "mismatched nonce in the token response"),
             AuthError::MismatchedState => write!(f, "mismatched state in the token response"),
             AuthError::MissingIdTokenInResponse => write!(f, "missing id_token in the response"),            
@@ -268,9 +301,24 @@ async fn handle_auth_code_redirect() -> Result<Option<UserInfo>, AuthError> {
                 .collect::<Vec<_>>();
             
             validate_state_parameter(&fragments)?;
-            let user = validate_id_token(&fragments).await?;
+            let token = validate_id_token(&fragments).await?;
+            validate_nonce(token.claims())?;
+            let get_me_result = (get_me().await).map_err(|_| AuthError::Other("failed to get me".into()));
+            let me = match get_me_result {
+                Ok(user) => Ok(user),
+                Err(_) => {
+                    match create_user(&token.claims().custom).await {
+                        Ok(created_user) => Ok(created_user),
+                        Err(_) => Err(AuthError::Other("failed to create a user".into()))
+                    }
+                }
+            }?;
             
-            Ok(Some(user))
+            Ok(Some(UserInfo {
+                name: me.name,
+                email: me.email,
+                picture: token.claims().custom.picture.clone()
+            }))
         } else {
             Ok(None)
         }
@@ -300,7 +348,7 @@ fn validate_state_parameter(fragments: &[(&str, &str)]) -> Result<(), AuthError>
     }
 }
 
-async fn validate_id_token(fragments: &[(&str, &str)]) -> Result<UserInfo, AuthError> {
+async fn validate_id_token(fragments: &[(&str, &str)]) -> Result<Token<GoogleOpenIdClaims>, AuthError> {
     let id_token = fragments.iter().find(|(key, _)| *key == "id_token");
     match id_token {
         Some((_, value)) => {
@@ -308,6 +356,7 @@ async fn validate_id_token(fragments: &[(&str, &str)]) -> Result<UserInfo, AuthE
             signing_keys
                 .map_err(|_| AuthError::Other("error getting signing keys".into()))
                 .and_then(|signing_keys| {
+                    LocalStorage::set(ID_TOKEN_KEY, value).expect("failed to set id token in local storage");
                     let token = UntrustedToken::new(value);
                     token
                         .map_err(AuthError::TokenParseError)
@@ -323,14 +372,7 @@ async fn validate_id_token(fragments: &[(&str, &str)]) -> Result<UserInfo, AuthE
                             }
                             let rsa_public_key = RsaPublicKey::try_from(signing_key).unwrap();
                             let token_message = Rsa::rs256().validate_integrity::<GoogleOpenIdClaims>(&token, &rsa_public_key);
-                            match token_message {
-                                Ok(data) => {
-                                    validate_nonce(data.claims())
-                                }
-                                Err(message) => {
-                                    Err(AuthError::TokenValidationError(message))
-                                }
-                            }
+                            token_message.map_err(AuthError::TokenValidationError)
                         })
                 })
             
@@ -379,19 +421,52 @@ async fn get_google_signing_keys() -> Result<GoogleSigningKeysResponse<'static>,
     Ok(signing_keys)
 }
 
-fn validate_nonce(data: &Claims<GoogleOpenIdClaims>) -> Result<UserInfo, AuthError> {
+fn validate_nonce(data: &Claims<GoogleOpenIdClaims>) -> Result<(), AuthError> {
     let nonce = SessionStorage::get(NONCE_KEY);
     nonce
         .map_err(|_| AuthError::MissingNonceInStorage)
         .and_then(|nonce: String| {
             SessionStorage::delete(NONCE_KEY);
             if data.custom.nonce != nonce {
-                return Err(AuthError::MismatchedNonce);
+                Err(AuthError::MismatchedNonce)
+            } else {
+                Ok(())
             }
-            Ok(UserInfo {
-                email: data.custom.email.clone(),
-                picture: data.custom.picture.clone(),
-                name: data.custom.name.clone()
-            })
         })
+}
+
+async fn create_user(claims: &GoogleOpenIdClaims) -> Result<User, Box<dyn Error>> {
+    let user = User {
+        id: 0,
+        name: claims.name.clone(),
+        email: claims.email.clone(),
+        oauth_id: claims.sub.clone()
+    };
+    
+    let client = reqwest::Client::new();
+    let new_user = client
+        .post("http://localhost:3000/users")
+        .header("Accept", "application/json")
+        .body(serde_json::to_string(&user).expect("failed to convert user to serde json value"))
+        .send()
+        .await?
+        .json::<User>()
+        .await?;
+    
+    Ok(new_user)
+}
+
+async fn get_me() -> Result<User, Box<dyn Error>> {
+    let token: String = LocalStorage::get(ID_TOKEN_KEY)?;
+    let client = reqwest::Client::new();
+    let me = client
+        .get("http://localhost:3000/users/me")
+        .header("Accept", "application/json")
+        .header("Authorization", format!("Bearer {}", token))
+        .send()
+        .await?
+        .json::<User>()
+        .await?;
+
+    Ok(me)
 }

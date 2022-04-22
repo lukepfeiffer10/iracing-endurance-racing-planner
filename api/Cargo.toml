@@ -2,5 +2,8 @@
 members = [
     "add-plan",
     "get-plan",
-    "get-user"
+    "get-user",
+    "add-user",
+    "me",
+    "utilities"
 ]

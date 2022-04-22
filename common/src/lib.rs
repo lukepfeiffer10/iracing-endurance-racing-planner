@@ -1,5 +1,6 @@
 mod duration_serde;
 pub mod user;
+pub mod google_open_id_claims;
 
 use chrono::{DateTime, Duration, NaiveDateTime, NaiveTime, Utc};
 use serde::{Serialize, Deserialize};

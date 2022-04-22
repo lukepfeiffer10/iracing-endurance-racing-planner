@@ -1,0 +1,30 @@
+[package]
+name = "add-user"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+lambda_http = "0.5.1"
+serde_json = "1.0.79"
+
+[dependencies.tokio]
+version = "1.17.0"
+features = ["full"]
+
+[dependencies.sqlx]
+version = "0.5.11"
+features = ["postgres"]
+
+[dependencies.endurance_racing_planner_common]
+path = "../../common"
+
+[dependencies.data_access]
+path = "../../data-access"
+
+[dependencies.utilities]
+path = "../utilities"
+
+[package.metadata.lambda.env]
+IS_LOCAL = true
