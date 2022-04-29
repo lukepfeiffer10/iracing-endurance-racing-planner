@@ -11,3 +11,10 @@ features = ["runtime-tokio-rustls", "postgres", "uuid", "chrono"]
 
 [dependencies.endurance_racing_planner_common]
 path = "../common"
+
+[dependencies.chrono]
+version = "0.4.19"
+
+[dependencies.uuid]
+version = "0.8.2"
+features = ["v4"]

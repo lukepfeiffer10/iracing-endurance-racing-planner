@@ -1,8 +1,12 @@
+use jwt_compact::UntrustedToken;
 use lambda_http::http::response::Builder;
-use lambda_http::http::header::{ACCESS_CONTROL_ALLOW_ORIGIN, CONTENT_TYPE, LOCATION};
+use lambda_http::http::header::{ACCESS_CONTROL_ALLOW_ORIGIN, AUTHORIZATION, CONTENT_TYPE, LOCATION};
 use lambda_http::{Body, IntoResponse, Response};
-use lambda_http::http::StatusCode;
+use lambda_http::http::{HeaderMap, HeaderValue, StatusCode};
 use serde::Serialize;
+use sqlx::PgPool;
+use data_access::user::Users;
+use endurance_racing_planner_common::{GoogleOpenIdClaims, User};
 
 fn add_standard_headers(builder: Builder) -> Builder {
     builder
@@ -68,5 +72,22 @@ pub struct ApiResponse<T>
 impl<T: Serialize> IntoResponse for ApiResponse<T> {
     fn into_response(self) -> Response<Body> {
         ok_response(self)
+    }
+}
+
+pub async fn get_current_user(headers: &HeaderMap<HeaderValue>, db_context_ref: &PgPool) -> Option<User> {
+    let auth_header = headers.get(AUTHORIZATION);
+    match auth_header {
+        Some(header_value) => {
+            let token = header_value.to_str()
+                .expect("authorization header as a string")
+                .replace("Bearer ", "");
+            let parsed_token = UntrustedToken::new(&token).unwrap();
+            let claims = parsed_token.deserialize_claims_unchecked::<GoogleOpenIdClaims>().unwrap();
+            let oauth_id = claims.custom.sub;
+
+            Users::get_user_by_oauth_id(db_context_ref, oauth_id).await.unwrap()
+        }
+        None => None
     }
 }

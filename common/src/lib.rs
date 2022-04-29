@@ -6,8 +6,8 @@ use uuid::Uuid;
 
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct RacePlanner {
-    pub id: Option<Uuid>,
+pub struct RacePlannerDto {
+    pub id: Uuid,
     pub title: String,
     pub overall_event_config: Option<EventConfigData>,
     pub overall_fuel_stint_config: OverallFuelStintConfigData,
@@ -15,16 +15,7 @@ pub struct RacePlanner {
     pub time_of_day_lap_factors: Vec<TimeOfDayLapFactor>,
     pub per_driver_lap_factors: Vec<DriverLapFactor>,
     pub driver_roster: Vec<Driver>,
-    pub schedule_rows: Option<Vec<ScheduleDataRow>>,
-}
-
-impl RacePlanner {
-    pub fn new(plan: RacePlanner) -> RacePlanner {
-        RacePlanner {
-            id: Some(Uuid::new_v4()),
-            ..plan
-        }
-    }
+    pub schedule_rows: Option<Vec<ScheduleDataRow>>
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]

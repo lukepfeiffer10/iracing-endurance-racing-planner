@@ -23,8 +23,18 @@ serde_json = "1.0.79"
 version = "1.17.0"
 features = ["full"]
 
+[dependencies.sqlx]
+version = "0.5.11"
+features = ["postgres"]
+
 [dependencies.endurance_racing_planner_common]
 path = "../../common"
+
+[dependencies.data_access]
+path = "../../data-access"
+
+[dependencies.utilities]
+path = "../utilities"
 
 [package.metadata.lambda.env]
 IS_LOCAL = true

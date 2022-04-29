@@ -6,10 +6,13 @@ version = 3
 name = "add-plan"
 version = "0.1.0"
 dependencies = [
+ "data_access",
  "endurance_racing_planner_common",
  "lambda_http",
  "serde_json",
+ "sqlx",
  "tokio",
+ "utilities",
 ]
 
 [[package]]
@@ -298,8 +301,10 @@ dependencies = [
 name = "data_access"
 version = "0.1.0"
 dependencies = [
+ "chrono",
  "endurance_racing_planner_common",
  "sqlx",
+ "uuid",
 ]
 
 [[package]]
@@ -1754,10 +1759,13 @@ dependencies = [
 name = "utilities"
 version = "0.1.0"
 dependencies = [
+ "data_access",
  "endurance_racing_planner_common",
+ "jwt-compact",
  "lambda_http",
  "serde",
  "serde_json",
+ "sqlx",
 ]
 
 [[package]]

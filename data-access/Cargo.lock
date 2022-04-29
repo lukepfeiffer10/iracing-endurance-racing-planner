@@ -151,8 +151,10 @@ dependencies = [
 name = "data_access"
 version = "0.1.0"
 dependencies = [
+ "chrono",
  "endurance_racing_planner_common",
  "sqlx",
+ "uuid",
 ]
 
 [[package]]
