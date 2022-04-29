@@ -1,39 +1,46 @@
-use lambda_http::{service_fn, Error, IntoResponse, Request, Response, Body};
-use endurance_racing_planner_common::RacePlanner;
+use lambda_http::{service_fn, Error, IntoResponse, Request, Body};
+use sqlx::PgPool;
+use data_access::plans::create_plan;
+use data_access::entities::Plan;
+use endurance_racing_planner_common::RacePlannerDto;
+use utilities::{bad_request_response, created_response, get_current_user, unauthorized_response};
 
 #[tokio::main]
 async fn main() -> Result<(), Error> {
-    lambda_http::run(service_fn(func)).await?;
+    let db_context = data_access::initialize().await?;
+    let db_context_ref = &db_context;
+    let handler = move |event: Request| {
+        add_plan(event, db_context_ref)
+    };
+
+    lambda_http::run(service_fn(handler)).await?;
     Ok(())
 }
 
-async fn func(event: Request) -> Result<impl IntoResponse, Error> {
-    Ok(match event.body() {
-        Body::Text(json) => {
-            let plan = serde_json::from_str::<RacePlanner>(json);
-            
-            match plan {
-                Ok(p) => {
-                    let new_plan = RacePlanner::new(p);
-                    
-                    Response::builder()
-                        .status(201)
-                        .header("Location", format!("/plans/{}", new_plan.id.unwrap()))
-                        .body(serde_json::to_string(&new_plan).unwrap())
-                        .expect("failed to render response")
+async fn add_plan(event: Request, db_context_ref: &PgPool) -> Result<impl IntoResponse, Error> {
+    let current_user = get_current_user(event.headers(), db_context_ref).await;
+    match current_user {
+        Some(user) => {
+            Ok(match event.body() {
+                Body::Text(json) => {
+                    let plan = serde_json::from_str::<RacePlannerDto>(json);
+                    match plan {
+                        Ok(p) => {
+                            let mut new_plan: Plan = p.into();
+                            new_plan.created_by = user.id;
+                            
+                            let new_plan: RacePlannerDto = create_plan(db_context_ref, new_plan).await?.into();
+                            created_response(&new_plan, format!("/plans/{}", new_plan.id))
+                        },
+                        Err(e) => {
+                            bad_request_response(e.to_string())
+                        }
+                    }
+
                 },
-                Err(e) => {
-                    Response::builder()
-                        .status(400)
-                        .body(e.to_string())
-                        .expect("failed to render response")
-                }
-            }
-            
-        },
-        _ => Response::builder()
-            .status(400)
-            .body("Invalid body type".into())
-            .expect("failed to render response"),
-    })
+                _ => bad_request_response("Invalid body type".into()),
+            })
+        }
+        None => Ok(unauthorized_response())
+    }    
 }

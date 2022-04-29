@@ -1,4 +1,5 @@
 mod migrations;
+mod types;
 
 use postgres::{Client, NoTls };
 

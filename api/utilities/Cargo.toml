@@ -12,5 +12,17 @@ serde_json = "1.0.79"
 [dependencies.serde]
 version = "1.0.136"
 
+[dependencies.jwt-compact]
+version = "0.5.0"
+default-features = false
+features = ["clock", "with_rsa" ]
+
+[dependencies.sqlx]
+version = "0.5.11"
+features = ["postgres"]
+
 [dependencies.endurance_racing_planner_common]
 path = "../../common"
+
+[dependencies.data_access]
+path = "../../data-access"
