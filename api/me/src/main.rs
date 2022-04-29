@@ -3,7 +3,7 @@ use lambda_http::{service_fn, Error, IntoResponse, Request};
 use lambda_http::http::header::{AUTHORIZATION};
 use sqlx::PgPool;
 use data_access::user::Users;
-use endurance_racing_planner_common::google_open_id_claims::GoogleOpenIdClaims;
+use endurance_racing_planner_common::GoogleOpenIdClaims;
 use utilities::{ApiResponse, not_found_response, unauthorized_response};
 
 #[tokio::main]

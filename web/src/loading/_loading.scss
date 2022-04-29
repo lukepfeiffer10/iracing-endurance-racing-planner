@@ -1,0 +1,38 @@
+﻿$animation-timing: 2s;
+$text-color: #0759CA;
+$text-size: 40px;
+$text-opacity: 0.5;
+
+.loading {
+  height: 100%;
+  text-align: center;
+  font-size: $text-size;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+
+  .text {
+    margin: 0 .2em;
+    display: inline-block;
+    color: $text-color;
+    position: relative;
+    animation: ease-in-out shimmer $animation-timing infinite;
+    animation-delay: calc(0.1s * var(--i));
+  }
+
+  .logo {
+    margin: 0 .2em;
+    display: inline-block;
+    border-radius: 15px;
+  }
+
+}
+
+@keyframes shimmer {
+  0%, 40% {
+    top: 0;
+  }
+  20% {
+    opacity: $text-opacity;
+  }
+}

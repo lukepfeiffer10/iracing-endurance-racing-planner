@@ -1,6 +1,4 @@
 mod duration_serde;
-pub mod user;
-pub mod google_open_id_claims;
 
 use chrono::{DateTime, Duration, NaiveDateTime, NaiveTime, Utc};
 use serde::{Serialize, Deserialize};
@@ -145,4 +143,31 @@ pub enum StintType {
     FuelSavingWithTires,
     StandardNoTires,
     StandardWithTires,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct GoogleOpenIdClaims {
+    pub iss: String,
+    pub azp: String,
+    pub aud: String,
+    pub sub: String,
+    pub email: String,
+    pub email_verified: bool,
+    pub at_hash: String,
+    pub nonce: String,
+    pub name: String,
+    pub picture: String,
+    pub given_name: String,
+    pub family_name: String,
+    pub locale: String,
+    pub jti: String
+}
+
+#[derive(Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct User {
+    pub id: i32,
+    pub name: String,
+    pub email: String,
+    pub oauth_id: String
 }

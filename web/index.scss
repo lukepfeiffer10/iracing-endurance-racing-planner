@@ -11,13 +11,7 @@ html, body, .wrapper {
   flex-basis: auto;
   overflow: auto;
   padding: $gutter;
-}
-
-header#app-header {
-  position: revert;
-  flex-grow: 0;
-  flex-shrink: 0;
-  flex-basis: auto;
+  margin-top: 64px;
 }
 
 footer {
@@ -110,3 +104,4 @@ footer {
 @import "src/schedule/schedule";
 @import "src/landing/landing";
 @import "src/header";
+@import "src/loading/loading";
