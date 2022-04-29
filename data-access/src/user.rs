@@ -1,5 +1,5 @@
 ﻿use sqlx::{PgPool};
-use endurance_racing_planner_common::user::User;
+use endurance_racing_planner_common::User;
 
 pub struct Users;
 

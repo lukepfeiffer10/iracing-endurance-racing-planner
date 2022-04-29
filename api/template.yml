@@ -5,7 +5,26 @@ Resources:
   Api:
     Type: AWS::Serverless::HttpApi
     Properties:
-      StageName: Prod
+      CorsConfiguration:
+        AllowOrigins:
+          - "http://localhost:9000"
+        AllowMethods:
+          - GET
+          - POST
+          - DELETE
+          - PUT
+          - OPTIONS
+        AllowHeaders:
+          - Authorization
+      Auth:
+        Authorizers:
+          GoogleOpenIdAuthorizer:
+            IdentitySource: $request.header.Authorization
+            JwtConfiguration:
+              audience:
+                - "709154627100-fbcvr0njtbah2jfgv5bghnt7t39r28k9.apps.googleusercontent.com"
+              issuer: "https://accounts.google.com"
+        DefaultAuthorizer: GoogleOpenIdAuthorizer
   AddPlan:
     Type: AWS::Serverless::Function
     Properties:
@@ -56,4 +75,38 @@ Resources:
             ApiId: Api
             Method: get
             Path: /users/{id}
+            PayloadFormatVersion: "2.0"
+  AddUser:
+    Type: AWS::Serverless::Function
+    Properties:
+      MemorySize: 128
+      Architectures: [ "arm64" ]
+      Handler: bootstrap
+      Runtime: provided.al2
+      Timeout: 5
+      CodeUri: target/lambda/add-user/
+      Events:
+        HttpApiEvent:
+          Type: HttpApi
+          Properties:
+            ApiId: Api
+            Method: post
+            Path: /users
+            PayloadFormatVersion: "2.0"
+  Me:
+    Type: AWS::Serverless::Function
+    Properties:
+      MemorySize: 128
+      Architectures: [ "arm64" ]
+      Handler: bootstrap
+      Runtime: provided.al2
+      Timeout: 5
+      CodeUri: target/lambda/me/
+      Events:
+        HttpApiEvent:
+          Type: HttpApi
+          Properties:
+            ApiId: Api
+            Method: get
+            Path: /users/me
             PayloadFormatVersion: "2.0"

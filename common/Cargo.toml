@@ -15,4 +15,4 @@ features = ["serde"]
 
 [dependencies.uuid]
 version = "0.8.2"
-features = ["v4", "serde"]
+features = ["v4", "serde", "wasm-bindgen"]

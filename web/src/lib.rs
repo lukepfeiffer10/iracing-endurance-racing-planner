@@ -1,13 +1,21 @@
 use std::fmt::{Display, Formatter};
 use std::rc::Rc;
+use gloo_console::error;
+use gloo_storage::{LocalStorage, Storage};
+use jwt_compact::UntrustedToken;
 use yew::prelude::*;
 use yew_router::prelude::*;
 use wasm_bindgen::prelude::*;
+use wasm_bindgen_futures::spawn_local;
+use web_sys::{Window, window};
 use yew_agent::Bridged;
 use yew_mdc::components::{top_app_bar::{TopAppBar, Section, section::Align}, IconButton, Menu, MenuItem, menu::Corner, Drawer, DrawerContent, TextField};
+use endurance_racing_planner_common::GoogleOpenIdClaims;
+use crate::auth::{get_me, handle_auth_code_redirect, ID_TOKEN_KEY, login};
 use crate::event_bus::{EventBus, EventBusInput};
 use crate::planner::Planner;
 use crate::landing::{Landing};
+use crate::loading::{Loading};
 
 mod bindings;
 mod md_text_field;
@@ -18,6 +26,8 @@ mod roster;
 mod schedule;
 mod landing;
 mod planner;
+mod auth;
+mod loading;
 
 #[derive(Routable,Clone,Eq,PartialEq,Copy)]
 enum AppRoutes {
@@ -93,13 +103,66 @@ pub fn app() -> Html {
         nav_sidebar_open: false,
         page_title: None
     });
+    let is_loading = use_state_eq(|| false);
     let nav_sidebar_open = app_state_context.nav_sidebar_open;
     let my_plans_onclick = {
         let app_state_context = app_state_context.clone();
         Callback::from(move |_| {
-            app_state_context.dispatch(AppStateAction::SetPageTitle(AppRoutes::Landing.to_string()));            
+            app_state_context.dispatch(AppStateAction::SetPageTitle(AppRoutes::Landing.to_string()));
+            app_state_context.dispatch(AppStateAction::SetSidebarOpen(false));
         })
     };
+
+    let _handle_auth_redirect = {
+        let app_state_context = app_state_context.clone();
+        let is_loading = is_loading.clone();
+        use_effect_with_deps(move |_| {
+            if app_state_context.user_info.is_none() {
+                spawn_local(async move {
+                    let token_result: gloo_storage::Result<String> = LocalStorage::get(ID_TOKEN_KEY);
+                    if let Ok(id_token) = token_result {
+                        is_loading.set(true);
+                        match get_me().await {
+                            Ok(user) => {
+                                let parsed_token = UntrustedToken::new(&id_token).unwrap();
+                                let claims = parsed_token.deserialize_claims_unchecked::<GoogleOpenIdClaims>().unwrap();
+                                is_loading.set(false);
+                                app_state_context.dispatch(AppStateAction::SetUser(
+                                    Some(
+                                        UserInfo {
+                                            name: user.name,
+                                            email: user.email,
+                                            picture: claims.custom.picture 
+                                        }
+                                    )))
+                            },
+                            Err(_) => login()
+                        }
+                    } else {
+                        is_loading.set(true);
+                        match handle_auth_code_redirect().await {                            
+                            Ok(user) => {
+                                is_loading.set(false);
+                                if let Some(user) = user { 
+                                    app_state_context.dispatch(AppStateAction::SetUser(Some(user)));
+                                    let window: Window = window().expect("no global `window` object exists");
+                                    let location: web_sys::Location = window.location();
+                                    location.set_hash("").expect("url hash/fragment could not be reset");
+                                }
+                            },
+                            Err(e) => {
+                                is_loading.set(false);
+                                error!(e.to_string().as_str())
+                            }
+                        }
+                    }
+                });
+            };
+
+            || ()
+        }, ());
+    };
+
     html! {
         <BrowserRouter>
             <ContextProvider<AppStateContext> context={app_state_context}>
@@ -118,7 +181,13 @@ pub fn app() -> Html {
                 </Drawer>
                 <div class="wrapper flex-container flex-column mdc-drawer-app-content">
                     <Header />
-                    <Switch<AppRoutes> render={Switch::render(switch)} />
+                    { 
+                        if *is_loading  {
+                            html! { <Loading /> }
+                        } else {
+                            html! { <Switch<AppRoutes> render={Switch::render(switch)} /> } 
+                        }
+                    }
                 </div>
             </ContextProvider<AppStateContext>>
         </BrowserRouter>

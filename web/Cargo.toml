@@ -76,3 +76,6 @@ version = "0.2.1"
 
 [dependencies.gloo-storage]
 version = "0.2.0"
+
+[dependencies.endurance_racing_planner_common]
+path = "../common"
