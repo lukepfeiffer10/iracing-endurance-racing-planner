@@ -7,32 +7,14 @@ use jwt_compact::alg::{Rsa, RsaPublicKey};
 use jwt_compact::jwk::JsonWebKey;
 use oauth2::basic::BasicClient;
 use oauth2::{AuthUrl, ClientId, CsrfToken, RedirectUrl, ResponseType, RevocationUrl, Scope, TokenUrl, url::Url};
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize};
 use web_sys::{Location, Window, window};
-use endurance_racing_planner_common::User;
+use endurance_racing_planner_common::{GoogleOpenIdClaims, User};
 use crate::UserInfo;
 
 const NONCE_KEY: &str = "nonce";
 const STATE_KEY: &str = "state";
 pub const ID_TOKEN_KEY: &str = "id_token";
-
-#[derive(Debug, Serialize, Deserialize)]
-struct GoogleOpenIdClaims {
-    iss: String,
-    azp: String,
-    aud: String,
-    sub: String,
-    email: String,
-    email_verified: bool,
-    at_hash: String,
-    nonce: String,
-    name: String,
-    picture: String,
-    given_name: String,
-    family_name: String,
-    locale: String,
-    jti: String
-}
 
 #[derive(Deserialize)]
 struct GoogleDiscoveryResponse {

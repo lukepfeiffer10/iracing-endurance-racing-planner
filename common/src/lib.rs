@@ -139,19 +139,19 @@ pub enum StintType {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct GoogleOpenIdClaims {
     pub iss: String,
-    pub azp: String,
+    pub azp: Option<String>,
     pub aud: String,
     pub sub: String,
     pub email: String,
     pub email_verified: bool,
-    pub at_hash: String,
+    pub at_hash: Option<String>,
     pub nonce: String,
     pub name: String,
     pub picture: String,
-    pub given_name: String,
-    pub family_name: String,
-    pub locale: String,
-    pub jti: String
+    pub given_name: Option<String>,
+    pub family_name: Option<String>,
+    pub locale: Option<String>,
+    pub jti: Option<String>
 }
 
 #[derive(Serialize, Deserialize)]
