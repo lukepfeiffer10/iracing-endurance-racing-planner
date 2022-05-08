@@ -1,9 +1,58 @@
-﻿[workspace]
-members = [
-    "add-plan",
-    "get-plan",
-    "get-user",
-    "add-user",
-    "me",
-    "utilities"
+﻿[[bin]]
+name = 'add-plan'
+path = 'src/bin/add_plan.rs'
+test = false
+
+[[bin]]
+name = 'add-user'
+path = 'src/bin/add_user.rs'
+test = false
+
+[[bin]]
+name = 'get-plan'
+path = 'src/bin/get_plan.rs'
+test = false
+
+[[bin]]
+name = 'get-user'
+path = 'src/bin/get_user.rs'
+test = false
+
+[[bin]]
+name = 'me'
+path = 'src/bin/me.rs'
+test = false
+
+[package]
+name = 'api'
+version = '0.1.0'
+edition = '2021'
+
+[dependencies]
+lambda_http = '0.5.1'
+serde_json = '1.0.79'
+
+[dependencies.jwt-compact]
+version = '0.5.0'
+default-features = false
+features = [
+    'clock',
+    'with_rsa',
 ]
+
+[dependencies.tokio]
+version = '1.17.0'
+features = ['full']
+
+[dependencies.serde]
+version = '1.0.136'
+
+[dependencies.sqlx]
+version = '0.5.11'
+features = ['postgres']
+
+[dependencies.endurance_racing_planner_common]
+path = '../common'
+
+[dependencies.data_access]
+path = '../data-access'

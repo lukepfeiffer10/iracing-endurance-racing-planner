@@ -19,7 +19,7 @@ This Cargo subcommand will give you the option to install [Zig](https://ziglang.
 Now you can run the following command to build the lambda functions
 
 ```shell
-cargo lambda build --release --target aarch64-unknown-linux-gnu
+cargo lambda build --arm64
 ```
 
 ### 2. Running locally
