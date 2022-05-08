@@ -1,10 +1,16 @@
-﻿use serde::{Deserialize, Serialize};
-use std::collections::HashSet;
-use gloo_console::log;
-use yew_agent::{Agent, AgentLink, Context, HandlerId};
-use crate::overview::{overall_event_config::EventConfigData, overall_fuel_stint_config::OverallFuelStintConfigData, fuel_stint_times::StandardLapTime};
+﻿use crate::overview::{
+    fuel_stint_times::StandardLapTime, overall_event_config::EventConfigData,
+    overall_fuel_stint_config::OverallFuelStintConfigData,
+};
 use crate::schedule::fuel_stint_schedule::{ScheduleDataRow, ScheduleRelatedData};
-use crate::{roster::{Driver}, planner::{FuelStintAverageTimes, RacePlanner}};
+use crate::{
+    planner::{FuelStintAverageTimes, RacePlanner},
+    roster::Driver,
+};
+use gloo_console::log;
+use serde::{Deserialize, Serialize};
+use std::collections::HashSet;
+use yew_agent::{Agent, AgentLink, Context, HandlerId};
 
 #[derive(Serialize, Deserialize, Debug)]
 pub enum EventBusInput {
@@ -19,8 +25,7 @@ pub enum EventBusInput {
     PutFuelStintAverageTimes(FuelStintAverageTimes),
     GetScheduleAndRelatedData,
     PutSchedule(Vec<ScheduleDataRow>),
-    GetPlannerTitle,
-    PutPlannerTitle(String)
+    PutPlannerTitle(String),
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -32,13 +37,13 @@ pub enum EventBusOutput {
     SendOverallEventConfig(Option<EventConfigData>),
     SendFuelStintAverageTimes(Option<FuelStintAverageTimes>),
     SendScheduleAndRelatedData(Option<Vec<ScheduleDataRow>>, ScheduleRelatedData),
-    SendPlannerTitle(String)
+    SendPlannerTitle(String),
 }
 
 pub struct EventBus {
     link: AgentLink<EventBus>,
     subscribers: HashSet<HandlerId>,
-    race_planner_data: RacePlanner
+    race_planner_data: RacePlanner,
 }
 
 impl Agent for EventBus {
@@ -51,7 +56,7 @@ impl Agent for EventBus {
         Self {
             link,
             subscribers: HashSet::new(),
-            race_planner_data: RacePlanner::new()
+            race_planner_data: RacePlanner::new(),
         }
     }
 
@@ -66,30 +71,47 @@ impl Agent for EventBus {
             EventBusInput::OverallFuelStintConfig(data) => {
                 self.race_planner_data.overall_fuel_stint_config = data.clone();
                 for sub in self.subscribers.iter() {
-                    self.link.respond(*sub, EventBusOutput::OverallFuelStintConfig(data.clone()));
+                    self.link
+                        .respond(*sub, EventBusOutput::OverallFuelStintConfig(data.clone()));
                 }
             }
             EventBusInput::GetOverallFuelStintConfig => {
                 for sub in self.subscribers.iter() {
-                    self.link.respond(*sub, EventBusOutput::SendOverallFuelStintConfig(self.race_planner_data.overall_fuel_stint_config.clone()));
+                    self.link.respond(
+                        *sub,
+                        EventBusOutput::SendOverallFuelStintConfig(
+                            self.race_planner_data.overall_fuel_stint_config.clone(),
+                        ),
+                    );
                 }
             }
             EventBusInput::StandardLapTime(duration) => {
                 for sub in self.subscribers.iter() {
-                    self.link.respond(*sub, EventBusOutput::StandardLapTime(duration.clone()));
+                    self.link
+                        .respond(*sub, EventBusOutput::StandardLapTime(duration.clone()));
                 }
             }
             EventBusInput::GetDriverRoster => {
                 for sub in self.subscribers.iter() {
-                    self.link.respond(*sub, EventBusOutput::SendDriverRoster(self.race_planner_data.driver_roster.clone()))
+                    self.link.respond(
+                        *sub,
+                        EventBusOutput::SendDriverRoster(
+                            self.race_planner_data.driver_roster.clone(),
+                        ),
+                    )
                 }
             }
-            EventBusInput::PutDriverRoster(drivers) => {                
+            EventBusInput::PutDriverRoster(drivers) => {
                 self.race_planner_data.driver_roster = drivers;
             }
             EventBusInput::GetOverallEventConfig => {
                 for sub in self.subscribers.iter() {
-                    self.link.respond(*sub, EventBusOutput::SendOverallEventConfig(self.race_planner_data.overall_event_config.clone()))
+                    self.link.respond(
+                        *sub,
+                        EventBusOutput::SendOverallEventConfig(
+                            self.race_planner_data.overall_event_config.clone(),
+                        ),
+                    )
                 }
             }
             EventBusInput::PutOverallEventConfig(config) => {
@@ -97,7 +119,12 @@ impl Agent for EventBus {
             }
             EventBusInput::GetFuelStintAverageTimes => {
                 for sub in self.subscribers.iter() {
-                    self.link.respond(*sub, EventBusOutput::SendFuelStintAverageTimes(self.race_planner_data.fuel_stint_average_times.clone()))
+                    self.link.respond(
+                        *sub,
+                        EventBusOutput::SendFuelStintAverageTimes(
+                            self.race_planner_data.fuel_stint_average_times.clone(),
+                        ),
+                    )
                 }
             }
             EventBusInput::PutFuelStintAverageTimes(data) => {
@@ -108,22 +135,29 @@ impl Agent for EventBus {
                     let data = ScheduleRelatedData {
                         overall_event_config: self.race_planner_data.overall_event_config.clone(),
                         fuel_stint_times: self.race_planner_data.fuel_stint_average_times.clone(),
-                        overall_fuel_stint_config: self.race_planner_data.overall_fuel_stint_config.clone(),
-                        drivers: self.race_planner_data.driver_roster.clone()
+                        overall_fuel_stint_config: self
+                            .race_planner_data
+                            .overall_fuel_stint_config
+                            .clone(),
+                        drivers: self.race_planner_data.driver_roster.clone(),
                     };
-                    self.link.respond(*sub, EventBusOutput::SendScheduleAndRelatedData(self.race_planner_data.schedule_rows.clone(), data));
+                    self.link.respond(
+                        *sub,
+                        EventBusOutput::SendScheduleAndRelatedData(
+                            self.race_planner_data.schedule_rows.clone(),
+                            data,
+                        ),
+                    );
                 }
             }
             EventBusInput::PutSchedule(data) => {
                 self.race_planner_data.schedule_rows = Some(data);
             }
-            EventBusInput::GetPlannerTitle => {
-                for sub in self.subscribers.iter() {
-                    self.link.respond(*sub, EventBusOutput::SendPlannerTitle(self.race_planner_data.title.clone()))
-                }
-            }
             EventBusInput::PutPlannerTitle(title) => {
-                self.race_planner_data.title = title;
+                for sub in self.subscribers.iter() {
+                    self.link
+                        .respond(*sub, EventBusOutput::SendPlannerTitle(title.clone()))
+                }
             }
         }
     }

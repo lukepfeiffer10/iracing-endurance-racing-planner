@@ -1,10 +1,10 @@
 mod duration_serde;
 
 use chrono::{DateTime, Duration, NaiveDateTime, NaiveTime, Utc};
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, PartialEq, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct RacePlannerDto {
     pub id: Uuid,
@@ -15,10 +15,31 @@ pub struct RacePlannerDto {
     pub time_of_day_lap_factors: Vec<TimeOfDayLapFactor>,
     pub per_driver_lap_factors: Vec<DriverLapFactor>,
     pub driver_roster: Vec<Driver>,
-    pub schedule_rows: Option<Vec<ScheduleDataRow>>
+    pub schedule_rows: Option<Vec<ScheduleDataRow>>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+impl RacePlannerDto {
+    pub fn new() -> RacePlannerDto {
+        RacePlannerDto {
+            id: Uuid::new_v4(),
+            title: "New Plan".into(),
+            overall_event_config: None,
+            overall_fuel_stint_config: OverallFuelStintConfigData {
+                pit_duration: Duration::zero(),
+                fuel_tank_size: 0,
+                tire_change_time: Duration::zero(),
+                add_tire_time: false,
+            },
+            fuel_stint_average_times: None,
+            time_of_day_lap_factors: vec![],
+            per_driver_lap_factors: vec![],
+            driver_roster: vec![],
+            schedule_rows: None,
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct EventConfigData {
     #[serde(with = "crate::duration_serde")]
@@ -31,10 +52,10 @@ pub struct EventConfigData {
     #[serde(with = "crate::duration_serde")]
     pub green_flag_offset: Duration,
     #[serde(with = "crate::duration_serde")]
-    pub tod_offset: Duration
+    pub tod_offset: Duration,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct OverallFuelStintConfigData {
     #[serde(with = "crate::duration_serde")]
@@ -42,17 +63,17 @@ pub struct OverallFuelStintConfigData {
     pub fuel_tank_size: i32,
     #[serde(with = "crate::duration_serde")]
     pub tire_change_time: Duration,
-    pub add_tire_time: bool
+    pub add_tire_time: bool,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct FuelStintAverageTimes {
     pub standard_fuel_stint: StintData,
-    pub fuel_saving_stint: StintData
+    pub fuel_saving_stint: StintData,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct StintData {
     #[serde(with = "crate::duration_serde")]
@@ -68,7 +89,7 @@ pub struct StintData {
     pub fuel_per_stint: f32,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, PartialEq, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct TimeOfDayLapFactor {
     pub time_of_day: String,
@@ -78,10 +99,10 @@ pub struct TimeOfDayLapFactor {
     #[serde(with = "crate::duration_serde")]
     pub delta: Duration,
     pub factor: f64,
-    pub has_edited_lap_time: bool
+    pub has_edited_lap_time: bool,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, PartialEq, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct DriverLapFactor {
     pub driver_name: String,
@@ -91,7 +112,7 @@ pub struct DriverLapFactor {
     pub factor: f64,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, PartialEq, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct Driver {
     pub name: String,
@@ -103,7 +124,7 @@ pub struct Driver {
     pub stint_preference: i32,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct ScheduleDataRow {
     pub stint_type: StintType,
@@ -151,7 +172,7 @@ pub struct GoogleOpenIdClaims {
     pub given_name: Option<String>,
     pub family_name: Option<String>,
     pub locale: Option<String>,
-    pub jti: Option<String>
+    pub jti: Option<String>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -160,5 +181,5 @@ pub struct User {
     pub id: i32,
     pub name: String,
     pub email: String,
-    pub oauth_id: String
+    pub oauth_id: String,
 }
