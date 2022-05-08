@@ -1,6 +1,8 @@
 ﻿@import "variables";
 
-html, body, .wrapper {
+html,
+body,
+.wrapper {
   height: 100%;
   margin: 0;
 }
@@ -22,14 +24,14 @@ footer {
 
 .flex-container {
   display: flex;
-  
+
   &.flex-column {
     flex-direction: column;
   }
-  
+
   &.flex-row {
     flex-direction: row;
-    
+
     &.flex-justify-content-center {
       justify-content: center;
     }
@@ -39,8 +41,8 @@ footer {
 #left-column {
   flex-grow: 1;
   padding: $gutter;
-  
-  > div {
+
+  >div {
     margin-bottom: $gutter;
     margin-top: $gutter;
   }
@@ -49,8 +51,8 @@ footer {
 #right-column {
   flex-grow: 6;
   padding: $gutter;
-  
-  > div {
+
+  >div {
     margin: $gutter;
   }
 }
@@ -68,12 +70,12 @@ footer {
 #time-of-day-lap-factors {
   flex-grow: 3;
   margin-right: $gutter;
-  
-  td.show-reset > label.mdc-text-field > i {
+
+  td.show-reset>label.mdc-text-field>i {
     visibility: visible;
   }
-  
-  td > label.mdc-text-field > i {
+
+  td>label.mdc-text-field>i {
     visibility: hidden;
   }
 }
@@ -81,7 +83,7 @@ footer {
 #driver-lap-factors {
   flex-grow: 2;
   margin-left: $gutter;
-  
+
   p {
     text-align: center;
   }
@@ -96,7 +98,7 @@ footer {
   padding: 16px;
 }
 
-.mdc-checkbox .mdc-checkbox__native-control:enabled:checked ~ .mdc-checkbox__background {
+.mdc-checkbox .mdc-checkbox__native-control:enabled:checked~.mdc-checkbox__background {
   background-color: var(--mdc-theme-primary);
   border-color: var(--mdc-theme-primary);
 }

@@ -1,4 +1,4 @@
-﻿use barrel::{types, Migration, backend::Pg};
+﻿use barrel::{backend::Pg, types, Migration};
 
 pub fn migration() -> String {
     let mut m = Migration::new();
