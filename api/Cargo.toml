@@ -14,6 +14,11 @@ path = 'src/bin/get_plan.rs'
 test = false
 
 [[bin]]
+name = 'get-plans'
+path = 'src/bin/get_plans.rs'
+test = false
+
+[[bin]]
 name = 'get-user'
 path = 'src/bin/get_user.rs'
 test = false

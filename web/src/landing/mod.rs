@@ -1,17 +1,21 @@
 ﻿use crate::auth::login;
+use crate::http::plans::get_plans;
 use crate::planner::PlannerRoutes;
 use crate::{AppStateContext, UserInfo};
+use endurance_racing_planner_common::RacePlannerDto;
 use uuid::Uuid;
 use yew::context::ContextHandle;
 use yew::prelude::*;
 use yew::{Component, Html};
-use yew_mdc::components::{Card, PrimaryAction};
+use yew_mdc::components::list::item::LeadingType;
+use yew_mdc::components::{Card, List, ListItem, PrimaryAction};
 use yew_router::prelude::*;
 
 pub struct Landing {
     google_login_image: String,
     user: Option<UserInfo>,
     _app_state_context_handle: ContextHandle<AppStateContext>,
+    my_plans: Vec<RacePlannerDto>,
 }
 
 #[derive(Clone)]
@@ -26,6 +30,19 @@ pub enum LandingMsg {
     OnMouseEvent(MouseEventType),
     OnLoginClick,
     OnAppStateContextUpdate(AppStateContext),
+    UpdatePlans(Vec<RacePlannerDto>),
+    OpenPlan(Uuid),
+}
+
+fn render_plan(plan: &RacePlannerDto, ctx: &Context<Landing>) -> Html {
+    let id = plan.id;
+    let onclick = ctx.link().callback(move |_| LandingMsg::OpenPlan(id));
+    html! {
+        <ListItem
+            text={vec![plan.title.clone()]}
+            leading_item={Some(LeadingType::Icon("event".into()))}
+            onclick={onclick} />
+    }
 }
 
 impl Component for Landing {
@@ -37,14 +54,20 @@ impl Component for Landing {
             .link()
             .context::<AppStateContext>(ctx.link().callback(LandingMsg::OnAppStateContextUpdate))
             .expect("No App State Context Provided");
+
+        if app_state_context.user_info.is_some() {
+            get_plans(ctx.link().callback(LandingMsg::UpdatePlans));
+        }
+
         Self {
             google_login_image: "btn_google_signin_light_normal_web.png".to_string(),
             user: app_state_context.user_info.clone(),
             _app_state_context_handle: context_listener,
+            my_plans: vec![],
         }
     }
 
-    fn update(&mut self, _ctx: &Context<Self>, msg: Self::Message) -> bool {
+    fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
         match msg {
             LandingMsg::OnMouseEvent(event_type) => {
                 self.google_login_image = match event_type {
@@ -63,10 +86,22 @@ impl Component for Landing {
             LandingMsg::OnAppStateContextUpdate(app_state_context) => {
                 if self.user != app_state_context.user_info {
                     self.user = app_state_context.user_info.clone();
+                    get_plans(ctx.link().callback(LandingMsg::UpdatePlans));
                     true
                 } else {
                     false
                 }
+            }
+            LandingMsg::UpdatePlans(my_plans) => {
+                self.my_plans = my_plans;
+                true
+            }
+            LandingMsg::OpenPlan(plan_id) => {
+                ctx.link()
+                    .history()
+                    .unwrap()
+                    .push(PlannerRoutes::Overview { id: plan_id });
+                false
             }
         }
     }
@@ -102,6 +137,14 @@ impl Component for Landing {
                                 <span>{ "New Plan" }</span>
                             </PrimaryAction>
                         </Card>
+                        <List>
+                            {
+                                self.my_plans
+                                    .iter()
+                                    .map(|plan| render_plan(plan, ctx))
+                                    .collect::<Vec<_>>()
+                            }
+                        </List>
                     </div>
                 };
             }

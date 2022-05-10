@@ -17,7 +17,7 @@ fn get_auth_token() -> Result<String, StorageError> {
 }
 
 fn get_request_builder(method: Method, route: &str) -> Result<RequestBuilder, Box<dyn Error>> {
-    let base_url = Url::parse(BASE_PATH).expect("base path to be a valid url");
+    let base_url = Url::parse(BASE_PATH)?;
     let client = reqwest::Client::new();
     Ok(client
         .request(method, base_url.join(route)?)
@@ -30,14 +30,32 @@ where
 {
     spawn_local(async move {
         let response = get_request_builder(Method::POST, route)
-            .expect("request to be built successfully")
-            .body(serde_json::to_string(&body).expect("failed to convert body to serde json value"))
+            .unwrap()
+            .body(serde_json::to_string(&body).unwrap())
             .send()
             .await
-            .expect("post request to return a successful response")
+            .unwrap()
             .json::<T>()
             .await
-            .expect("response body to serialize from json properly");
+            .unwrap();
+
+        callback.emit(response)
+    })
+}
+
+pub fn get<T>(route: &'static str, callback: Callback<T>) -> ()
+where
+    T: DeserializeOwned + 'static,
+{
+    spawn_local(async move {
+        let response = get_request_builder(Method::GET, route)
+            .unwrap()
+            .send()
+            .await
+            .unwrap()
+            .json::<T>()
+            .await
+            .unwrap();
 
         callback.emit(response)
     })

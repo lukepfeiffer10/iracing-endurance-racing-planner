@@ -59,6 +59,23 @@ Resources:
             Method: get
             Path: /plans/{id}
             PayloadFormatVersion: "2.0"
+  GetPlans:
+    Type: AWS::Serverless::Function
+    Properties:
+      MemorySize: 128
+      Architectures: [ "arm64" ]
+      Handler: bootstrap
+      Runtime: provided.al2
+      Timeout: 5
+      CodeUri: target/lambda/get-plans/
+      Events:
+        HttpApiEvent:
+          Type: HttpApi
+          Properties:
+            ApiId: Api
+            Method: get
+            Path: /plans
+            PayloadFormatVersion: "2.0"
   GetUser:
     Type: AWS::Serverless::Function
     Properties:
