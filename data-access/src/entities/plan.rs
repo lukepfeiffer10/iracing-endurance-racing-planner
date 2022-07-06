@@ -7,6 +7,18 @@ pub struct Plan {
     pub title: String,
     pub created_by: i32,
     pub created_date: DateTime<Utc>,
+    pub modified_by: Option<i32>,
+    pub modified_date: Option<DateTime<Utc>>,
+}
+
+pub struct PlanWithOwner {
+    pub id: Uuid,
+    pub title: String,
+    pub created_by: i32,
+    pub created_date: DateTime<Utc>,
+    pub modified_by: Option<i32>,
+    pub modified_date: Option<DateTime<Utc>>,
+    pub owner: String,
 }
 
 impl From<RacePlannerDto> for Plan {
@@ -16,6 +28,8 @@ impl From<RacePlannerDto> for Plan {
             title: plan.title,
             created_by: 0,
             created_date: Utc::now(),
+            modified_by: None,
+            modified_date: None,
         }
     }
 }

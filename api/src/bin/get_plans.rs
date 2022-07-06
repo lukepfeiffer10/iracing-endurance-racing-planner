@@ -1,6 +1,6 @@
 use api::{get_current_user, ok_response, unauthorized_response, ApiResponse};
 use data_access::plans::get_plans_by_user_id;
-use endurance_racing_planner_common::RacePlannerDto;
+use endurance_racing_planner_common::PlanListDto;
 use lambda_http::{service_fn, Error, IntoResponse, Request};
 use sqlx::PgPool;
 
@@ -20,8 +20,13 @@ async fn get_plans(event: Request, db_context: &PgPool) -> Result<impl IntoRespo
         let plans = get_plans_by_user_id(db_context, user.id)
             .await?
             .iter()
-            .map(|p| p.into())
-            .collect::<Vec<RacePlannerDto>>();
+            .map(|p| PlanListDto {
+                id: p.id,
+                title: p.title.clone(),
+                owner: p.owner.clone(),
+                last_modified: p.modified_date.or(Some(p.created_date)).unwrap(),
+            })
+            .collect::<Vec<PlanListDto>>();
 
         Ok(ok_response(ApiResponse { body: plans }))
     } else {
