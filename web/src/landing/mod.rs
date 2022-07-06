@@ -1,21 +1,24 @@
 ﻿use crate::auth::login;
 use crate::http::plans::get_plans;
 use crate::planner::PlannerRoutes;
-use crate::{AppStateContext, UserInfo};
-use endurance_racing_planner_common::RacePlannerDto;
+use crate::{AppState, AppStateAction, AppStateContext, UserInfo};
+use endurance_racing_planner_common::PlanListDto;
 use uuid::Uuid;
 use yew::context::ContextHandle;
 use yew::prelude::*;
 use yew::{Component, Html};
-use yew_mdc::components::list::item::LeadingType;
-use yew_mdc::components::{Card, List, ListItem, PrimaryAction};
+use yew_mdc::components::{
+    list::item::{LeadingType, TrailingType},
+    Card, List, ListItem, PrimaryAction,
+};
 use yew_router::prelude::*;
 
 pub struct Landing {
     google_login_image: String,
     user: Option<UserInfo>,
     _app_state_context_handle: ContextHandle<AppStateContext>,
-    my_plans: Vec<RacePlannerDto>,
+    app_state_context: UseReducerHandle<AppState>,
+    my_plans: Vec<PlanListDto>,
 }
 
 #[derive(Clone)]
@@ -30,18 +33,26 @@ pub enum LandingMsg {
     OnMouseEvent(MouseEventType),
     OnLoginClick,
     OnAppStateContextUpdate(AppStateContext),
-    UpdatePlans(Vec<RacePlannerDto>),
-    OpenPlan(Uuid),
+    UpdatePlans(Vec<PlanListDto>),
+    OpenPlan(Uuid, String),
 }
 
-fn render_plan(plan: &RacePlannerDto, ctx: &Context<Landing>) -> Html {
+fn render_plan(plan: &PlanListDto, ctx: &Context<Landing>) -> Html {
     let id = plan.id;
-    let onclick = ctx.link().callback(move |_| LandingMsg::OpenPlan(id));
+    let title = (*plan.title).to_string();
+    let onclick = ctx
+        .link()
+        .callback(move |_| LandingMsg::OpenPlan(id, title.clone()));
     html! {
         <ListItem
             text={vec![plan.title.clone()]}
             leading_item={Some(LeadingType::Icon("event".into()))}
-            onclick={onclick} />
+            trailing_item={Some(TrailingType::Icon("more_vert".into()))}
+            onclick={onclick}>
+
+            <span class="col-2">{ plan.owner.clone() }</span>
+            <span class="col-3">{ plan.last_modified.format("%v") }</span>
+        </ListItem>
     }
 }
 
@@ -58,11 +69,11 @@ impl Component for Landing {
         if app_state_context.user_info.is_some() {
             get_plans(ctx.link().callback(LandingMsg::UpdatePlans));
         }
-
         Self {
             google_login_image: "btn_google_signin_light_normal_web.png".to_string(),
             user: app_state_context.user_info.clone(),
             _app_state_context_handle: context_listener,
+            app_state_context,
             my_plans: vec![],
         }
     }
@@ -96,7 +107,9 @@ impl Component for Landing {
                 self.my_plans = my_plans;
                 true
             }
-            LandingMsg::OpenPlan(plan_id) => {
+            LandingMsg::OpenPlan(plan_id, plan_title) => {
+                self.app_state_context
+                    .dispatch(AppStateAction::SetPageTitle(plan_title));
                 ctx.link()
                     .history()
                     .unwrap()
@@ -131,20 +144,33 @@ impl Component for Landing {
                 };
                 return html! {
                     <div class="content">
-                        <Card classes="plan-card">
-                            <PrimaryAction onclick={ new_plan_click }>
-                                <i class="material-icons">{ "add" }</i>
-                                <span>{ "New Plan" }</span>
-                            </PrimaryAction>
-                        </Card>
-                        <List>
-                            {
-                                self.my_plans
-                                    .iter()
-                                    .map(|plan| render_plan(plan, ctx))
-                                    .collect::<Vec<_>>()
-                            }
-                        </List>
+                        <div id="new-plans-container">
+                            <div id="new-plans-cards">
+                                <Card classes="plan-card">
+                                    <PrimaryAction onclick={ new_plan_click }>
+                                        <i class="material-icons">{ "add" }</i>
+                                        <span>{ "New Plan" }</span>
+                                    </PrimaryAction>
+                                </Card>
+                            </div>
+                        </div>
+                        <div id="my-plans-list">
+                            <h2>
+                                <span style="width: 72px;"></span>
+                                <span class="col-1">{ "Plan Name" }</span>
+                                <span class="col-2">{ "Owner" }</span>
+                                <span class="col-3">{ "Last updated" }</span>
+                                <span style="width: 30px;"></span>
+                            </h2>
+                            <List>
+                                {
+                                    self.my_plans
+                                        .iter()
+                                        .map(|plan| render_plan(plan, ctx))
+                                        .collect::<Vec<_>>()
+                                }
+                            </List>
+                        </div>
                     </div>
                 };
             }

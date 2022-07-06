@@ -2,7 +2,7 @@
   height: 100%;
   align-items: center;
   justify-content: center;
-    
+
   img {
     cursor: pointer;
     align-self: center;
@@ -28,10 +28,48 @@
 .plan-card {
   height: 150px;
   width: 150px;
-  
+
   .mdc-card__primary-action {
     flex-grow: 1;
     align-items: center;
     padding-top: 50px;
+  }
+}
+
+#my-plans-list {
+  max-width: 1150px;
+  margin: auto;
+
+  h2 {
+    display: flex;
+    padding-right: 16px;
+  }
+
+  .col-1 {
+    flex: 2;
+  }
+
+  .col-2,
+  .col-3 {
+    flex: 1;
+  }
+
+  .mdc-list-item__content {
+    display: flex;
+
+    .mdc-list-item__primary-text {
+      flex: 2;
+    }
+  }
+}
+
+#new-plans-container {
+  background-color: lightgray;
+  margin: -15px -15px 0;
+
+  #new-plans-cards {
+    width: 1150px;
+    padding: 15px;
+    margin: auto;
   }
 }

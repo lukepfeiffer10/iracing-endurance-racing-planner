@@ -183,3 +183,12 @@ pub struct User {
     pub email: String,
     pub oauth_id: String,
 }
+
+#[derive(Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PlanListDto {
+    pub id: Uuid,
+    pub title: String,
+    pub owner: String,
+    pub last_modified: DateTime<Utc>,
+}
