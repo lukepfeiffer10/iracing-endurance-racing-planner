@@ -1,6 +1,6 @@
 use jwt_compact::UntrustedToken;
 use lambda_http::http::response::Builder;
-use lambda_http::http::header::{ACCESS_CONTROL_ALLOW_ORIGIN, AUTHORIZATION, CONTENT_TYPE, LOCATION};
+use lambda_http::http::header::{AUTHORIZATION, CONTENT_TYPE, LOCATION, ACCESS_CONTROL_ALLOW_ORIGIN, ACCESS_CONTROL_ALLOW_METHODS};
 use lambda_http::{Body, IntoResponse, Response};
 use lambda_http::http::{HeaderMap, HeaderValue, StatusCode};
 use serde::Serialize;
@@ -12,6 +12,7 @@ fn add_standard_headers(builder: Builder) -> Builder {
     builder
         .header(CONTENT_TYPE, "application/json")
         .header(ACCESS_CONTROL_ALLOW_ORIGIN, "http://localhost:9000")
+        .header(ACCESS_CONTROL_ALLOW_METHODS, "GET, PUT, POST, DELETE, OPTIONS")
 }
 
 pub fn ok_response<T>(response: ApiResponse<T>) -> Response<Body>

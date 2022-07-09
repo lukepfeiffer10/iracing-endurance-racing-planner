@@ -155,7 +155,7 @@ impl Component for Landing {
                             </div>
                         </div>
                         <div id="my-plans-list">
-                            <h2>
+                            <h2 class="mdc-typography--headline5">
                                 <span style="width: 72px;"></span>
                                 <span class="col-1">{ "Plan Name" }</span>
                                 <span class="col-2">{ "Owner" }</span>
