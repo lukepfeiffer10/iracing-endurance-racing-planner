@@ -14,6 +14,7 @@ Resources:
           - DELETE
           - PUT
           - OPTIONS
+          - PATCH
         AllowHeaders:
           - Authorization
       Auth:
@@ -32,7 +33,7 @@ Resources:
       Architectures: [ "arm64" ]
       Handler: bootstrap
       Runtime: provided.al2
-      Timeout: 5
+      Timeout: 10
       CodeUri: target/lambda/add-plan/
       Events:
         HttpApiEvent:
@@ -49,7 +50,7 @@ Resources:
       Architectures: [ "arm64" ]
       Handler: bootstrap
       Runtime: provided.al2
-      Timeout: 5
+      Timeout: 10
       CodeUri: target/lambda/get-plan/
       Events:
         HttpApiEvent:
@@ -59,6 +60,23 @@ Resources:
             Method: get
             Path: /plans/{id}
             PayloadFormatVersion: "2.0"
+  PatchPlan:
+    Type: AWS::Serverless::Function
+    Properties:
+      MemorySize: 128
+      Architectures: [ "arm64" ]
+      Handler: bootstrap
+      Runtime: provided.al2
+      Timeout: 10
+      CodeUri: target/lambda/patch-plan/
+      Events:
+        HttpApiEvent:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref Api
+            Method: patch
+            Path: /plans/{id}
+            PayloadFormatVersion: "2.0"
   GetPlans:
     Type: AWS::Serverless::Function
     Properties:
@@ -66,7 +84,7 @@ Resources:
       Architectures: [ "arm64" ]
       Handler: bootstrap
       Runtime: provided.al2
-      Timeout: 5
+      Timeout: 10
       CodeUri: target/lambda/get-plans/
       Events:
         HttpApiEvent:
@@ -83,7 +101,7 @@ Resources:
       Architectures: [ "arm64" ]
       Handler: bootstrap
       Runtime: provided.al2
-      Timeout: 5
+      Timeout: 10
       CodeUri: target/lambda/get-user/
       Events:
         HttpApiEvent:
@@ -100,7 +118,7 @@ Resources:
       Architectures: [ "arm64" ]
       Handler: bootstrap
       Runtime: provided.al2
-      Timeout: 5
+      Timeout: 10
       CodeUri: target/lambda/add-user/
       Events:
         HttpApiEvent:
@@ -117,7 +135,7 @@ Resources:
       Architectures: [ "arm64" ]
       Handler: bootstrap
       Runtime: provided.al2
-      Timeout: 5
+      Timeout: 10
       CodeUri: target/lambda/me/
       Events:
         HttpApiEvent:

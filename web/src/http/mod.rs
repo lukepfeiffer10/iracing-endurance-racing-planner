@@ -24,12 +24,12 @@ fn get_request_builder(method: Method, route: &str) -> Result<RequestBuilder, Bo
         .bearer_auth(get_auth_token()?))
 }
 
-pub fn post<T>(route: &'static str, body: T, callback: Callback<T>) -> ()
+pub fn post<T>(route: String, body: T, callback: Callback<T>) -> ()
 where
     T: Serialize + DeserializeOwned + 'static,
 {
     spawn_local(async move {
-        let response = get_request_builder(Method::POST, route)
+        let response = get_request_builder(Method::POST, &route)
             .unwrap()
             .body(serde_json::to_string(&body).unwrap())
             .send()
@@ -43,12 +43,12 @@ where
     })
 }
 
-pub fn get<T>(route: &'static str, callback: Callback<T>) -> ()
+pub fn get<T>(route: String, callback: Callback<T>) -> ()
 where
     T: DeserializeOwned + 'static,
 {
     spawn_local(async move {
-        let response = get_request_builder(Method::GET, route)
+        let response = get_request_builder(Method::GET, &route)
             .unwrap()
             .send()
             .await
@@ -58,5 +58,19 @@ where
             .unwrap();
 
         callback.emit(response)
+    })
+}
+
+pub fn patch<T>(route: String, body: T) -> ()
+where
+    T: Serialize + DeserializeOwned + 'static,
+{
+    spawn_local(async move {
+        get_request_builder(Method::PATCH, &route)
+            .unwrap()
+            .body(serde_json::to_string(&body).unwrap())
+            .send()
+            .await
+            .unwrap();
     })
 }

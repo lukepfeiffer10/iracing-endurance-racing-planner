@@ -9,8 +9,8 @@ use uuid::Uuid;
 pub struct RacePlannerDto {
     pub id: Uuid,
     pub title: String,
-    pub overall_event_config: Option<EventConfigData>,
-    pub overall_fuel_stint_config: OverallFuelStintConfigData,
+    pub overall_event_config: Option<EventConfigDto>,
+    pub overall_fuel_stint_config: Option<OverallFuelStintConfigData>,
     pub fuel_stint_average_times: Option<FuelStintAverageTimes>,
     pub time_of_day_lap_factors: Vec<TimeOfDayLapFactor>,
     pub per_driver_lap_factors: Vec<DriverLapFactor>,
@@ -24,12 +24,7 @@ impl RacePlannerDto {
             id: Uuid::new_v4(),
             title: "New Plan".into(),
             overall_event_config: None,
-            overall_fuel_stint_config: OverallFuelStintConfigData {
-                pit_duration: Duration::zero(),
-                fuel_tank_size: 0,
-                tire_change_time: Duration::zero(),
-                add_tire_time: false,
-            },
+            overall_fuel_stint_config: None,
             fuel_stint_average_times: None,
             time_of_day_lap_factors: vec![],
             per_driver_lap_factors: vec![],
@@ -41,18 +36,13 @@ impl RacePlannerDto {
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
-pub struct EventConfigData {
+pub struct EventConfigDto {
     #[serde(with = "crate::duration_serde")]
     pub race_duration: Duration,
     pub session_start_utc: DateTime<Utc>,
-    pub race_start_utc: DateTime<Utc>,
-    pub race_end_utc: DateTime<Utc>,
     pub race_start_tod: NaiveDateTime,
-    pub race_end_tod: NaiveDateTime,
     #[serde(with = "crate::duration_serde")]
     pub green_flag_offset: Duration,
-    #[serde(with = "crate::duration_serde")]
-    pub tod_offset: Duration,
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]

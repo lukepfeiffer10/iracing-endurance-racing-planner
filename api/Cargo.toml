@@ -28,6 +28,11 @@ name = 'me'
 path = 'src/bin/me.rs'
 test = false
 
+[[bin]]
+name = 'patch-plan'
+path = 'src/bin/patch_plan.rs'
+test = false
+
 [package]
 name = 'api'
 version = '0.1.0'
@@ -36,6 +41,12 @@ edition = '2021'
 [dependencies]
 lambda_http = '0.5.1'
 serde_json = '1.0.79'
+
+[dependencies.chrono]
+version = "0.4.19"
+
+[dependencies.env_logger]
+version = "0.9.0"
 
 [dependencies.jwt-compact]
 version = '0.5.0'
