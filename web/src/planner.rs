@@ -1,6 +1,6 @@
 ﻿use crate::bindings::enable_tab_bar;
 use crate::event_bus::{EventBus, EventBusOutput};
-use crate::http::plans::create_plan;
+use crate::http::plans::{create_plan, get_plan, patch_plan};
 use crate::overview::fuel_stint_times::StintData;
 use crate::overview::overall_event_config::EventConfigData;
 use crate::overview::overall_fuel_stint_config::OverallFuelStintConfigData;
@@ -13,7 +13,7 @@ use crate::schedule::Schedule;
 use crate::{AppStateAction, AppStateContext};
 use boolinator::Boolinator;
 use chrono::{Duration, NaiveDateTime};
-use endurance_racing_planner_common::RacePlannerDto;
+use endurance_racing_planner_common::{PatchRacePlannerDto, RacePlannerDto};
 use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
 use std::rc::Rc;
@@ -128,7 +128,8 @@ impl Component for Planner {
                 link.callback(|plan| PlannerMsg::UpdatePlan(plan)),
             );
         } else {
-            default_plan = RacePlannerDto { id, ..default_plan }
+            default_plan = RacePlannerDto { id, ..default_plan };
+            get_plan(id, link.callback(|plan| PlannerMsg::UpdatePlan(plan)));
         }
 
         Self {
@@ -160,7 +161,21 @@ impl Component for Planner {
             }
             PlannerMsg::UpdatePlanTitle(title) => {
                 let mut plan_data = Rc::make_mut(&mut self.context.data);
-                plan_data.title = title;
+                plan_data.title = title.clone();
+                patch_plan(
+                    plan_data.id,
+                    PatchRacePlannerDto {
+                        id: plan_data.id,
+                        title: Some(title),
+                        overall_event_config: None,
+                        overall_fuel_stint_config: None,
+                        fuel_stint_average_times: None,
+                        time_of_day_lap_factors: None,
+                        per_driver_lap_factors: None,
+                        driver_roster: None,
+                        schedule_rows: None,
+                    },
+                );
                 false
             }
         }

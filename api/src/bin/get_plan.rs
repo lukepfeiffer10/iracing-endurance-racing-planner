@@ -1,18 +1,53 @@
-use lambda_http::{service_fn, Error, IntoResponse, Request, RequestExt, Response};
-use serde_json::json;
+use api::initialize_lambda;
+use axum::{
+    extract::Path, http::StatusCode, response::IntoResponse, routing::get, Extension, Json,
+};
+use chrono::Duration;
+use data_access::plans::get_plan_by_id;
+use endurance_racing_planner_common::{EventConfigDto, RacePlannerDto};
+use lambda_http::Error;
+use sqlx::{types::Uuid, PgPool};
 
 #[tokio::main]
 async fn main() -> Result<(), Error> {
-    lambda_http::run(service_fn(func)).await?;
+    let handler = initialize_lambda("/plans/:id", get(get_plan)).await?;
+
+    lambda_http::run(handler).await?;
     Ok(())
 }
 
-async fn func(event: Request) -> Result<impl IntoResponse, Error> {    
-    Ok(match event.path_parameters().first("id") {
-        Some(id) => json!({"id": id}).into_response(),
-        _ => Response::builder()
-            .status(400)
-            .body("Empty id".into())
-            .expect("failed to render response"),
-    })
+async fn get_plan(Path(id): Path<Uuid>, Extension(pool): Extension<PgPool>) -> impl IntoResponse {
+    get_plan_by_id(&pool, id)
+        .await
+        .map(|plan_with_overview| match plan_with_overview {
+            Some(plan) => {
+                let event_config = match plan.race_duration {
+                    Some(race_duration) => Some(EventConfigDto {
+                        race_duration: Duration::microseconds(race_duration.microseconds),
+                        session_start_utc: plan.session_start_utc.unwrap(),
+                        race_start_tod: plan.race_start_tod.unwrap(),
+                        green_flag_offset: Duration::microseconds(
+                            plan.green_flag_offset.unwrap().microseconds,
+                        ),
+                    }),
+                    None => None,
+                };
+                Json(RacePlannerDto {
+                    id: plan.id,
+                    title: plan.title,
+                    overall_event_config: event_config,
+                    overall_fuel_stint_config: None,
+                    fuel_stint_average_times: None,
+                    time_of_day_lap_factors: vec![],
+                    per_driver_lap_factors: vec![],
+                    driver_roster: vec![],
+                    schedule_rows: None,
+                })
+                .into_response()
+            }
+            None => (StatusCode::NOT_FOUND).into_response(),
+        })
+        .unwrap_or_else(|_| {
+            (StatusCode::INTERNAL_SERVER_ERROR, "failed to get the plan").into_response()
+        })
 }

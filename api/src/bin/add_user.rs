@@ -1,32 +1,36 @@
-use api::{bad_request_response, created_response};
+use api::initialize_lambda;
+use axum::{
+    http::{header, StatusCode},
+    response::IntoResponse,
+    routing::post,
+    Extension, Json,
+};
 use data_access::user::Users;
 use endurance_racing_planner_common::User;
-use lambda_http::{service_fn, Body, Error, IntoResponse, Request};
+use lambda_http::Error;
 use sqlx::PgPool;
 
 #[tokio::main]
 async fn main() -> Result<(), Error> {
-    let db_context = data_access::initialize().await?;
-    let db_context_ref = &db_context;
-    let handler = move |event: Request| add_user(event, db_context_ref);
+    let handler = initialize_lambda("/users", post(add_user)).await?;
 
-    lambda_http::run(service_fn(handler)).await?;
+    lambda_http::run(handler).await?;
     Ok(())
 }
 
-async fn add_user(event: Request, db_context_ref: &PgPool) -> Result<impl IntoResponse, Error> {
-    Ok(match event.body() {
-        Body::Text(json) => {
-            let user = serde_json::from_str::<User>(json);
-
-            match user {
-                Ok(u) => {
-                    let new_user = Users::create_user(db_context_ref, u).await?;
-                    created_response(&new_user, format!("/users/{}", new_user.id))
-                }
-                Err(e) => bad_request_response(e.to_string()),
-            }
-        }
-        _ => bad_request_response("Invalid body type".into()),
-    })
+async fn add_user(Json(user): Json<User>, Extension(pool): Extension<PgPool>) -> impl IntoResponse {
+    let new_user_result = Users::create_user(&pool, user).await;
+    match new_user_result {
+        Ok(new_user) => (
+            StatusCode::CREATED,
+            [(header::CONTENT_LOCATION, format!("/users/{}", new_user.id))],
+            Json(new_user),
+        )
+            .into_response(),
+        Err(_) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "there was a problem creating the user",
+        )
+            .into_response(),
+    }
 }

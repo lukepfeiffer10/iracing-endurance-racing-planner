@@ -1,16 +1,19 @@
-﻿use std::convert::TryFrom;
-use std::error::Error;
-use std::fmt::{Display, Formatter};
+﻿use crate::{http, UserInfo};
+use endurance_racing_planner_common::{GoogleOpenIdClaims, User};
 use gloo_storage::{LocalStorage, SessionStorage, Storage};
-use jwt_compact::{Claims, ValidationError, ParseError, Token, UntrustedToken, AlgorithmExt};
 use jwt_compact::alg::{Rsa, RsaPublicKey};
 use jwt_compact::jwk::JsonWebKey;
+use jwt_compact::{AlgorithmExt, Claims, ParseError, Token, UntrustedToken, ValidationError};
 use oauth2::basic::BasicClient;
-use oauth2::{AuthUrl, ClientId, CsrfToken, RedirectUrl, ResponseType, RevocationUrl, Scope, TokenUrl, url::Url};
-use serde::{Deserialize};
-use web_sys::{Location, Window, window};
-use endurance_racing_planner_common::{GoogleOpenIdClaims, User};
-use crate::UserInfo;
+use oauth2::{
+    url::Url, AuthUrl, ClientId, CsrfToken, RedirectUrl, ResponseType, RevocationUrl, Scope,
+    TokenUrl,
+};
+use serde::Deserialize;
+use std::convert::TryFrom;
+use std::error::Error;
+use std::fmt::{Display, Formatter};
+use web_sys::{window, Location, Window};
 
 const NONCE_KEY: &str = "nonce";
 const STATE_KEY: &str = "state";
@@ -18,19 +21,19 @@ pub const ID_TOKEN_KEY: &str = "id_token";
 
 #[derive(Deserialize)]
 struct GoogleDiscoveryResponse {
-    jwks_uri: String
+    jwks_uri: String,
 }
 
 #[derive(Deserialize)]
 struct GoogleSigningKey<'a> {
     kid: String,
     #[serde(flatten)]
-    key: JsonWebKey<'a>
+    key: JsonWebKey<'a>,
 }
 
 #[derive(Deserialize)]
 struct GoogleSigningKeysResponse<'a> {
-    keys: Vec<GoogleSigningKey<'a>>
+    keys: Vec<GoogleSigningKey<'a>>,
 }
 
 pub enum AuthError {
@@ -50,14 +53,17 @@ impl Display for AuthError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             AuthError::TokenParseError(e) => write!(f, "{}", e),
-            AuthError::TokenValidationError(e) => write!(f, "{}",  e),
+            AuthError::TokenValidationError(e) => write!(f, "{}", e),
             AuthError::MismatchedNonce => write!(f, "mismatched nonce in the token response"),
             AuthError::MismatchedState => write!(f, "mismatched state in the token response"),
             AuthError::MissingIdTokenInResponse => write!(f, "missing id_token in the response"),
             AuthError::MissingStateInResponse => write!(f, "missing state in the response"),
             AuthError::MissingStateInStorage => write!(f, "missing state in session storage"),
             AuthError::MissingNonceInStorage => write!(f, "missing nonce in session storage"),
-            AuthError::MissingTokenSigningKey => write!(f, "missing signing key from discovery response used to sign token"),
+            AuthError::MissingTokenSigningKey => write!(
+                f,
+                "missing signing key from discovery response used to sign token"
+            ),
             AuthError::Other(message) => write!(f, "{}", message),
         }
     }
@@ -71,7 +77,7 @@ impl From<&str> for AuthError {
 
 fn create_auth_client() -> BasicClient {
     let google_client_id = ClientId::new(
-        "709154627100-fbcvr0njtbah2jfgv5bghnt7t39r28k9.apps.googleusercontent.com".to_string()
+        "709154627100-fbcvr0njtbah2jfgv5bghnt7t39r28k9.apps.googleusercontent.com".to_string(),
     );
     let auth_url = AuthUrl::new("https://accounts.google.com/o/oauth2/v2/auth".to_string())
         .expect("Invalid authorization endpoint URL");
@@ -79,12 +85,7 @@ fn create_auth_client() -> BasicClient {
         .expect("Invalid token endpoint URL");
 
     // Set up the config for the Google OAuth2 process.
-    BasicClient::new(
-        google_client_id,
-        None,
-        auth_url,
-        Some(token_url),
-    )
+    BasicClient::new(google_client_id, None, auth_url, Some(token_url))
         .set_redirect_uri(
             RedirectUrl::new("http://localhost:9000/".to_string()).expect("Invalid redirect URL"),
         )
@@ -112,11 +113,14 @@ pub fn login() {
         .url();
 
     SessionStorage::set(NONCE_KEY, nonce.secret().to_owned()).expect("can't set session storage");
-    SessionStorage::set(STATE_KEY, csrf_state.secret().to_owned()).expect("can't set session storage");
+    SessionStorage::set(STATE_KEY, csrf_state.secret().to_owned())
+        .expect("can't set session storage");
 
     let window: Window = window().expect("no global `window` object exists");
     let location: Location = window.location();
-    location.set_href(authorize_url.as_str()).expect("location couldn't be changed");
+    location
+        .set_href(authorize_url.as_str())
+        .expect("location couldn't be changed");
 }
 
 pub async fn handle_auth_code_redirect() -> Result<Option<UserInfo>, AuthError> {
@@ -126,7 +130,8 @@ pub async fn handle_auth_code_redirect() -> Result<Option<UserInfo>, AuthError> 
     let url = Url::parse(url.as_str()).unwrap();
     if let Some(fragment) = url.fragment() {
         return if !fragment.is_empty() {
-            let fragments = fragment.split('&')
+            let fragments = fragment
+                .split('&')
                 .map(|section| {
                     let key_value_split = section.split('=').collect::<Vec<&str>>();
                     let key = key_value_split[0];
@@ -138,25 +143,24 @@ pub async fn handle_auth_code_redirect() -> Result<Option<UserInfo>, AuthError> 
             validate_state_parameter(&fragments)?;
             let token = validate_id_token(&fragments).await?;
             validate_nonce(token.claims())?;
-            let get_me_result = (get_me().await).map_err(|_| AuthError::Other("failed to get me".into()));
+            let get_me_result =
+                (get_me().await).map_err(|_| AuthError::Other("failed to get me".into()));
             let me = match get_me_result {
                 Ok(user) => Ok(user),
-                Err(_) => {
-                    match create_user(&token.claims().custom).await {
-                        Ok(created_user) => Ok(created_user),
-                        Err(_) => Err(AuthError::Other("failed to create a user".into()))
-                    }
-                }
+                Err(_) => match create_user(&token.claims().custom).await {
+                    Ok(created_user) => Ok(created_user),
+                    Err(_) => Err(AuthError::Other("failed to create a user".into())),
+                },
             }?;
 
             Ok(Some(UserInfo {
                 name: me.name,
                 email: me.email,
-                picture: token.claims().custom.picture.clone()
+                picture: token.claims().custom.picture.clone(),
             }))
         } else {
             Ok(None)
-        }
+        };
     }
     Ok(None)
 }
@@ -177,13 +181,13 @@ fn validate_state_parameter(fragments: &[(&str, &str)]) -> Result<(), AuthError>
                     }
                 })
         }
-        None => {
-            Err(AuthError::MissingStateInResponse)
-        }
+        None => Err(AuthError::MissingStateInResponse),
     }
 }
 
-async fn validate_id_token(fragments: &[(&str, &str)]) -> Result<Token<GoogleOpenIdClaims>, AuthError> {
+async fn validate_id_token(
+    fragments: &[(&str, &str)],
+) -> Result<Token<GoogleOpenIdClaims>, AuthError> {
     let id_token = fragments.iter().find(|(key, _)| *key == "id_token");
     match id_token {
         Some((_, value)) => {
@@ -191,33 +195,34 @@ async fn validate_id_token(fragments: &[(&str, &str)]) -> Result<Token<GoogleOpe
             signing_keys
                 .map_err(|_| AuthError::Other("error getting signing keys".into()))
                 .and_then(|signing_keys| {
-                    LocalStorage::set(ID_TOKEN_KEY, value).expect("failed to set id token in local storage");
+                    LocalStorage::set(ID_TOKEN_KEY, value)
+                        .expect("failed to set id token in local storage");
                     let token = UntrustedToken::new(value);
-                    token
-                        .map_err(AuthError::TokenParseError)
-                        .and_then(|token| {
-                            let mut signing_key = &signing_keys.keys[0].key;
-                            let token_key_id = &token.header().key_id;
-                            if let Some(key_id) = token_key_id {
-                                signing_key = signing_keys.keys
-                                    .iter()
-                                    .find(|key| &key.kid == key_id)
-                                    .map(|k| &k.key)
-                                    .ok_or(AuthError::MissingTokenSigningKey)?;
-                            }
-                            let rsa_public_key = RsaPublicKey::try_from(signing_key).unwrap();
-                            let token_message = Rsa::rs256().validate_integrity::<GoogleOpenIdClaims>(&token, &rsa_public_key);
-                            token_message.map_err(AuthError::TokenValidationError)
-                        })
+                    token.map_err(AuthError::TokenParseError).and_then(|token| {
+                        let mut signing_key = &signing_keys.keys[0].key;
+                        let token_key_id = &token.header().key_id;
+                        if let Some(key_id) = token_key_id {
+                            signing_key = signing_keys
+                                .keys
+                                .iter()
+                                .find(|key| &key.kid == key_id)
+                                .map(|k| &k.key)
+                                .ok_or(AuthError::MissingTokenSigningKey)?;
+                        }
+                        let rsa_public_key = RsaPublicKey::try_from(signing_key).unwrap();
+                        let token_message = Rsa::rs256()
+                            .validate_integrity::<GoogleOpenIdClaims>(&token, &rsa_public_key);
+                        token_message.map_err(AuthError::TokenValidationError)
+                    })
                 })
-
         }
-        None => Err(AuthError::MissingIdTokenInResponse)
+        None => Err(AuthError::MissingIdTokenInResponse),
     }
 }
 
-async fn get_google_signing_keys() -> Result<GoogleSigningKeysResponse<'static>, Box<dyn Error>>{
-    const GOOGLE_DISCOVERY_URL: &str = "https://accounts.google.com/.well-known/openid-configuration";
+async fn get_google_signing_keys() -> Result<GoogleSigningKeysResponse<'static>, Box<dyn Error>> {
+    const GOOGLE_DISCOVERY_URL: &str =
+        "https://accounts.google.com/.well-known/openid-configuration";
 
     let client = reqwest::Client::new();
     let discovery_info = client
@@ -258,18 +263,10 @@ async fn create_user(claims: &GoogleOpenIdClaims) -> Result<User, Box<dyn Error>
         id: 0,
         name: claims.name.clone(),
         email: claims.email.clone(),
-        oauth_id: claims.sub.clone()
+        oauth_id: claims.sub.clone(),
     };
 
-    let client = reqwest::Client::new();
-    let new_user = client
-        .post("http://localhost:3000/users")
-        .header("Accept", "application/json")
-        .body(serde_json::to_string(&user).expect("failed to convert user to serde json value"))
-        .send()
-        .await?
-        .json::<User>()
-        .await?;
+    let new_user = http::post_async("/users".to_string(), user).await;
 
     Ok(new_user)
 }
