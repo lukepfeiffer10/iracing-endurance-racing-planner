@@ -1,20 +1,26 @@
 [package]
-name = "data_access"
-version = "0.1.0"
-edition = "2021"
+name = 'data_access'
+version = '0.1.0'
+edition = '2021'
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[dependencies]
+futures = '0.3'
 
 [dependencies.sqlx]
-version = "0.5.11"
-features = ["runtime-tokio-rustls", "postgres", "uuid", "chrono"]
+version = '0.5.11'
+features = [
+    'runtime-tokio-rustls',
+    'postgres',
+    'uuid',
+    'chrono',
+]
 
 [dependencies.endurance_racing_planner_common]
-path = "../common"
+path = '../common'
 
 [dependencies.chrono]
-version = "0.4.19"
+version = '0.4.19'
 
 [dependencies.uuid]
-version = "0.8.2"
-features = ["v4"]
+version = '0.8.2'
+features = ['v4']

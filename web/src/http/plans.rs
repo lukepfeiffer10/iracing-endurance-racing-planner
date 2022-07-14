@@ -1,4 +1,4 @@
-use endurance_racing_planner_common::{PlanListDto, RacePlannerDto};
+use endurance_racing_planner_common::{PatchRacePlannerDto, PlanListDto, RacePlannerDto};
 use uuid::Uuid;
 use yew::Callback;
 
@@ -16,6 +16,6 @@ pub fn get_plan(id: Uuid, callback: Callback<RacePlannerDto>) -> () {
     get(format!("/plans/{}", id), callback)
 }
 
-pub fn patch_plan(id: Uuid, plan: RacePlannerDto) -> () {
+pub fn patch_plan(id: Uuid, plan: PatchRacePlannerDto) -> () {
     patch(format!("/plans/{}", id), plan)
 }

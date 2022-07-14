@@ -31,7 +31,25 @@ pub struct PlanWithOverview {
     pub green_flag_offset: Option<PgInterval>,
 }
 
-pub enum PatchPlan {
+pub struct PatchPlan {
+    pub id: Uuid,
+    pub modified_by: i32,
+    pub modified_date: DateTime<Utc>,
+    pub patch_type: PatchPlanType,
+}
+
+impl PatchPlan {
+    pub fn new(id: Uuid, user_id: i32, patch_type: PatchPlanType) -> PatchPlan {
+        PatchPlan {
+            id,
+            modified_by: user_id,
+            modified_date: Utc::now(),
+            patch_type,
+        }
+    }
+}
+
+pub enum PatchPlanType {
     Title(String),
     EventConfig(EventConfigDto),
 }

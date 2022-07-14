@@ -1,111 +1,101 @@
+use std::convert::Infallible;
+
+use axum::{
+    async_trait,
+    body::HttpBody,
+    extract::{Extension, FromRequest, RequestParts, TypedHeader},
+    headers::{authorization::Bearer, Authorization},
+    http::{Method, Request, StatusCode},
+    response::{IntoResponse, Response},
+    Router,
+};
+
+use axum_aws_lambda::{LambdaLayer, LambdaService};
 use data_access::user::Users;
 use endurance_racing_planner_common::{GoogleOpenIdClaims, User};
 use jwt_compact::UntrustedToken;
-use lambda_http::http::header::{
-    ACCESS_CONTROL_ALLOW_METHODS, ACCESS_CONTROL_ALLOW_ORIGIN, AUTHORIZATION, CONTENT_TYPE,
-    LOCATION,
-};
-use lambda_http::http::response::Builder;
-use lambda_http::http::{HeaderMap, HeaderValue, StatusCode};
-use lambda_http::{Body, IntoResponse, Response};
-use serde::Serialize;
+use lambda_http::http::HeaderValue;
+use lambda_http::Service;
+use lambda_http::{http::header::CONTENT_TYPE, tower::ServiceBuilder, Error};
 use sqlx::PgPool;
+use tower_http::cors::CorsLayer;
 
-fn add_standard_headers(builder: Builder) -> Builder {
-    builder
-        .header(CONTENT_TYPE, "application/json")
-        .header(ACCESS_CONTROL_ALLOW_ORIGIN, "http://localhost:9000")
-        .header(
-            ACCESS_CONTROL_ALLOW_METHODS,
-            "GET, PUT, POST, DELETE, OPTIONS, PATCH",
-        )
-}
-
-pub fn ok_response<T>(response: ApiResponse<T>) -> Response<Body>
+pub async fn initialize_lambda<T, B>(
+    route: &'static str,
+    service: T,
+) -> Result<LambdaService<Router<B>>, Error>
 where
-    T: Serialize,
+    T: Service<Request<B>, Response = Response, Error = Infallible> + Clone + Send + 'static,
+    T::Future: Send + 'static,
+    B: HttpBody + Send + 'static,
 {
-    let builder = Response::builder().status(StatusCode::OK);
-    add_standard_headers(builder)
-        .body(
-            serde_json::to_string(&response.body)
-                .expect("failed to serialize T")
-                .into(),
-        )
-        .expect("failed to build the ok response")
+    let db_context = data_access::initialize().await?;
+
+    let app = Router::new()
+        .route(route, service)
+        .layer(Extension(db_context))
+        .layer(cors_layer());
+
+    Ok(ServiceBuilder::new()
+        .layer(LambdaLayer::default())
+        .service(app))
 }
 
-pub fn created_response<T>(resource: &T, location: String) -> Response<Body>
+fn cors_layer() -> CorsLayer {
+    CorsLayer::new()
+        .allow_headers([CONTENT_TYPE])
+        .allow_origin("http://localhost:9000".parse::<HeaderValue>().unwrap())
+        .allow_methods([
+            Method::GET,
+            Method::PUT,
+            Method::POST,
+            Method::PATCH,
+            Method::DELETE,
+            Method::OPTIONS,
+        ])
+}
+
+pub struct AuthenticatedUser(pub User);
+
+#[async_trait]
+impl<B> FromRequest<B> for AuthenticatedUser
 where
-    T: Serialize,
+    B: Send,
 {
-    let builder = Response::builder()
-        .status(StatusCode::CREATED)
-        .header(LOCATION, location);
-    add_standard_headers(builder)
-        .body(
-            serde_json::to_string(resource)
-                .expect("failed to serialize the created resource")
-                .into(),
-        )
-        .expect("failed to build the created response")
-}
+    type Rejection = Response;
 
-pub fn unauthorized_response() -> Response<Body> {
-    let builder = Response::builder().status(StatusCode::UNAUTHORIZED);
-    add_standard_headers(builder)
-        .body(().into())
-        .expect("failed to build the unauthorized response")
-}
+    async fn from_request(req: &mut RequestParts<B>) -> Result<Self, Self::Rejection> {
+        let Extension(pool): Extension<PgPool> = Extension::from_request(req)
+            .await
+            .map_err(|err| err.into_response())?;
 
-pub fn not_found_response() -> Response<Body> {
-    let builder = Response::builder().status(StatusCode::NOT_FOUND);
-    add_standard_headers(builder)
-        .body(().into())
-        .expect("failed to build the not found response")
-}
-
-pub fn bad_request_response(error: String) -> Response<Body> {
-    let builder = Response::builder().status(StatusCode::BAD_REQUEST);
-    add_standard_headers(builder)
-        .body(error.into())
-        .expect("failed to build the bad request response")
-}
-
-pub struct ApiResponse<T>
-where
-    T: Serialize,
-{
-    pub body: T,
-}
-
-impl<T: Serialize> IntoResponse for ApiResponse<T> {
-    fn into_response(self) -> Response<Body> {
-        ok_response(self)
-    }
-}
-
-pub async fn get_current_user(
-    headers: &HeaderMap<HeaderValue>,
-    db_context_ref: &PgPool,
-) -> Option<User> {
-    let auth_header = headers.get(AUTHORIZATION);
-    match auth_header {
-        Some(header_value) => {
-            let token = header_value
-                .to_str()
-                .expect("authorization header as a string")
-                .replace("Bearer ", "");
-            let parsed_token = UntrustedToken::new(&token).unwrap();
-            let claims = parsed_token
-                .deserialize_claims_unchecked::<GoogleOpenIdClaims>()
-                .unwrap();
-            let oauth_id = claims.custom.sub;
-
-            Users::get_user_by_oauth_id(db_context_ref, oauth_id)
+        let TypedHeader(Authorization(bearer)) =
+            TypedHeader::<Authorization<Bearer>>::from_request(req)
                 .await
-                .unwrap()
-        }
-        None => None,
+                .map_err(|_| (StatusCode::UNAUTHORIZED, "no bearer token").into_response())?;
+
+        let oauth_id = UntrustedToken::new(bearer.token())
+            .map_err(|_| (StatusCode::UNAUTHORIZED, "invalid token"))
+            .and_then(|parsed_token| {
+                parsed_token
+                    .deserialize_claims_unchecked::<GoogleOpenIdClaims>()
+                    .map_err(|_| (StatusCode::UNAUTHORIZED, "invalid token"))
+            })
+            .and_then(|claims| Ok(claims.custom.sub))
+            .map_err(|err| err.into_response())?;
+
+        Users::get_user_by_oauth_id(&pool, oauth_id)
+            .await
+            .map_err(|_| {
+                (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    "there was a problem locating the user",
+                )
+                    .into_response()
+            })
+            .and_then(|user| {
+                user.ok_or((StatusCode::UNAUTHORIZED, "user not found").into_response())
+            })
+            .map(Self)
     }
 }

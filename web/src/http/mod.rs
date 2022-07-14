@@ -3,7 +3,7 @@ pub mod plans;
 use std::error::Error;
 
 use gloo_storage::{errors::StorageError, LocalStorage, Storage};
-use reqwest::{Method, RequestBuilder, Url};
+use reqwest::{header::CONTENT_TYPE, Method, RequestBuilder, Url};
 use serde::{de::DeserializeOwned, Serialize};
 use wasm_bindgen_futures::spawn_local;
 use yew::Callback;
@@ -31,6 +31,7 @@ where
     spawn_local(async move {
         let response = get_request_builder(Method::POST, &route)
             .unwrap()
+            .header(CONTENT_TYPE, "application/json")
             .body(serde_json::to_string(&body).unwrap())
             .send()
             .await
@@ -41,6 +42,22 @@ where
 
         callback.emit(response)
     })
+}
+
+pub async fn post_async<T>(route: String, body: T) -> T
+where
+    T: Serialize + DeserializeOwned + 'static,
+{
+    get_request_builder(Method::POST, &route)
+        .unwrap()
+        .header(CONTENT_TYPE, "application/json")
+        .body(serde_json::to_string(&body).unwrap())
+        .send()
+        .await
+        .unwrap()
+        .json::<T>()
+        .await
+        .unwrap()
 }
 
 pub fn get<T>(route: String, callback: Callback<T>) -> ()
@@ -68,6 +85,7 @@ where
     spawn_local(async move {
         get_request_builder(Method::PATCH, &route)
             .unwrap()
+            .header(CONTENT_TYPE, "application/json")
             .body(serde_json::to_string(&body).unwrap())
             .send()
             .await

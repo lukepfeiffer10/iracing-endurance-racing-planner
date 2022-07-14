@@ -34,6 +34,20 @@ impl RacePlannerDto {
     }
 }
 
+#[derive(Serialize, Deserialize, PartialEq, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct PatchRacePlannerDto {
+    pub id: Uuid,
+    pub title: Option<String>,
+    pub overall_event_config: Option<EventConfigDto>,
+    pub overall_fuel_stint_config: Option<OverallFuelStintConfigData>,
+    pub fuel_stint_average_times: Option<FuelStintAverageTimes>,
+    pub time_of_day_lap_factors: Option<Vec<TimeOfDayLapFactor>>,
+    pub per_driver_lap_factors: Option<Vec<DriverLapFactor>>,
+    pub driver_roster: Option<Vec<Driver>>,
+    pub schedule_rows: Option<Vec<ScheduleDataRow>>,
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct EventConfigDto {

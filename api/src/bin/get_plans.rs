@@ -1,24 +1,24 @@
-use api::{get_current_user, ok_response, unauthorized_response, ApiResponse};
+use api::{initialize_lambda, AuthenticatedUser};
+use axum::{http::StatusCode, response::IntoResponse, routing::get, Extension, Json};
 use data_access::plans::get_plans_by_user_id;
 use endurance_racing_planner_common::PlanListDto;
-use lambda_http::{service_fn, Error, IntoResponse, Request};
+use lambda_http::Error;
 use sqlx::PgPool;
 
 #[tokio::main]
 async fn main() -> Result<(), Error> {
-    let db_context = data_access::initialize().await?;
-    let db_context_ref = &db_context;
-    let handler = move |event: Request| get_plans(event, db_context_ref);
+    let handler = initialize_lambda("/plans", get(get_plans)).await?;
 
-    lambda_http::run(service_fn(handler)).await?;
+    lambda_http::run(handler).await?;
     Ok(())
 }
 
-async fn get_plans(event: Request, db_context: &PgPool) -> Result<impl IntoResponse, Error> {
-    let current_user = get_current_user(event.headers(), db_context).await;
-    if let Some(user) = current_user {
-        let plans = get_plans_by_user_id(db_context, user.id)
-            .await?
+async fn get_plans(
+    AuthenticatedUser(user): AuthenticatedUser,
+    Extension(pool): Extension<PgPool>,
+) -> impl IntoResponse {
+    let plans = get_plans_by_user_id(&pool, user.id).await.map(|plans| {
+        plans
             .iter()
             .map(|p| PlanListDto {
                 id: p.id,
@@ -26,10 +26,15 @@ async fn get_plans(event: Request, db_context: &PgPool) -> Result<impl IntoRespo
                 owner: p.owner.clone(),
                 last_modified: p.modified_date.or(Some(p.created_date)).unwrap(),
             })
-            .collect::<Vec<PlanListDto>>();
+            .collect::<Vec<PlanListDto>>()
+    });
 
-        Ok(ok_response(ApiResponse { body: plans }))
-    } else {
-        Ok(unauthorized_response())
+    match plans {
+        Ok(plans) => Json(plans).into_response(),
+        Err(_) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "failed to load the plans",
+        )
+            .into_response(),
     }
 }

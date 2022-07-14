@@ -13,7 +13,7 @@ use crate::schedule::Schedule;
 use crate::{AppStateAction, AppStateContext};
 use boolinator::Boolinator;
 use chrono::{Duration, NaiveDateTime};
-use endurance_racing_planner_common::RacePlannerDto;
+use endurance_racing_planner_common::{PatchRacePlannerDto, RacePlannerDto};
 use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
 use std::rc::Rc;
@@ -164,15 +164,15 @@ impl Component for Planner {
                 plan_data.title = title.clone();
                 patch_plan(
                     plan_data.id,
-                    RacePlannerDto {
+                    PatchRacePlannerDto {
                         id: plan_data.id,
-                        title,
+                        title: Some(title),
                         overall_event_config: None,
                         overall_fuel_stint_config: None,
                         fuel_stint_average_times: None,
-                        time_of_day_lap_factors: vec![],
-                        per_driver_lap_factors: vec![],
-                        driver_roster: vec![],
+                        time_of_day_lap_factors: None,
+                        per_driver_lap_factors: None,
+                        driver_roster: None,
                         schedule_rows: None,
                     },
                 );

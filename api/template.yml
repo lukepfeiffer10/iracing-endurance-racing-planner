@@ -17,6 +17,7 @@ Resources:
           - PATCH
         AllowHeaders:
           - Authorization
+          - Content-Type
       Auth:
         Authorizers:
           GoogleOpenIdAuthorizer:

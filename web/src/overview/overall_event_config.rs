@@ -10,7 +10,7 @@ use crate::{
     },
 };
 use chrono::{DateTime, Duration, NaiveDate, NaiveDateTime, TimeZone, Utc};
-use endurance_racing_planner_common::{EventConfigDto, RacePlannerDto};
+use endurance_racing_planner_common::{EventConfigDto, PatchRacePlannerDto};
 use gloo_console::error;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
@@ -136,9 +136,9 @@ impl Component for EventConfig {
 
                         patch_plan(
                             self.plan_id,
-                            RacePlannerDto {
+                            PatchRacePlannerDto {
                                 id: self.plan_id,
-                                title: "idc".to_string(),
+                                title: None,
                                 overall_event_config: Some(EventConfigDto {
                                     race_duration: self.data.race_duration,
                                     session_start_utc: self.data.session_start_utc,
@@ -147,10 +147,10 @@ impl Component for EventConfig {
                                 }),
                                 overall_fuel_stint_config: None,
                                 fuel_stint_average_times: None,
-                                time_of_day_lap_factors: vec![],
-                                per_driver_lap_factors: vec![],
-                                driver_roster: vec![],
+                                time_of_day_lap_factors: None,
+                                per_driver_lap_factors: None,
                                 schedule_rows: None,
+                                driver_roster: None,
                             },
                         );
                         true
