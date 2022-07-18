@@ -4,7 +4,7 @@ use axum::{
 };
 use chrono::Duration;
 use data_access::plans::get_plan_by_id;
-use endurance_racing_planner_common::{EventConfigDto, RacePlannerDto};
+use endurance_racing_planner_common::{EventConfigDto, OverallFuelStintConfigData, RacePlannerDto};
 use lambda_http::Error;
 use sqlx::{types::Uuid, PgPool};
 
@@ -32,11 +32,22 @@ async fn get_plan(Path(id): Path<Uuid>, Extension(pool): Extension<PgPool>) -> i
                     }),
                     None => None,
                 };
+                let fuel_stint_config = match plan.pit_duration {
+                    Some(pit_duration) => Some(OverallFuelStintConfigData {
+                        pit_duration: Duration::microseconds(pit_duration.microseconds),
+                        fuel_tank_size: plan.fuel_tank_size.unwrap(),
+                        tire_change_time: Duration::microseconds(
+                            plan.tire_change_time.unwrap().microseconds,
+                        ),
+                        add_tire_time: plan.add_tire_time.unwrap(),
+                    }),
+                    None => None,
+                };
                 Json(RacePlannerDto {
                     id: plan.id,
                     title: plan.title,
                     overall_event_config: event_config,
-                    overall_fuel_stint_config: None,
+                    overall_fuel_stint_config: fuel_stint_config,
                     fuel_stint_average_times: None,
                     time_of_day_lap_factors: vec![],
                     per_driver_lap_factors: vec![],

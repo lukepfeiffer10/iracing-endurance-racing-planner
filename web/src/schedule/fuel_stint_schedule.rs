@@ -1,13 +1,12 @@
 ﻿use crate::event_bus::{EventBus, EventBusInput, EventBusOutput};
 use crate::md_text_field::{MaterialTextField, MaterialTextFieldProps};
-use crate::overview::{
-    overall_event_config::EventConfigData, overall_fuel_stint_config::OverallFuelStintConfigData,
-};
+use crate::overview::overall_event_config::EventConfigData;
 use crate::planner::{
     format_duration, DurationFormat, FuelStintAverageTimes, PlannerContext, PlannerRoutes,
 };
 use crate::roster::Driver;
 use chrono::{DateTime, Duration, NaiveDateTime, NaiveTime, Timelike, Utc};
+use endurance_racing_planner_common::OverallFuelStintConfigData;
 use gloo_console::error;
 use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};

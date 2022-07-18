@@ -3,7 +3,6 @@ use crate::event_bus::{EventBus, EventBusOutput};
 use crate::http::plans::{create_plan, get_plan, patch_plan};
 use crate::overview::fuel_stint_times::StintData;
 use crate::overview::overall_event_config::EventConfigData;
-use crate::overview::overall_fuel_stint_config::OverallFuelStintConfigData;
 use crate::overview::per_driver_lap_factors::DriverLapFactor;
 use crate::overview::time_of_day_lap_factors::TimeOfDayLapFactor;
 use crate::overview::Overview;
@@ -13,7 +12,9 @@ use crate::schedule::Schedule;
 use crate::{AppStateAction, AppStateContext};
 use boolinator::Boolinator;
 use chrono::{Duration, NaiveDateTime};
-use endurance_racing_planner_common::{PatchRacePlannerDto, RacePlannerDto};
+use endurance_racing_planner_common::{
+    OverallFuelStintConfigData, PatchRacePlannerDto, RacePlannerDto,
+};
 use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
 use std::rc::Rc;
@@ -79,6 +80,11 @@ impl Display for PlannerRoutes {
 #[derive(Clone, PartialEq)]
 pub struct PlannerContext {
     pub data: Rc<RacePlannerDto>,
+    pub dispatch: Callback<PlannerContextAction>,
+}
+
+pub enum PlannerContextAction {
+    UpdateFuelStintConfig(OverallFuelStintConfigData),
 }
 
 pub enum PlannerMsg {
@@ -86,6 +92,7 @@ pub enum PlannerMsg {
     UpdateTab,
     UpdatePlan(RacePlannerDto),
     UpdatePlanTitle(String),
+    UpdatePlanContext(PlannerContextAction),
 }
 
 pub struct Planner {
@@ -137,6 +144,9 @@ impl Component for Planner {
             _route_listener: route_listener,
             context: PlannerContext {
                 data: Rc::new(default_plan),
+                dispatch: ctx
+                    .link()
+                    .callback(|action| PlannerMsg::UpdatePlanContext(action)),
             },
         }
     }
@@ -160,8 +170,10 @@ impl Component for Planner {
                 true
             }
             PlannerMsg::UpdatePlanTitle(title) => {
-                let mut plan_data = Rc::make_mut(&mut self.context.data);
-                plan_data.title = title.clone();
+                let mut planner = Rc::make_mut(&mut self.context.data);
+                planner.title = title.clone();
+
+                let plan_data = &self.context.data;
                 patch_plan(
                     plan_data.id,
                     PatchRacePlannerDto {
@@ -177,6 +189,15 @@ impl Component for Planner {
                     },
                 );
                 false
+            }
+            PlannerMsg::UpdatePlanContext(action) => {
+                match action {
+                    PlannerContextAction::UpdateFuelStintConfig(fuel_config) => {
+                        let mut current_plan = Rc::make_mut(&mut self.context.data);
+                        current_plan.overall_fuel_stint_config = Some(fuel_config);
+                    }
+                }
+                true
             }
         }
     }
