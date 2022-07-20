@@ -70,6 +70,17 @@ pub struct OverallFuelStintConfigData {
     pub add_tire_time: bool,
 }
 
+impl OverallFuelStintConfigData {
+    pub fn new() -> Self {
+        Self {
+            pit_duration: Duration::zero(),
+            fuel_tank_size: 0,
+            tire_change_time: Duration::zero(),
+            add_tire_time: false,
+        }
+    }
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct FuelStintAverageTimes {

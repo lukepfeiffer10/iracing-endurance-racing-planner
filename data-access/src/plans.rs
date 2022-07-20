@@ -15,9 +15,14 @@ pub async fn get_plan_by_id(
                 ec.race_duration as "race_duration: Option<_>", 
                 ec.session_start_utc as "session_start_utc: Option<_>", 
                 ec.race_start_tod as "race_start_tod: Option<_>", 
-                ec.green_flag_offset as "green_flag_offset: Option<_>" 
+                ec.green_flag_offset as "green_flag_offset: Option<_>", 
+                fsc.pit_duration as "pit_duration: Option<_>", 
+                fsc.fuel_tank_size as "fuel_tank_size: Option<_>", 
+                fsc.tire_change_time as "tire_change_time: Option<_>", 
+                fsc.add_tire_time as "add_tire_time: Option<_>" 
             FROM plans p 
                 LEFT OUTER JOIN event_configs ec ON ec.plan_id = p.id
+                LEFT OUTER JOIN fuel_stint_configs fsc ON fsc.plan_id = p.id
             WHERE p.id = $1"#,
         id
     )
@@ -116,6 +121,51 @@ pub async fn patch_plan(pool: &PgPool, plan: PatchPlan) -> Result<bool, sqlx::Er
             .execute(pool);
 
             let result = try_join!(upsert_event_config, update_plan_modified_by);
+
+            Ok(match result {
+                Ok((upsert_result, update_plan_result)) => {
+                    transaction.commit().await?;
+                    upsert_result.rows_affected() == 1 && update_plan_result.rows_affected() == 1
+                }
+                Err(_) => {
+                    transaction.rollback().await?;
+                    false
+                }
+            })
+        }
+        PatchPlanType::FuelStintConfig(config) => {
+            let transaction = pool.begin().await?;
+
+            let pit_duration: PgInterval = config.pit_duration.try_into().unwrap();
+            let tire_change_time: PgInterval = config.tire_change_time.try_into().unwrap();
+            let upsert_fuel_stint_config = sqlx::query!(
+                r#"
+                INSERT INTO fuel_stint_configs AS fsc (plan_id, pit_duration, fuel_tank_size, tire_change_time, add_tire_time)
+                VALUES ($5, $1, $2, $3, $4)
+                ON CONFLICT (plan_id) DO UPDATE 
+                SET 
+                    pit_duration = $1, 
+                    fuel_tank_size = $2, 
+                    tire_change_time = $3, 
+                    add_tire_time = $4
+                WHERE fsc.plan_id = $5"#,
+                pit_duration,
+                config.fuel_tank_size,
+                tire_change_time,
+                config.add_tire_time,
+                plan.id
+            )
+            .execute(pool);
+
+            let update_plan_modified_by = sqlx::query!(
+                "UPDATE plans SET modified_by = $1, modified_date = $2 WHERE id = $3",
+                plan.modified_by,
+                plan.modified_date,
+                plan.id
+            )
+            .execute(pool);
+
+            let result = try_join!(upsert_fuel_stint_config, update_plan_modified_by);
 
             Ok(match result {
                 Ok((upsert_result, update_plan_result)) => {

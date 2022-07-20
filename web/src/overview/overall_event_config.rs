@@ -1,12 +1,12 @@
 ﻿use crate::event_bus::{EventBusInput, EventBusOutput};
 use crate::http::plans::patch_plan;
+use crate::planner::PlannerContext;
 use crate::{
     bindings,
     event_bus::EventBus,
     md_text_field::{MaterialTextField, MaterialTextFieldProps},
     planner::{
-        format_date_time, format_duration, parse_duration_from_str, DurationFormat, PlannerContext,
-        DATE_FORMAT,
+        format_date_time, format_duration, parse_duration_from_str, DurationFormat, DATE_FORMAT,
     },
 };
 use chrono::{DateTime, Duration, NaiveDate, NaiveDateTime, TimeZone, Utc};
@@ -116,7 +116,7 @@ impl Component for EventConfig {
                     }
                 },
             ))
-            .expect("No Message Context Provided");
+            .expect("No Planner Context Provided");
 
         Self {
             event_bus,

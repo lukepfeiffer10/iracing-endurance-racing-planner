@@ -1,5 +1,5 @@
 ﻿use chrono::{DateTime, NaiveDateTime, Utc};
-use endurance_racing_planner_common::{EventConfigDto, RacePlannerDto};
+use endurance_racing_planner_common::{EventConfigDto, OverallFuelStintConfigData, RacePlannerDto};
 use sqlx::postgres::types::PgInterval;
 use uuid::Uuid;
 
@@ -29,6 +29,10 @@ pub struct PlanWithOverview {
     pub session_start_utc: Option<DateTime<Utc>>,
     pub race_start_tod: Option<NaiveDateTime>,
     pub green_flag_offset: Option<PgInterval>,
+    pub pit_duration: Option<PgInterval>,
+    pub fuel_tank_size: Option<i32>,
+    pub tire_change_time: Option<PgInterval>,
+    pub add_tire_time: Option<bool>,
 }
 
 pub struct PatchPlan {
@@ -52,6 +56,7 @@ impl PatchPlan {
 pub enum PatchPlanType {
     Title(String),
     EventConfig(EventConfigDto),
+    FuelStintConfig(OverallFuelStintConfigData),
 }
 
 impl From<RacePlannerDto> for Plan {

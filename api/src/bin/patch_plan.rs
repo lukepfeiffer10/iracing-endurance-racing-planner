@@ -23,6 +23,8 @@ async fn patch_plan(
 ) -> impl IntoResponse {
     let patch = if plan.overall_event_config.is_some() {
         PatchPlanType::EventConfig(plan.overall_event_config.unwrap())
+    } else if plan.overall_fuel_stint_config.is_some() {
+        PatchPlanType::FuelStintConfig(plan.overall_fuel_stint_config.unwrap())
     } else {
         PatchPlanType::Title(plan.title.unwrap())
     };
