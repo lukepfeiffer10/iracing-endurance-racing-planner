@@ -41,7 +41,7 @@ pub struct PatchRacePlannerDto {
     pub title: Option<String>,
     pub overall_event_config: Option<EventConfigDto>,
     pub overall_fuel_stint_config: Option<OverallFuelStintConfigData>,
-    pub fuel_stint_average_times: Option<FuelStintAverageTimes>,
+    pub fuel_stint_average_times: Option<PatchFuelStintAverageTimes>,
     pub time_of_day_lap_factors: Option<Vec<TimeOfDayLapFactor>>,
     pub per_driver_lap_factors: Option<Vec<DriverLapFactor>>,
     pub driver_roster: Option<Vec<Driver>>,
@@ -84,13 +84,20 @@ impl OverallFuelStintConfigData {
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct FuelStintAverageTimes {
-    pub standard_fuel_stint: StintData,
-    pub fuel_saving_stint: StintData,
+    pub standard_fuel_stint: StintDataDto,
+    pub fuel_saving_stint: StintDataDto,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
-pub struct StintData {
+pub struct PatchFuelStintAverageTimes {
+    pub standard_fuel_stint: Option<StintDataDto>,
+    pub fuel_saving_stint: Option<StintDataDto>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct StintDataDto {
     #[serde(with = "crate::duration_serde")]
     pub lap_time: Duration,
     pub fuel_per_lap: f32,

@@ -1,15 +1,23 @@
-﻿use crate::entities::plan::{PatchPlan, PatchPlanType, PlanWithOverview, PlanWithOwner};
+﻿use crate::entities::plan::{
+    FuelStintAverageTimes, PatchPlan, PatchPlanType, PlanWithOverview, PlanWithOwner, StintType,
+};
 use crate::entities::Plan;
+use chrono::{DateTime, Duration, Utc};
+use endurance_racing_planner_common::{
+    EventConfigDto, OverallFuelStintConfigData, RacePlannerDto, StintDataDto,
+};
 use futures::try_join;
 use sqlx::postgres::types::PgInterval;
+use sqlx::postgres::PgArguments;
+use sqlx::query::Query;
 use sqlx::types::Uuid;
-use sqlx::PgPool;
+use sqlx::{PgPool, Postgres};
 
 pub async fn get_plan_by_id(
     pool: &PgPool,
     id: Uuid,
-) -> Result<Option<PlanWithOverview>, sqlx::Error> {
-    let plan: Option<PlanWithOverview> = sqlx::query_as!(
+) -> Result<Option<RacePlannerDto>, sqlx::Error> {
+    let plan = sqlx::query_as!(
         PlanWithOverview,
         r#"SELECT p.id, p.title, 
                 ec.race_duration as "race_duration: Option<_>", 
@@ -26,10 +34,90 @@ pub async fn get_plan_by_id(
             WHERE p.id = $1"#,
         id
     )
-    .fetch_optional(pool)
-    .await?;
+    .fetch_optional(pool);
 
-    Ok(plan)
+    let fuel_stint_average_times = sqlx::query_as!(
+        FuelStintAverageTimes,
+        r#"SELECT
+            plan_id,
+            lap_time,
+            fuel_per_lap,
+            lap_count,
+            lap_time_with_pit,
+            track_time,
+            track_time_with_pit,
+            fuel_per_stint,
+            stint_type as "stint_type: StintType"
+        FROM fuel_stint_average_times
+        WHERE plan_id = $1"#,
+        id
+    )
+    .fetch_all(pool);
+
+    let (plan, fuel_stint_average_times) = try_join!(plan, fuel_stint_average_times)?;
+
+    let fuel_stint_average_times = if !fuel_stint_average_times.is_empty() {
+        let mut stints = fuel_stint_average_times.into_iter();
+        Some(endurance_racing_planner_common::FuelStintAverageTimes {
+            standard_fuel_stint: stints
+                .find(|s| match s.stint_type {
+                    StintType::Standard => true,
+                    StintType::FuelSaving => false,
+                })
+                .map(|f| StintDataDto {
+                    lap_time: Duration::microseconds(f.lap_time.microseconds),
+                    fuel_per_lap: f.fuel_per_lap,
+                    lap_count: f.lap_count,
+                    lap_time_with_pit: Duration::microseconds(f.lap_time_with_pit.microseconds),
+                    track_time: Duration::microseconds(f.track_time.microseconds),
+                    track_time_with_pit: Duration::microseconds(f.track_time_with_pit.microseconds),
+                    fuel_per_stint: f.fuel_per_stint,
+                })
+                .expect("standard fuel stint average times"),
+            fuel_saving_stint: stints
+                .find(|s| match s.stint_type {
+                    StintType::Standard => false,
+                    StintType::FuelSaving => true,
+                })
+                .map(|f| StintDataDto {
+                    lap_time: Duration::microseconds(f.lap_time.microseconds),
+                    fuel_per_lap: f.fuel_per_lap,
+                    lap_count: f.lap_count,
+                    lap_time_with_pit: Duration::microseconds(f.lap_time_with_pit.microseconds),
+                    track_time: Duration::microseconds(f.track_time.microseconds),
+                    track_time_with_pit: Duration::microseconds(f.track_time_with_pit.microseconds),
+                    fuel_per_stint: f.fuel_per_stint,
+                })
+                .expect("fuel saving fuel stint average times"),
+        })
+    } else {
+        None
+    };
+    let dto = plan.map(|p| RacePlannerDto {
+        id: p.id,
+        title: p.title,
+        overall_event_config: p.race_duration.map(|race_duration| EventConfigDto {
+            race_duration: Duration::microseconds(race_duration.microseconds),
+            session_start_utc: p.session_start_utc.unwrap(),
+            race_start_tod: p.race_start_tod.unwrap(),
+            green_flag_offset: Duration::microseconds(p.green_flag_offset.unwrap().microseconds),
+        }),
+        overall_fuel_stint_config: p
+            .pit_duration
+            .map(|pit_duration| OverallFuelStintConfigData {
+                pit_duration: Duration::microseconds(pit_duration.microseconds),
+                fuel_tank_size: p.fuel_tank_size.unwrap(),
+                tire_change_time: Duration::microseconds(p.tire_change_time.unwrap().microseconds),
+                add_tire_time: p.add_tire_time.unwrap(),
+            }),
+        fuel_stint_average_times,
+        time_of_day_lap_factors: vec![],
+        per_driver_lap_factors: vec![],
+        driver_roster: vec![],
+        schedule_rows: None,
+    });
+
+    Ok(dto)
 }
 
 pub async fn create_plan(pool: &PgPool, plan: Plan) -> Result<Plan, sqlx::Error> {
@@ -112,15 +200,11 @@ pub async fn patch_plan(pool: &PgPool, plan: PatchPlan) -> Result<bool, sqlx::Er
             )
             .execute(pool);
 
-            let update_plan_modified_by = sqlx::query!(
-                "UPDATE plans SET modified_by = $1, modified_date = $2 WHERE id = $3",
-                plan.modified_by,
-                plan.modified_date,
-                plan.id
-            )
-            .execute(pool);
-
-            let result = try_join!(upsert_event_config, update_plan_modified_by);
+            let result = try_join!(
+                upsert_event_config,
+                update_plan_modified_by(plan.id, plan.modified_by, plan.modified_date)
+                    .execute(pool)
+            );
 
             Ok(match result {
                 Ok((upsert_result, update_plan_result)) => {
@@ -157,15 +241,11 @@ pub async fn patch_plan(pool: &PgPool, plan: PatchPlan) -> Result<bool, sqlx::Er
             )
             .execute(pool);
 
-            let update_plan_modified_by = sqlx::query!(
-                "UPDATE plans SET modified_by = $1, modified_date = $2 WHERE id = $3",
-                plan.modified_by,
-                plan.modified_date,
-                plan.id
-            )
-            .execute(pool);
-
-            let result = try_join!(upsert_fuel_stint_config, update_plan_modified_by);
+            let result = try_join!(
+                upsert_fuel_stint_config,
+                update_plan_modified_by(plan.id, plan.modified_by, plan.modified_date)
+                    .execute(pool)
+            );
 
             Ok(match result {
                 Ok((upsert_result, update_plan_result)) => {
@@ -178,5 +258,76 @@ pub async fn patch_plan(pool: &PgPool, plan: PatchPlan) -> Result<bool, sqlx::Er
                 }
             })
         }
+        PatchPlanType::FuelStintAverageTime(data, stint_type) => {
+            let transaction = pool.begin().await?;
+
+            let lap_time: PgInterval = data.lap_time.try_into().unwrap();
+            let lap_time_with_pit: PgInterval = data.lap_time_with_pit.try_into().unwrap();
+            let track_time: PgInterval = data.track_time.try_into().unwrap();
+            let track_time_with_pit: PgInterval = data.track_time_with_pit.try_into().unwrap();
+            let upsert_stint_data = sqlx::query!(
+                r#"
+                INSERT INTO fuel_stint_average_times AS fs
+                    (plan_id,
+                    lap_time,
+                    fuel_per_lap,
+                    lap_count,
+                    lap_time_with_pit,
+                    track_time,
+                    track_time_with_pit,
+                    fuel_per_stint,
+                    stint_type)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+                ON CONFLICT (plan_id, stint_type) DO UPDATE 
+                SET 
+                    lap_time = $2,
+                    fuel_per_lap = $3,
+                    lap_count = $4,
+                    lap_time_with_pit = $5,
+                    track_time = $6,
+                    track_time_with_pit = $7,
+                    fuel_per_stint = $8
+                WHERE fs.plan_id = $1 AND fs.stint_type = $9"#,
+                plan.id,
+                lap_time,
+                data.fuel_per_lap,
+                data.lap_count,
+                lap_time_with_pit,
+                track_time,
+                track_time_with_pit,
+                data.fuel_per_stint,
+                stint_type as i16,
+            );
+
+            let result = try_join!(
+                upsert_stint_data.execute(pool),
+                update_plan_modified_by(plan.id, plan.modified_by, plan.modified_date)
+                    .execute(pool)
+            );
+
+            match result {
+                Ok(_) => {
+                    transaction.commit().await?;
+                    Ok(true)
+                }
+                Err(_) => {
+                    transaction.rollback().await?;
+                    Ok(false)
+                }
+            }
+        }
     }
+}
+
+fn update_plan_modified_by(
+    id: Uuid,
+    modified_by: i32,
+    modified_date: DateTime<Utc>,
+) -> Query<'static, Postgres, PgArguments> {
+    sqlx::query!(
+        "UPDATE plans SET modified_by = $1, modified_date = $2 WHERE id = $3",
+        modified_by,
+        modified_date,
+        id
+    )
 }

@@ -13,7 +13,7 @@ use crate::{AppStateAction, AppStateContext};
 use boolinator::Boolinator;
 use chrono::{Duration, NaiveDateTime};
 use endurance_racing_planner_common::{
-    OverallFuelStintConfigData, PatchRacePlannerDto, RacePlannerDto,
+    EventConfigDto, OverallFuelStintConfigData, PatchRacePlannerDto, RacePlannerDto,
 };
 use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
@@ -84,7 +84,9 @@ pub struct PlannerContext {
 }
 
 pub enum PlannerContextAction {
+    UpdateOverallEventConfig(EventConfigData),
     UpdateFuelStintConfig(OverallFuelStintConfigData),
+    UpdateFuelStintTimes(endurance_racing_planner_common::FuelStintAverageTimes),
 }
 
 pub enum PlannerMsg {
@@ -191,10 +193,21 @@ impl Component for Planner {
                 false
             }
             PlannerMsg::UpdatePlanContext(action) => {
+                let mut current_plan = Rc::make_mut(&mut self.context.data);
                 match action {
                     PlannerContextAction::UpdateFuelStintConfig(fuel_config) => {
-                        let mut current_plan = Rc::make_mut(&mut self.context.data);
                         current_plan.overall_fuel_stint_config = Some(fuel_config);
+                    }
+                    PlannerContextAction::UpdateFuelStintTimes(times) => {
+                        current_plan.fuel_stint_average_times = Some(times);
+                    }
+                    PlannerContextAction::UpdateOverallEventConfig(event_config) => {
+                        current_plan.overall_event_config = Some(EventConfigDto {
+                            race_duration: event_config.race_duration,
+                            session_start_utc: event_config.session_start_utc,
+                            race_start_tod: event_config.race_start_tod,
+                            green_flag_offset: event_config.green_flag_offset,
+                        })
                     }
                 }
                 true

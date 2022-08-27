@@ -1,6 +1,11 @@
 ﻿use chrono::{DateTime, NaiveDateTime, Utc};
-use endurance_racing_planner_common::{EventConfigDto, OverallFuelStintConfigData, RacePlannerDto};
-use sqlx::postgres::types::PgInterval;
+use endurance_racing_planner_common::{
+    EventConfigDto, OverallFuelStintConfigData, RacePlannerDto, StintDataDto,
+};
+use sqlx::{
+    postgres::{types::PgInterval, PgValueRef},
+    Decode, Postgres,
+};
 use uuid::Uuid;
 
 pub struct Plan {
@@ -57,6 +62,7 @@ pub enum PatchPlanType {
     Title(String),
     EventConfig(EventConfigDto),
     FuelStintConfig(OverallFuelStintConfigData),
+    FuelStintAverageTime(StintDataDto, StintType),
 }
 
 impl From<RacePlannerDto> for Plan {
@@ -91,5 +97,43 @@ impl From<&Plan> for RacePlannerDto {
             driver_roster: vec![],
             schedule_rows: None,
         }
+    }
+}
+
+pub struct FuelStintAverageTimes {
+    pub plan_id: Uuid,
+    pub lap_time: PgInterval,
+    pub fuel_per_lap: f32,
+    pub lap_count: i32,
+    pub lap_time_with_pit: PgInterval,
+    pub track_time: PgInterval,
+    pub track_time_with_pit: PgInterval,
+    pub fuel_per_stint: f32,
+    pub stint_type: StintType,
+}
+
+#[repr(i16)]
+pub enum StintType {
+    Standard,
+    FuelSaving,
+}
+
+impl TryFrom<i16> for StintType {
+    type Error = Box<dyn std::error::Error + 'static + Sync + Send>;
+
+    fn try_from(value: i16) -> Result<Self, Self::Error> {
+        match value {
+            0 => Ok(StintType::Standard),
+            1 => Ok(StintType::FuelSaving),
+            _ => Err(format!("value: {} couldn't be converted to StintType", value).into()),
+        }
+    }
+}
+
+impl Decode<'_, Postgres> for StintType {
+    fn decode(value: PgValueRef<'_>) -> Result<Self, sqlx::error::BoxDynError> {
+        let value = <i16 as Decode<Postgres>>::decode(value)?;
+
+        value.try_into()
     }
 }

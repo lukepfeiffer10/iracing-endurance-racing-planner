@@ -10,7 +10,7 @@ use chrono::Duration;
 use gloo_console::error;
 use yew::html::Scope;
 use yew::prelude::*;
-use yew::props;
+use yew::{props, Properties};
 use yew_agent::{Bridge, Bridged};
 use yew_router::prelude::*;
 
@@ -36,13 +36,18 @@ pub struct PerDriverLapFactors {
 
 pub enum PerDriverLapFactorsMsg {
     LoadDrivers(Vec<Driver>),
-    UpdateReferenceLapTime(Duration),
     UpdateDriverLapTime(String, usize),
+}
+
+#[derive(Properties, PartialEq)]
+pub struct PerDriverLapFactorsProps {
+    #[prop_or(Duration::zero())]
+    pub lap_time: Duration,
 }
 
 impl Component for PerDriverLapFactors {
     type Message = PerDriverLapFactorsMsg;
-    type Properties = ();
+    type Properties = PerDriverLapFactorsProps;
 
     fn create(ctx: &Context<Self>) -> Self {
         let mut event_bus_bridge =
@@ -50,9 +55,6 @@ impl Component for PerDriverLapFactors {
                 EventBusOutput::SendDriverRoster(drivers) => {
                     Some(PerDriverLapFactorsMsg::LoadDrivers(drivers))
                 }
-                EventBusOutput::StandardLapTime(lap_time) => Some(
-                    PerDriverLapFactorsMsg::UpdateReferenceLapTime(lap_time.lap_time),
-                ),
                 _ => None,
             }));
         event_bus_bridge.send(EventBusInput::GetDriverRoster);
@@ -97,18 +99,16 @@ impl Component for PerDriverLapFactors {
                     }
                 }
             }
-            PerDriverLapFactorsMsg::UpdateReferenceLapTime(lap_time) => {
-                self.standard_lap_time = lap_time;
-                for factor in &mut self.factors {
-                    factor.compute_factor_from_reference(lap_time);
-                }
-                true
-            }
         }
     }
 
-    fn changed(&mut self, _ctx: &Context<Self>) -> bool {
-        false
+    fn changed(&mut self, ctx: &Context<Self>) -> bool {
+        let Self::Properties { lap_time } = ctx.props();
+        self.standard_lap_time = *lap_time;
+        for factor in &mut self.factors {
+            factor.compute_factor_from_reference(*lap_time);
+        }
+        true
     }
 
     fn view(&self, ctx: &Context<Self>) -> Html {

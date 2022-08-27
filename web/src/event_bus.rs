@@ -1,4 +1,4 @@
-﻿use crate::overview::{fuel_stint_times::StandardLapTime, overall_event_config::EventConfigData};
+﻿use crate::overview::overall_event_config::EventConfigData;
 use crate::schedule::fuel_stint_schedule::{ScheduleDataRow, ScheduleRelatedData};
 use crate::{
     planner::{FuelStintAverageTimes, RacePlanner},
@@ -11,7 +11,6 @@ use yew_agent::{Agent, AgentLink, Context, HandlerId};
 
 #[derive(Serialize, Deserialize, Debug)]
 pub enum EventBusInput {
-    StandardLapTime(StandardLapTime),
     GetDriverRoster,
     PutDriverRoster(Vec<Driver>),
     GetOverallEventConfig,
@@ -25,7 +24,6 @@ pub enum EventBusInput {
 
 #[derive(Serialize, Deserialize, Debug)]
 pub enum EventBusOutput {
-    StandardLapTime(StandardLapTime),
     SendDriverRoster(Vec<Driver>),
     SendOverallEventConfig(Option<EventConfigData>),
     SendFuelStintAverageTimes(Option<FuelStintAverageTimes>),
@@ -61,12 +59,6 @@ impl Agent for EventBus {
 
     fn handle_input(&mut self, msg: Self::Input, _id: HandlerId) {
         match msg {
-            EventBusInput::StandardLapTime(duration) => {
-                for sub in self.subscribers.iter() {
-                    self.link
-                        .respond(*sub, EventBusOutput::StandardLapTime(duration.clone()));
-                }
-            }
             EventBusInput::GetDriverRoster => {
                 for sub in self.subscribers.iter() {
                     self.link.respond(

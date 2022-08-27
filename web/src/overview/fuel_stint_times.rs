@@ -1,30 +1,19 @@
-﻿use crate::event_bus::{EventBus, EventBusInput, EventBusOutput};
+﻿use crate::http::plans::patch_plan;
 use crate::md_text_field::{MaterialTextField, MaterialTextFieldProps};
 use crate::planner::{
-    format_duration, parse_duration_from_str, DurationFormat, FuelStintAverageTimes, PlannerContext,
+    format_duration, parse_duration_from_str, DurationFormat, PlannerContext, PlannerContextAction,
 };
 use chrono::Duration;
-use endurance_racing_planner_common::OverallFuelStintConfigData;
+use endurance_racing_planner_common::{
+    FuelStintAverageTimes, PatchFuelStintAverageTimes, PatchRacePlannerDto, StintDataDto,
+};
 use gloo_console::error;
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 use yew::context::ContextHandle;
 use yew::prelude::*;
 use yew::props;
-use yew_agent::{Bridge, Bridged};
-
-#[derive(Serialize, Deserialize, Debug)]
-pub struct StandardLapTime {
-    #[serde(with = "crate::duration_serde")]
-    pub lap_time: Duration,
-}
-
-impl Clone for StandardLapTime {
-    fn clone(&self) -> Self {
-        Self {
-            lap_time: self.lap_time,
-        }
-    }
-}
+use yew::Properties;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct StintData {
@@ -96,6 +85,34 @@ impl StintData {
     }
 }
 
+impl From<StintDataDto> for StintData {
+    fn from(dto: StintDataDto) -> Self {
+        Self {
+            lap_time: dto.lap_time,
+            fuel_per_lap: dto.fuel_per_lap,
+            lap_count: dto.lap_count,
+            lap_time_with_pit: dto.lap_time_with_pit,
+            track_time: dto.track_time,
+            track_time_with_pit: dto.track_time_with_pit,
+            fuel_per_stint: dto.fuel_per_stint,
+        }
+    }
+}
+
+impl Into<StintDataDto> for StintData {
+    fn into(self) -> StintDataDto {
+        StintDataDto {
+            lap_time: self.lap_time,
+            fuel_per_lap: self.fuel_per_lap,
+            lap_count: self.lap_count,
+            lap_time_with_pit: self.lap_time_with_pit,
+            track_time: self.track_time,
+            track_time_with_pit: self.track_time_with_pit,
+            fuel_per_stint: self.fuel_per_stint,
+        }
+    }
+}
+
 #[derive(Debug)]
 pub enum StintType {
     Standard,
@@ -105,53 +122,60 @@ pub enum StintType {
 pub enum FuelStintTimesMsg {
     UpdateLapTime(String, StintType),
     UpdateFuelPerLap(String, StintType),
-    UpdateFuelConfig(OverallFuelStintConfigData),
     OnCreate(FuelStintAverageTimes),
+}
+
+#[derive(Properties, PartialEq)]
+pub struct FuelStintTimesProps {
+    pub fuel_tank_size: i32,
+    pub pit_duration: Duration,
 }
 
 pub struct FuelStintTimes {
     standard_fuel_stint: StintData,
     fuel_saving_stint: StintData,
-    fuel_tank_size: i32,
-    pit_duration: Duration,
-    _producer: Box<dyn Bridge<EventBus>>,
     _context_listener: ContextHandle<PlannerContext>,
 }
 
 impl Component for FuelStintTimes {
     type Message = FuelStintTimesMsg;
-    type Properties = ();
+    type Properties = FuelStintTimesProps;
 
     fn create(ctx: &Context<Self>) -> Self {
-        let mut event_bus_bridge =
-            EventBus::bridge(ctx.link().batch_callback(|message| match message {
-                EventBusOutput::SendFuelStintAverageTimes(data) => {
-                    data.map(|f| FuelStintTimesMsg::OnCreate(f))
-                }
-                _ => None,
-            }));
-        event_bus_bridge.send(EventBusInput::GetFuelStintAverageTimes);
-
-        let (_, planner_context_handle) = ctx
+        let (planner_context, planner_context_handle) = ctx
             .link()
             .context::<PlannerContext>(ctx.link().batch_callback(|context: PlannerContext| {
-                match &context.data.overall_fuel_stint_config {
-                    Some(config) => Some(FuelStintTimesMsg::UpdateFuelConfig(config.clone())),
+                match &context.data.fuel_stint_average_times {
+                    Some(data) => Some(FuelStintTimesMsg::OnCreate(data.clone())),
                     None => None,
                 }
             }))
             .expect("No Planner Context Provided");
+
+        let stint_data = planner_context.data.fuel_stint_average_times.as_ref();
         Self {
-            _producer: event_bus_bridge,
-            standard_fuel_stint: StintData::new(),
-            fuel_saving_stint: StintData::new(),
-            fuel_tank_size: 0,
-            pit_duration: Duration::zero(),
+            standard_fuel_stint: stint_data
+                .map(|fs| fs.standard_fuel_stint.clone().into())
+                .unwrap_or_else(StintData::new),
+            fuel_saving_stint: stint_data
+                .map(|fs| fs.fuel_saving_stint.clone().into())
+                .unwrap_or_else(StintData::new),
             _context_listener: planner_context_handle,
         }
     }
 
-    fn update(&mut self, _ctx: &Context<Self>, msg: Self::Message) -> bool {
+    fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
+        let (planner_context, _) = ctx
+            .link()
+            .context::<PlannerContext>(Callback::noop())
+            .expect("planner context to be populated");
+        let plan_id = planner_context.data.id;
+
+        let Self::Properties {
+            pit_duration,
+            fuel_tank_size,
+        } = ctx.props();
+
         match msg {
             FuelStintTimesMsg::UpdateLapTime(value, stint_type) => {
                 let parsed_lap_time =
@@ -159,23 +183,32 @@ impl Component for FuelStintTimes {
                 match parsed_lap_time.map(|parsed_lap_time| match stint_type {
                     StintType::Standard => {
                         self.standard_fuel_stint
-                            .update_lap_time(parsed_lap_time, self.pit_duration);
+                            .update_lap_time(parsed_lap_time, *pit_duration);
                         let fuel_saving_lap_time =
                             (parsed_lap_time.num_milliseconds() as f64) * 1.01;
                         self.fuel_saving_stint.update_lap_time(
                             Duration::milliseconds(fuel_saving_lap_time.floor() as i64),
-                            self.pit_duration,
+                            *pit_duration,
                         );
-                        self._producer
-                            .send(EventBusInput::StandardLapTime(StandardLapTime {
-                                lap_time: parsed_lap_time,
-                            }));
+                        send_patch_request(plan_id, self.standard_fuel_stint.clone(), &stint_type);
                     }
-                    StintType::FuelSaving => self
-                        .fuel_saving_stint
-                        .update_lap_time(parsed_lap_time, self.pit_duration),
+                    StintType::FuelSaving => {
+                        self.fuel_saving_stint
+                            .update_lap_time(parsed_lap_time, *pit_duration);
+                        send_patch_request(plan_id, self.fuel_saving_stint.clone(), &stint_type);
+                    }
                 }) {
-                    Ok(_) => true,
+                    Ok(_) => {
+                        planner_context
+                            .dispatch
+                            .emit(PlannerContextAction::UpdateFuelStintTimes(
+                                FuelStintAverageTimes {
+                                    standard_fuel_stint: self.standard_fuel_stint.clone().into(),
+                                    fuel_saving_stint: self.fuel_saving_stint.clone().into(),
+                                },
+                            ));
+                        true
+                    }
                     Err(message) => {
                         error!(format!(
                             "{:?} stint lap time parse failed: {}",
@@ -189,18 +222,34 @@ impl Component for FuelStintTimes {
             FuelStintTimesMsg::UpdateFuelPerLap(value, stint_type) => {
                 let parsed_fuel_per_lap = value.parse::<f32>();
                 match parsed_fuel_per_lap.map(|parsed_fuel_per_lap| match stint_type {
-                    StintType::Standard => self.standard_fuel_stint.update_fuel_per_lap(
-                        parsed_fuel_per_lap,
-                        self.fuel_tank_size,
-                        self.pit_duration,
-                    ),
-                    StintType::FuelSaving => self.fuel_saving_stint.update_fuel_per_lap(
-                        parsed_fuel_per_lap,
-                        self.fuel_tank_size,
-                        self.pit_duration,
-                    ),
+                    StintType::Standard => {
+                        self.standard_fuel_stint.update_fuel_per_lap(
+                            parsed_fuel_per_lap,
+                            *fuel_tank_size,
+                            *pit_duration,
+                        );
+                        send_patch_request(plan_id, self.standard_fuel_stint.clone(), &stint_type);
+                    }
+                    StintType::FuelSaving => {
+                        self.fuel_saving_stint.update_fuel_per_lap(
+                            parsed_fuel_per_lap,
+                            *fuel_tank_size,
+                            *pit_duration,
+                        );
+                        send_patch_request(plan_id, self.fuel_saving_stint.clone(), &stint_type);
+                    }
                 }) {
-                    Ok(_) => true,
+                    Ok(_) => {
+                        planner_context
+                            .dispatch
+                            .emit(PlannerContextAction::UpdateFuelStintTimes(
+                                FuelStintAverageTimes {
+                                    standard_fuel_stint: self.standard_fuel_stint.clone().into(),
+                                    fuel_saving_stint: self.fuel_saving_stint.clone().into(),
+                                },
+                            ));
+                        true
+                    }
                     Err(message) => {
                         error!(format!(
                             "{:?} stint fuel per lap parse failed: {}",
@@ -211,25 +260,26 @@ impl Component for FuelStintTimes {
                     }
                 }
             }
-            FuelStintTimesMsg::UpdateFuelConfig(data) => {
-                self.fuel_tank_size = data.fuel_tank_size;
-                self.pit_duration = data.pit_duration;
-                self.fuel_saving_stint
-                    .update(self.fuel_tank_size, self.pit_duration);
-                self.standard_fuel_stint
-                    .update(self.fuel_tank_size, self.pit_duration);
-                true
-            }
             FuelStintTimesMsg::OnCreate(data) => {
-                self.fuel_saving_stint = data.fuel_saving_stint;
-                self.standard_fuel_stint = data.standard_fuel_stint;
+                self.fuel_saving_stint = data.fuel_saving_stint.into();
+                self.standard_fuel_stint = data.standard_fuel_stint.into();
                 true
             }
         }
     }
 
-    fn changed(&mut self, _ctx: &Context<Self>) -> bool {
-        false
+    fn changed(&mut self, ctx: &Context<Self>) -> bool {
+        let Self::Properties {
+            pit_duration,
+            fuel_tank_size,
+        } = ctx.props();
+
+        self.fuel_saving_stint
+            .update(*fuel_tank_size, *pit_duration);
+        self.standard_fuel_stint
+            .update(*fuel_tank_size, *pit_duration);
+
+        true
     }
 
     fn view(&self, ctx: &Context<Self>) -> Html {
@@ -309,17 +359,36 @@ impl Component for FuelStintTimes {
             </div>
         }
     }
-
-    fn destroy(&mut self, _ctx: &Context<Self>) {
-        self._producer.send(EventBusInput::PutFuelStintAverageTimes(
-            FuelStintAverageTimes {
-                fuel_saving_stint: self.fuel_saving_stint.clone(),
-                standard_fuel_stint: self.standard_fuel_stint.clone(),
-            },
-        ))
-    }
 }
 
 fn format_fuel_as_string(fuel: f32) -> String {
     format!("{:.2}", fuel)
+}
+
+fn send_patch_request(plan_id: Uuid, data: StintData, stint_type: &StintType) -> () {
+    if data.lap_time > Duration::zero() && data.fuel_per_lap > 0.0 {
+        patch_plan(
+            plan_id,
+            PatchRacePlannerDto {
+                id: plan_id,
+                title: None,
+                overall_event_config: None,
+                overall_fuel_stint_config: None,
+                fuel_stint_average_times: Some(PatchFuelStintAverageTimes {
+                    standard_fuel_stint: match stint_type {
+                        StintType::Standard => Some(data.clone().into()),
+                        StintType::FuelSaving => None,
+                    },
+                    fuel_saving_stint: match stint_type {
+                        StintType::Standard => None,
+                        StintType::FuelSaving => Some(data.clone().into()),
+                    },
+                }),
+                time_of_day_lap_factors: None,
+                per_driver_lap_factors: None,
+                driver_roster: None,
+                schedule_rows: None,
+            },
+        )
+    }
 }

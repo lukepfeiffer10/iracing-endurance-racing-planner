@@ -25,8 +25,27 @@ async fn patch_plan(
         PatchPlanType::EventConfig(plan.overall_event_config.unwrap())
     } else if plan.overall_fuel_stint_config.is_some() {
         PatchPlanType::FuelStintConfig(plan.overall_fuel_stint_config.unwrap())
-    } else {
+    } else if plan.fuel_stint_average_times.is_some() {
+        let fuel_stint_average_times = plan.fuel_stint_average_times.unwrap();
+        let stint_type = if fuel_stint_average_times.standard_fuel_stint.is_some() {
+            data_access::entities::plan::StintType::Standard
+        } else {
+            data_access::entities::plan::StintType::FuelSaving
+        };
+        PatchPlanType::FuelStintAverageTime(
+            fuel_stint_average_times
+                .standard_fuel_stint
+                .or(fuel_stint_average_times.fuel_saving_stint)
+                .unwrap(),
+            stint_type,
+        )
+    } else if plan.title.is_some() {
         PatchPlanType::Title(plan.title.unwrap())
+    } else {
+        return (
+            StatusCode::BAD_REQUEST,
+            Json("failed to supply any values to patch".to_string()),
+        );
     };
 
     let result = data_access::plans::patch_plan(&pool, PatchPlan::new(id, user.id, patch)).await;
