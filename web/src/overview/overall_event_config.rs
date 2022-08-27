@@ -1,22 +1,19 @@
-﻿use crate::event_bus::{EventBusInput, EventBusOutput};
-use crate::http::plans::patch_plan;
-use crate::planner::PlannerContext;
+﻿use crate::http::plans::patch_plan;
+use crate::planner::{PlannerContext, PlannerContextAction};
 use crate::{
     bindings,
-    event_bus::EventBus,
     md_text_field::{MaterialTextField, MaterialTextFieldProps},
     planner::{
         format_date_time, format_duration, parse_duration_from_str, DurationFormat, DATE_FORMAT,
     },
 };
-use chrono::{DateTime, Duration, NaiveDate, NaiveDateTime, TimeZone, Utc};
+use chrono::{DateTime, Duration, NaiveDateTime, TimeZone, Utc};
 use endurance_racing_planner_common::{EventConfigDto, PatchRacePlannerDto};
 use gloo_console::error;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 use yew::context::ContextHandle;
-use yew::{html, props, Component, Context, Html};
-use yew_agent::{Bridge, Bridged};
+use yew::{html, props, Callback, Component, Context, Html};
 
 pub enum EventConfigMsg {
     ChangeGreenFlagOffset(String),
@@ -43,24 +40,15 @@ pub struct EventConfigData {
 
 impl EventConfigData {
     pub fn new() -> Self {
-        //let utc_now = Utc::now();
+        let utc_now = Utc::now();
         Self {
-            race_duration: Duration::hours(10),
-            session_start_utc: DateTime::from_utc(
-                NaiveDate::from_ymd(2021, 10, 2).and_hms(12, 0, 0),
-                Utc,
-            ),
-            race_start_utc: DateTime::from_utc(
-                NaiveDate::from_ymd(2021, 10, 2).and_hms(12, 43, 0),
-                Utc,
-            ),
-            race_end_utc: DateTime::from_utc(
-                NaiveDate::from_ymd(2021, 10, 2).and_hms(22, 43, 0),
-                Utc,
-            ),
-            race_start_tod: NaiveDate::from_ymd(2021, 11, 13).and_hms(11, 30, 0),
-            race_end_tod: NaiveDate::from_ymd(2021, 11, 13).and_hms(21, 30, 0),
-            green_flag_offset: Duration::minutes(43),
+            race_duration: Duration::zero(),
+            session_start_utc: utc_now,
+            race_start_utc: utc_now,
+            race_end_utc: utc_now,
+            race_start_tod: utc_now.naive_local(),
+            race_end_tod: utc_now.naive_local(),
+            green_flag_offset: Duration::zero(),
             tod_offset: Duration::zero(),
         }
     }
@@ -73,8 +61,23 @@ impl EventConfigData {
     }
 }
 
+impl From<&EventConfigDto> for EventConfigData {
+    fn from(dto: &EventConfigDto) -> Self {
+        let utc_now = Utc::now();
+        Self {
+            race_duration: dto.race_duration,
+            session_start_utc: dto.session_start_utc,
+            race_start_utc: utc_now,
+            race_end_utc: utc_now,
+            race_start_tod: dto.race_start_tod,
+            race_end_tod: utc_now.naive_utc(),
+            green_flag_offset: dto.green_flag_offset,
+            tod_offset: Duration::zero(),
+        }
+    }
+}
+
 pub struct EventConfig {
-    event_bus: Box<dyn Bridge<EventBus>>,
     data: EventConfigData,
     plan_id: Uuid,
     _planner_context_listener: ContextHandle<PlannerContext>,
@@ -85,30 +88,13 @@ impl Component for EventConfig {
     type Properties = ();
 
     fn create(ctx: &Context<Self>) -> Self {
-        let mut event_bus = EventBus::bridge(ctx.link().batch_callback(|message| match message {
-            EventBusOutput::SendOverallEventConfig(config) => {
-                config.map(|d| EventConfigMsg::OnCreate(d))
-            }
-            _ => None,
-        }));
-        event_bus.send(EventBusInput::GetOverallEventConfig);
-
         let (planner_context, planner_context_listener) = ctx
             .link()
             .context::<PlannerContext>(ctx.link().batch_callback(
                 |context: PlannerContext| -> Option<EventConfigMsg> {
                     match &context.data.overall_event_config {
                         Some(event_config) => {
-                            let mut config_data = EventConfigData {
-                                race_duration: event_config.race_duration,
-                                session_start_utc: event_config.session_start_utc,
-                                race_start_utc: Utc::now(),
-                                race_end_utc: Utc::now(),
-                                race_start_tod: event_config.race_start_tod,
-                                race_end_tod: Utc::now().naive_utc(),
-                                green_flag_offset: event_config.green_flag_offset,
-                                tod_offset: Duration::zero(),
-                            };
+                            let mut config_data: EventConfigData = event_config.into();
                             config_data.update_race_times();
                             Some(EventConfigMsg::OnCreate(config_data))
                         }
@@ -118,15 +104,23 @@ impl Component for EventConfig {
             ))
             .expect("No Planner Context Provided");
 
+        let mut data = planner_context
+            .data
+            .overall_event_config
+            .as_ref()
+            .map(|dto| dto.into())
+            .unwrap_or_else(|| EventConfigData::new());
+        data.update_race_times();
+
         Self {
-            event_bus,
-            data: EventConfigData::new(),
+            data,
             plan_id: planner_context.data.id,
             _planner_context_listener: planner_context_listener,
         }
     }
 
-    fn update(&mut self, _ctx: &Context<Self>, msg: Self::Message) -> bool {
+    fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
+        let mut should_update = false;
         match msg {
             EventConfigMsg::ChangeGreenFlagOffset(offset) => {
                 match parse_duration_from_str(offset.as_str(), DurationFormat::HourMinSec) {
@@ -153,11 +147,10 @@ impl Component for EventConfig {
                                 driver_roster: None,
                             },
                         );
-                        true
+                        should_update = true;
                     }
                     Err(e) => {
                         error!(format!("green flag offset parse failure: {:?}", e).as_str());
-                        false
                     }
                 }
             }
@@ -168,11 +161,10 @@ impl Component for EventConfig {
                     Ok(date) => {
                         self.data.session_start_utc = TimeZone::from_utc_datetime(&Utc, &date);
                         self.data.update_race_times();
-                        true
+                        should_update = true;
                     }
                     Err(e) => {
                         error!(format!("session start parse failure: {:?}", e).as_str());
-                        false
                     }
                 }
             }
@@ -183,11 +175,10 @@ impl Component for EventConfig {
                     Ok(date) => {
                         self.data.race_start_tod = date;
                         self.data.update_race_times();
-                        true
+                        should_update = true;
                     }
                     Err(e) => {
                         error!(format!("race start tod parse failure: {:?}", e).as_str());
-                        false
                     }
                 }
             }
@@ -196,19 +187,23 @@ impl Component for EventConfig {
                     Ok(duration) => {
                         self.data.race_duration = duration;
                         self.data.update_race_times();
-                        true
+                        should_update = true;
                     }
                     Err(e) => {
                         error!(format!("race duration parse failure: {:?}", e).as_str());
-                        false
                     }
                 }
             }
             EventConfigMsg::OnCreate(config) => {
                 self.data = config;
-                true
+                should_update = true;
             }
         }
+
+        if should_update {
+            self.update_planner_context(ctx);
+        }
+        should_update
     }
 
     fn changed(&mut self, _ctx: &Context<Self>) -> bool {
@@ -292,9 +287,18 @@ impl Component for EventConfig {
             bindings::enable_text_field(".mdc-text-field");
         }
     }
+}
 
-    fn destroy(&mut self, _ctx: &Context<Self>) {
-        self.event_bus
-            .send(EventBusInput::PutOverallEventConfig(self.data.clone()))
+impl EventConfig {
+    fn update_planner_context(&self, ctx: &Context<Self>) -> () {
+        let (planner_context, _) = ctx
+            .link()
+            .context::<PlannerContext>(Callback::noop())
+            .expect("planner context to exist");
+        planner_context
+            .dispatch
+            .emit(PlannerContextAction::UpdateOverallEventConfig(
+                self.data.clone(),
+            ));
     }
 }

@@ -30,7 +30,7 @@ impl Component for OverallFuelStintConfig {
     type Properties = ();
 
     fn create(ctx: &Context<Self>) -> Self {
-        let (_, planner_context_listener) = ctx
+        let (planner_context, planner_context_listener) = ctx
             .link()
             .context::<PlannerContext>(ctx.link().batch_callback(
                 |context: PlannerContext| -> Option<OverallFuelStintMessage> {
@@ -45,7 +45,12 @@ impl Component for OverallFuelStintConfig {
             .expect("No Planner Context Provided");
 
         Self {
-            data: OverallFuelStintConfigData::new(),
+            data: planner_context
+                .data
+                .overall_fuel_stint_config
+                .as_ref()
+                .map(|data| data.clone())
+                .unwrap_or_else(|| OverallFuelStintConfigData::new()),
             add_tire_time_input_ref: NodeRef::default(),
             _planner_context_listener: planner_context_listener,
         }

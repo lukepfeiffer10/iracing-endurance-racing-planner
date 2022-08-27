@@ -1,36 +1,82 @@
-﻿use yew::{Component, Context, Html, html};
+﻿use crate::planner::PlannerContext;
+use chrono::Duration;
+use yew::context::ContextHandle;
+use yew::{html, props, Callback, Component, Context, Html};
+
+use self::fuel_stint_times::{FuelStintTimes, FuelStintTimesProps};
 use self::overall_event_config::EventConfig;
 use self::overall_fuel_stint_config::OverallFuelStintConfig;
-use self::fuel_stint_times::FuelStintTimes;
-use self::time_of_day_lap_factors::TimeOfDayLapFactors;
 use self::per_driver_lap_factors::PerDriverLapFactors;
+use self::time_of_day_lap_factors::TimeOfDayLapFactors;
 
 pub(crate) mod fuel_stint_times;
-pub(crate) mod overall_fuel_stint_config;
-pub(crate) mod time_of_day_lap_factors;
-pub(crate) mod per_driver_lap_factors;
 pub(crate) mod overall_event_config;
+pub(crate) mod overall_fuel_stint_config;
+pub(crate) mod per_driver_lap_factors;
+pub(crate) mod time_of_day_lap_factors;
 
-pub struct Overview;
+pub struct Overview {
+    _context_listener: ContextHandle<PlannerContext>,
+}
+
+pub enum OverviewMsg {
+    ContextUpdate,
+}
 
 impl Component for Overview {
-    type Message = ();
+    type Message = OverviewMsg;
     type Properties = ();
 
-    fn create(_ctx: &Context<Self>) -> Self {
-        Self {}
+    fn create(ctx: &Context<Self>) -> Self {
+        let (_, context_handle) = ctx
+            .link()
+            .context::<PlannerContext>(ctx.link().callback(|_| OverviewMsg::ContextUpdate))
+            .expect("planner context to be set");
+        Self {
+            _context_listener: context_handle,
+        }
     }
 
-    fn update(&mut self, _ctx: &Context<Self>, _msg: Self::Message) -> bool {
-        false
+    fn update(&mut self, _ctx: &Context<Self>, msg: Self::Message) -> bool {
+        match msg {
+            OverviewMsg::ContextUpdate => true,
+        }
     }
 
     fn changed(&mut self, _ctx: &Context<Self>) -> bool {
         false
     }
 
-    fn view(&self, _ctx: &Context<Self>) -> Html {
-        html!{
+    fn view(&self, ctx: &Context<Self>) -> Html {
+        let (planner_context, _) = ctx
+            .link()
+            .context::<PlannerContext>(Callback::noop())
+            .expect("planner context to be set");
+
+        let fuel_stint_times_props = planner_context
+            .data
+            .overall_fuel_stint_config
+            .as_ref()
+            .map(|config| {
+                props! {
+                    FuelStintTimesProps {
+                        fuel_tank_size: config.fuel_tank_size,
+                        pit_duration: config.pit_duration
+                    }
+                }
+            })
+            .unwrap_or(FuelStintTimesProps {
+                fuel_tank_size: 0,
+                pit_duration: Duration::zero(),
+            });
+
+        let standard_lap_time = planner_context
+            .data
+            .fuel_stint_average_times
+            .as_ref()
+            .map(|times| times.standard_fuel_stint.lap_time)
+            .unwrap_or(Duration::zero());
+        html! {
             <div class="mdc-typography flex-container flex-row">
                 <div id="left-column" class="flex-container flex-column">
                     <EventConfig />
@@ -38,11 +84,11 @@ impl Component for Overview {
                 </div>
                 <div id="right-column" class="flex-container flex-column">
                     <div class="flex-container flex-row flex-justify-content-center">
-                        <FuelStintTimes />
+                        <FuelStintTimes ..fuel_stint_times_props />
                     </div>
                     <div class="flex-container flex-row">
-                        <TimeOfDayLapFactors />
-                        <PerDriverLapFactors />
+                        <TimeOfDayLapFactors lap_time={standard_lap_time} />
+                        <PerDriverLapFactors lap_time={standard_lap_time} />
                     </div>
                     <div class="flex-container flex-row">
                         <div style="flex-grow: 1">

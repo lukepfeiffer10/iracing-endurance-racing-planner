@@ -8,3 +8,11 @@ pub fn datetime_with_timezone() -> Type {
 pub fn interval() -> Type {
     types::custom("interval")
 }
+
+pub fn smallint() -> Type {
+    types::custom("smallint")
+}
+
+pub fn real() -> Type {
+    types::custom("real")
+}
