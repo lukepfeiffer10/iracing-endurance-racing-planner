@@ -1,7 +1,7 @@
 ﻿use crate::http::plans::patch_plan;
 use crate::md_text_field::{MaterialTextField, MaterialTextFieldProps};
 use crate::planner::{
-    format_duration, parse_duration_from_str, DurationFormat, PlannerContext, PlannerContextAction,
+    format_duration, parse_duration_from_str, DurationFormat, RacePlannerAction, RacePlannerContext,
 };
 use endurance_racing_planner_common::{OverallFuelStintConfigData, PatchRacePlannerDto};
 use gloo_console::error;
@@ -22,7 +22,7 @@ pub enum OverallFuelStintMessage {
 pub struct OverallFuelStintConfig {
     data: OverallFuelStintConfigData,
     add_tire_time_input_ref: NodeRef,
-    _planner_context_listener: ContextHandle<PlannerContext>,
+    _planner_context_listener: ContextHandle<RacePlannerContext>,
 }
 
 impl Component for OverallFuelStintConfig {
@@ -32,8 +32,8 @@ impl Component for OverallFuelStintConfig {
     fn create(ctx: &Context<Self>) -> Self {
         let (planner_context, planner_context_listener) = ctx
             .link()
-            .context::<PlannerContext>(ctx.link().batch_callback(
-                |context: PlannerContext| -> Option<OverallFuelStintMessage> {
+            .context::<RacePlannerContext>(ctx.link().batch_callback(
+                |context: RacePlannerContext| -> Option<OverallFuelStintMessage> {
                     match &context.data.overall_fuel_stint_config {
                         Some(fuel_stint_config) => {
                             Some(OverallFuelStintMessage::OnCreate(fuel_stint_config.clone()))
@@ -59,7 +59,7 @@ impl Component for OverallFuelStintConfig {
     fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
         let (planner_context, _) = ctx
             .link()
-            .context::<PlannerContext>(Callback::noop())
+            .context::<RacePlannerContext>(Callback::noop())
             .expect("planner context");
         match msg {
             OverallFuelStintMessage::UpdatePitDuration(value) => {
@@ -69,10 +69,7 @@ impl Component for OverallFuelStintConfig {
                     Ok(duration) => {
                         self.data.pit_duration = duration;
                         planner_context
-                            .dispatch
-                            .emit(PlannerContextAction::UpdateFuelStintConfig(
-                                self.data.clone(),
-                            ));
+                            .dispatch(RacePlannerAction::SetFuelStintConfig(self.data.clone()));
                         true
                     }
                     Err(message) => {
@@ -85,10 +82,7 @@ impl Component for OverallFuelStintConfig {
                 Ok(tank_size) => {
                     self.data.fuel_tank_size = tank_size;
                     planner_context
-                        .dispatch
-                        .emit(PlannerContextAction::UpdateFuelStintConfig(
-                            self.data.clone(),
-                        ));
+                        .dispatch(RacePlannerAction::SetFuelStintConfig(self.data.clone()));
                     true
                 }
                 Err(e) => {
@@ -103,10 +97,7 @@ impl Component for OverallFuelStintConfig {
                     Ok(duration) => {
                         self.data.tire_change_time = duration;
                         planner_context
-                            .dispatch
-                            .emit(PlannerContextAction::UpdateFuelStintConfig(
-                                self.data.clone(),
-                            ));
+                            .dispatch(RacePlannerAction::SetFuelStintConfig(self.data.clone()));
                         true
                     }
                     Err(message) => {
@@ -117,11 +108,7 @@ impl Component for OverallFuelStintConfig {
             }
             OverallFuelStintMessage::UpdateAddTireTire(value) => {
                 self.data.add_tire_time = value;
-                planner_context
-                    .dispatch
-                    .emit(PlannerContextAction::UpdateFuelStintConfig(
-                        self.data.clone(),
-                    ));
+                planner_context.dispatch(RacePlannerAction::SetFuelStintConfig(self.data.clone()));
                 patch_plan(
                     planner_context.data.id,
                     PatchRacePlannerDto {

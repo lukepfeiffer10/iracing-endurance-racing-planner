@@ -1,4 +1,4 @@
-﻿use crate::planner::PlannerContext;
+﻿use crate::planner::RacePlannerContext;
 use chrono::Duration;
 use yew::context::ContextHandle;
 use yew::{html, props, Callback, Component, Context, Html};
@@ -16,7 +16,7 @@ pub(crate) mod per_driver_lap_factors;
 pub(crate) mod time_of_day_lap_factors;
 
 pub struct Overview {
-    _context_listener: ContextHandle<PlannerContext>,
+    _context_listener: ContextHandle<RacePlannerContext>,
 }
 
 pub enum OverviewMsg {
@@ -30,7 +30,7 @@ impl Component for Overview {
     fn create(ctx: &Context<Self>) -> Self {
         let (_, context_handle) = ctx
             .link()
-            .context::<PlannerContext>(ctx.link().callback(|_| OverviewMsg::ContextUpdate))
+            .context::<RacePlannerContext>(ctx.link().callback(|_| OverviewMsg::ContextUpdate))
             .expect("planner context to be set");
         Self {
             _context_listener: context_handle,
@@ -50,7 +50,7 @@ impl Component for Overview {
     fn view(&self, ctx: &Context<Self>) -> Html {
         let (planner_context, _) = ctx
             .link()
-            .context::<PlannerContext>(Callback::noop())
+            .context::<RacePlannerContext>(Callback::noop())
             .expect("planner context to be set");
 
         let fuel_stint_times_props = planner_context

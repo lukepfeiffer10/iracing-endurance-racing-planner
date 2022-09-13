@@ -1,12 +1,13 @@
-﻿use yew::prelude::*;
-use yew::{Component, Context, Html, props, html::{Scope}};
-use yew_agent::{Bridge, Bridged};
-use serde::{Serialize, Deserialize};
-use crate::bindings;
-use crate::event_bus::{EventBus, EventBusInput, EventBusOutput};
-use crate::md_text_field::{MaterialTextField, MaterialTextFieldProps, MaterialTextFieldIcon, MaterialTextFieldIconStyle};
+﻿use crate::bindings;
+use crate::md_text_field::{
+    MaterialTextField, MaterialTextFieldIcon, MaterialTextFieldIconStyle, MaterialTextFieldProps,
+};
+use crate::planner::{RacePlannerAction, RacePlannerContext};
+use serde::{Deserialize, Serialize};
+use yew::prelude::*;
+use yew::{html::Scope, props, Component, Context, Html};
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
 pub struct Driver {
     pub name: String,
     pub total_stints: i32,
@@ -15,6 +16,34 @@ pub struct Driver {
     pub utc_offset: i32,
     pub irating: i32,
     pub stint_preference: i32,
+}
+
+impl From<&endurance_racing_planner_common::Driver> for Driver {
+    fn from(driver: &endurance_racing_planner_common::Driver) -> Self {
+        Self {
+            name: driver.name.clone(),
+            total_stints: driver.total_stints,
+            fair_share: driver.fair_share,
+            color: driver.color.clone(),
+            utc_offset: driver.utc_offset,
+            irating: driver.irating,
+            stint_preference: driver.stint_preference,
+        }
+    }
+}
+
+impl Into<endurance_racing_planner_common::Driver> for Driver {
+    fn into(self) -> endurance_racing_planner_common::Driver {
+        endurance_racing_planner_common::Driver {
+            name: self.name,
+            total_stints: self.total_stints,
+            fair_share: self.fair_share,
+            color: self.color,
+            utc_offset: self.utc_offset,
+            irating: self.irating,
+            stint_preference: self.stint_preference,
+        }
+    }
 }
 
 impl Driver {
@@ -26,22 +55,22 @@ impl Driver {
             color: "#FFFFFF".to_string(),
             utc_offset: 0,
             irating: 0,
-            stint_preference: 0
+            stint_preference: 0,
         }
     }
-    
+
     fn get_view(&self, link: &Scope<DriverRoster>, index: usize) -> Html {
-        let name_props = props!{MaterialTextFieldProps {
+        let name_props = props! {MaterialTextFieldProps {
             value: self.name.clone(),
             on_change: link.callback(move |value| {
                 DriverRosterMsg::UpdateDriverName(value, index)
             })
-        }};        
-        let color_props = props!{MaterialTextFieldProps {
+        }};
+        let color_props = props! {MaterialTextFieldProps {
             value: self.color.clone(),
             on_change: link.callback(move |value| {
                 DriverRosterMsg::UpdateDriverColor(value, index)
-            }),            
+            }),
             icon: MaterialTextFieldIcon {
                 style: MaterialTextFieldIconStyle::Leading,
                 icon: "a".to_string(),
@@ -49,7 +78,7 @@ impl Driver {
                 background_color: Some(self.color.clone()),
             }
         }};
-        let utc_offset_props = props!{MaterialTextFieldProps {
+        let utc_offset_props = props! {MaterialTextFieldProps {
             value: self.utc_offset.to_string(),
             end_aligned: true,
             on_change: link.callback(move |value: String| {
@@ -57,7 +86,7 @@ impl Driver {
                 DriverRosterMsg::UpdateDriverUtcOffset(value, index)
             }),
         }};
-        let irating_props = props!{MaterialTextFieldProps {
+        let irating_props = props! {MaterialTextFieldProps {
             value: self.irating.to_string(),
             end_aligned: true,
             on_change: link.callback(move |value: String| {
@@ -65,7 +94,7 @@ impl Driver {
                 DriverRosterMsg::UpdateDriverIrating(value, index)
             }),
         }};
-        let stint_preference_props = props!{MaterialTextFieldProps {
+        let stint_preference_props = props! {MaterialTextFieldProps {
             value: self.stint_preference.to_string(),
             end_aligned: true,
             on_change: link.callback(move |value: String| {
@@ -73,7 +102,7 @@ impl Driver {
                 DriverRosterMsg::UpdateDriverStintPreference(value, index)
             }),
         }};
-        
+
         html! {
             <tr class="mdc-data-table__row">
               <td class="mdc-data-table__cell">
@@ -111,7 +140,7 @@ impl Clone for Driver {
             color: self.color.clone(),
             utc_offset: self.utc_offset,
             irating: self.irating,
-            stint_preference: self.stint_preference
+            stint_preference: self.stint_preference,
         }
     }
 }
@@ -128,7 +157,7 @@ pub enum DriverRosterMsg {
 
 pub struct DriverRoster {
     drivers: Vec<Driver>,
-    producer: Box<dyn Bridge<EventBus>>,
+    planner_context: RacePlannerContext,
 }
 
 impl Component for DriverRoster {
@@ -136,23 +165,29 @@ impl Component for DriverRoster {
     type Properties = ();
 
     fn create(ctx: &Context<Self>) -> Self {
-        let mut event_bus_bridge = EventBus::bridge(ctx.link().batch_callback(|message| {
-            match message {
-                EventBusOutput::SendDriverRoster(drivers) => {
-                    Some(DriverRosterMsg::LoadDrivers(drivers))
+        let (planner_context, _) = ctx
+            .link()
+            .context::<RacePlannerContext>(ctx.link().callback(
+                |race_planner_context: RacePlannerContext| {
+                    DriverRosterMsg::LoadDrivers(
+                        race_planner_context
+                            .data
+                            .driver_roster
+                            .iter()
+                            .map(|d| d.into())
+                            .collect(),
+                    )
                 },
-                _ => None
-            }
-        }));
-        event_bus_bridge.send(EventBusInput::GetDriverRoster);
+            ))
+            .expect("planner context must be set");
         Self {
             drivers: Vec::new(),
-            producer: event_bus_bridge
+            planner_context: planner_context,
         }
     }
 
     fn update(&mut self, _ctx: &Context<Self>, msg: Self::Message) -> bool {
-        match msg { 
+        match msg {
             DriverRosterMsg::AddDriver => {
                 self.drivers.push(Driver::new());
                 true
@@ -226,10 +261,10 @@ impl Component for DriverRoster {
                   </div>
                 </div>
                 <div class="mdc-card__actions">
-                    <button class="material-icons mdc-icon-button mdc-card__action mdc-card__action--icon" 
+                    <button class="material-icons mdc-icon-button mdc-card__action mdc-card__action--icon"
                           title="New Driver"
                           onclick={ctx.link().callback(|_| DriverRosterMsg::AddDriver)}>
-                        
+
                         <div class="mdc-icon-button__ripple"></div>
                         {"add"}
                     </button>
@@ -245,6 +280,9 @@ impl Component for DriverRoster {
     }
 
     fn destroy(&mut self, _ctx: &Context<Self>) {
-        self.producer.send(EventBusInput::PutDriverRoster(self.drivers.clone()));
+        self.planner_context
+            .dispatch(RacePlannerAction::SetDriverRoster(
+                self.drivers.iter().map(|d| d.clone().into()).collect(),
+            ));
     }
 }

@@ -146,3 +146,54 @@ Resources:
             Method: get
             Path: /users/me
             PayloadFormatVersion: "2.0"
+  AddSchedule:
+    Type: AWS::Serverless::Function
+    Properties:
+      MemorySize: 128
+      Architectures: [ "arm64" ]
+      Handler: bootstrap
+      Runtime: provided.al2
+      Timeout: 10
+      CodeUri: target/lambda/add-schedule/
+      Events:
+        HttpApiEvent:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref Api
+            Method: post
+            Path: /plans/{id}/schedule
+            PayloadFormatVersion: "2.0"
+  GetSchedule:
+    Type: AWS::Serverless::Function
+    Properties:
+      MemorySize: 128
+      Architectures: [ "arm64" ]
+      Handler: bootstrap
+      Runtime: provided.al2
+      Timeout: 10
+      CodeUri: target/lambda/get-schedule/
+      Events:
+        HttpApiEvent:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref Api
+            Method: get
+            Path: /plans/{id}/schedule
+            PayloadFormatVersion: "2.0"
+  PutSchedule:
+    Type: AWS::Serverless::Function
+    Properties:
+      MemorySize: 128
+      Architectures: [ "arm64" ]
+      Handler: bootstrap
+      Runtime: provided.al2
+      Timeout: 10
+      CodeUri: target/lambda/put-schedule/
+      Events:
+        HttpApiEvent:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref Api
+            Method: put
+            Path: /plans/{id}/schedule
+            PayloadFormatVersion: "2.0"

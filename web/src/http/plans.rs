@@ -5,7 +5,7 @@ use yew::Callback;
 use super::{get, patch, post};
 
 pub fn create_plan(plan: RacePlannerDto, callback: Callback<RacePlannerDto>) -> () {
-    post("/plans".into(), plan, callback)
+    post("/plans".into(), plan, Some(callback))
 }
 
 pub fn get_plans(callback: Callback<Vec<PlanListDto>>) -> () {

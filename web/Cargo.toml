@@ -40,7 +40,7 @@ version = '1.0.130'
 features = ['derive']
 
 [dependencies.regex]
-version = "1.5.5"
+version = '1.5.5'
 
 [dependencies.once_cell]
 version = '1.8.0'
@@ -87,8 +87,11 @@ version = '0.2.1'
 version = '0.2.0'
 
 [dependencies.uuid]
-version = '0.8.2'
-features = ['v4']
+version = '1.1.2'
+features = [
+    'v4',
+    'js',
+]
 
 [dependencies.endurance_racing_planner_common]
 path = '../common'

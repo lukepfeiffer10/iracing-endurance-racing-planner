@@ -1,183 +1,34 @@
-﻿use crate::event_bus::{EventBus, EventBusInput, EventBusOutput};
+﻿use crate::http;
 use crate::md_text_field::{MaterialTextField, MaterialTextFieldProps};
-use crate::overview::overall_event_config::EventConfigData;
 use crate::planner::{
-    format_duration, DurationFormat, FuelStintAverageTimes, PlannerContext, PlannerRoutes,
+    format_duration, parse_duration_from_str, DurationFormat, PlannerRoutes, RacePlannerAction,
+    RacePlannerContext,
 };
 use crate::roster::Driver;
-use chrono::{DateTime, Duration, NaiveDateTime, NaiveTime, Timelike, Utc};
-use endurance_racing_planner_common::OverallFuelStintConfigData;
+use chrono::{Duration, NaiveTime, Timelike};
+use endurance_racing_planner_common::schedule::{ScheduleStintDto, StintType};
+use endurance_racing_planner_common::{
+    EventConfigDto, FuelStintAverageTimes, OverallFuelStintConfigData,
+};
 use gloo_console::error;
 use serde::{Deserialize, Serialize};
-use std::fmt::{Display, Formatter};
 use std::str::FromStr;
+use uuid::Uuid;
 use web_sys::Element;
 use yew::prelude::*;
 use yew::{html::Scope, props, Component, Context, Html};
-use yew_agent::{Bridge, Bridged};
 use yew_mdc::{
     components::{select::SelectChangeEventData, Select, SelectItem},
     mdc_sys::MDCDataTable,
 };
 use yew_router::prelude::*;
 
-#[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
-pub enum StintType {
-    FuelSavingNoTires,
-    FuelSavingWithTires,
-    StandardNoTires,
-    StandardWithTires,
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
+pub struct ScheduleRow {
+    stint_data: ScheduleStintDto,
 }
 
-impl Display for StintType {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        match self {
-            StintType::FuelSavingNoTires => write!(f, "fs no tires"),
-            StintType::FuelSavingWithTires => write!(f, "fs w/ tires"),
-            StintType::StandardNoTires => write!(f, "std no tires"),
-            StintType::StandardWithTires => write!(f, "std w/ tires"),
-        }
-    }
-}
-
-impl FromStr for StintType {
-    type Err = String;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
-            "fs no tires" => Ok(StintType::FuelSavingNoTires),
-            "fs w/ tires" => Ok(StintType::FuelSavingWithTires),
-            "std no tires" => Ok(StintType::StandardNoTires),
-            "std w/ tires" => Ok(StintType::StandardWithTires),
-            _ => Err(format!("{} cannot be mapped to a valid StintType", s)),
-        }
-    }
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct ScheduleDataRow {
-    stint_type: StintType,
-    fuel_stint_number: i32,
-    utc_start: DateTime<Utc>,
-    utc_end: DateTime<Utc>,
-    tod_start: NaiveDateTime,
-    tod_end: NaiveDateTime,
-    actual_end: DateTime<Utc>,
-    #[serde(with = "crate::duration_serde")]
-    duration_delta: Duration,
-    #[serde(with = "crate::duration_serde")]
-    damage_modifier: Duration,
-    calculated_laps: i32,
-    actual_laps: i32,
-    driver_name: String,
-    availability: String,
-    stint_number: i32,
-    stint_preference: i32,
-    factor: f32,
-    local_start: NaiveDateTime,
-    local_end: NaiveDateTime,
-}
-
-impl ScheduleDataRow {
-    fn new(config: &EventConfigData, fuel_stint_times: &FuelStintAverageTimes) -> Self {
-        let stint_duration = fuel_stint_times.fuel_saving_stint.track_time_with_pit;
-        Self {
-            stint_type: StintType::FuelSavingNoTires,
-            fuel_stint_number: 1,
-            utc_start: config.race_start_utc,
-            utc_end: config.race_start_utc + stint_duration,
-            tod_start: config.race_start_tod,
-            tod_end: config.race_start_tod + stint_duration,
-            actual_end: config.race_start_utc + stint_duration,
-            duration_delta: Duration::zero(),
-            damage_modifier: Duration::zero(),
-            calculated_laps: fuel_stint_times.fuel_saving_stint.lap_count,
-            actual_laps: fuel_stint_times.fuel_saving_stint.lap_count,
-            driver_name: "".to_string(),
-            availability: "".to_string(),
-            stint_number: 1,
-            stint_preference: 0,
-            factor: 0.0,
-            local_start: config.race_start_utc.naive_local(),
-            local_end: config.race_start_utc.naive_local() + stint_duration,
-        }
-    }
-
-    fn from_previous(
-        previous_row: &ScheduleDataRow,
-        stint_type: StintType,
-        fuel_stint_times: &FuelStintAverageTimes,
-        race_end_utc: DateTime<Utc>,
-        tire_change_time: Duration,
-    ) -> Self {
-        let utc_start = previous_row.utc_end.clone();
-        let tod_start = previous_row.tod_end.clone();
-
-        let (stint_duration, calculated_laps) = calculate_stint_duration_and_laps(
-            utc_start,
-            &stint_type,
-            fuel_stint_times,
-            race_end_utc,
-            tire_change_time,
-        );
-
-        Self {
-            stint_type,
-            fuel_stint_number: previous_row.fuel_stint_number + 1,
-            utc_start,
-            utc_end: utc_start + stint_duration,
-            tod_start,
-            tod_end: tod_start + stint_duration,
-            actual_end: utc_start + stint_duration,
-            duration_delta: Duration::zero(),
-            damage_modifier: previous_row.damage_modifier.clone(),
-            calculated_laps,
-            actual_laps: calculated_laps,
-            driver_name: "".to_string(),
-            availability: "".to_string(),
-            stint_number: 1,
-            stint_preference: 0,
-            factor: 0.0,
-            local_start: utc_start.naive_local(),
-            local_end: utc_start.naive_local() + stint_duration,
-        }
-    }
-
-    fn update(
-        &mut self,
-        utc_start: DateTime<Utc>,
-        tod_start: NaiveDateTime,
-        previous_row_driver_name: String,
-        previous_row_stint_number: i32,
-        fuel_stint_times: &FuelStintAverageTimes,
-        race_end_utc: DateTime<Utc>,
-        tire_change_time: Duration,
-    ) {
-        let (stint_duration, calculated_laps) = calculate_stint_duration_and_laps(
-            utc_start,
-            &self.stint_type,
-            fuel_stint_times,
-            race_end_utc,
-            tire_change_time,
-        );
-        self.utc_start = utc_start;
-        self.utc_end = self.utc_start + stint_duration;
-        self.actual_end = self.utc_end;
-        self.tod_start = tod_start;
-        self.tod_end = self.tod_start + stint_duration;
-        self.calculated_laps = calculated_laps;
-        self.actual_laps = calculated_laps;
-        self.duration_delta = self.actual_end - self.utc_end;
-
-        if (self.driver_name != "" && previous_row_driver_name != "")
-            && previous_row_driver_name == self.driver_name
-        {
-            self.stint_number = previous_row_stint_number + 1;
-        } else {
-            self.stint_number = 1;
-        }
-    }
-
+impl ScheduleRow {
     fn get_view(
         &self,
         link: &Scope<FuelStintSchedule>,
@@ -201,16 +52,29 @@ impl ScheduleDataRow {
             }
         });
         let actual_end_props = props!(MaterialTextFieldProps {
-            value: self.actual_end.format(time_format).to_string(),
+            value: self.stint_data.actual_end.format(time_format).to_string(),
             end_aligned: true,
             on_change: actual_end_on_change
         });
+
+        let damage_modifier_on_change = link.batch_callback(move |value: String| {
+            let damage_modifier = parse_duration_from_str(&value, DurationFormat::MinSecMilli);
+
+            match damage_modifier {
+                Ok(value) => Some(FuelStintScheduleMsg::UpdateDamageModifier(value, index)),
+                Err(e) => {
+                    error!(format!("Damage modifier could not be parsed: {}", e).as_str());
+                    None
+                }
+            }
+        });
         let damage_modifier_props = props!(MaterialTextFieldProps {
-            value: format_duration(self.damage_modifier, DurationFormat::HourMinSec),
+            value: format_duration(self.stint_data.damage_modifier, DurationFormat::MinSecMilli),
             end_aligned: true,
+            on_change: damage_modifier_on_change,
         });
         let actual_laps_props = props!(MaterialTextFieldProps {
-            value: self.actual_laps.to_string(),
+            value: self.stint_data.actual_laps.to_string(),
             end_aligned: true,
         });
         let stint_type_onchange = link.batch_callback(move |data: SelectChangeEventData| {
@@ -250,7 +114,7 @@ impl ScheduleDataRow {
                     <Select id={format!("stint-type-{}", index)}
                         select_width_class="select-width"
                         fixed_position={true}
-                        selected_value={Some(self.stint_type.to_string())}
+                        selected_value={Some(self.stint_data.stint_type.to_string())}
                         onchange={stint_type_onchange}>
                         <SelectItem text={StintType::FuelSavingNoTires.to_string()}
                             value={StintType::FuelSavingNoTires.to_string()} />
@@ -262,19 +126,19 @@ impl ScheduleDataRow {
                             value={StintType::StandardWithTires.to_string()} />
                     </Select>
                 </td>
-                <td class="mdc-data-table__cell mdc-data-table__cell--numeric">{ self.fuel_stint_number }</td>
-                <td class="mdc-data-table__cell mdc-data-table__cell--numeric">{ self.utc_start.format(time_format) }</td>
-                <td class="mdc-data-table__cell mdc-data-table__cell--numeric">{ self.utc_end.format(time_format) }</td>
-                <td class="mdc-data-table__cell mdc-data-table__cell--numeric">{ self.tod_start.format(time_format) }</td>
-                <td class="mdc-data-table__cell mdc-data-table__cell--numeric">{ self.tod_end.format(time_format) }</td>
+                <td class="mdc-data-table__cell mdc-data-table__cell--numeric">{ self.stint_data.fuel_stint_number }</td>
+                <td class="mdc-data-table__cell mdc-data-table__cell--numeric">{ self.stint_data.utc_start.format(time_format) }</td>
+                <td class="mdc-data-table__cell mdc-data-table__cell--numeric">{ self.stint_data.utc_end.format(time_format) }</td>
+                <td class="mdc-data-table__cell mdc-data-table__cell--numeric">{ self.stint_data.tod_start.format(time_format) }</td>
+                <td class="mdc-data-table__cell mdc-data-table__cell--numeric">{ self.stint_data.tod_end.format(time_format) }</td>
                 <td class="mdc-data-table__cell">
                     <MaterialTextField ..actual_end_props />
                 </td>
-                <td class="mdc-data-table__cell mdc-data-table__cell--numeric">{ format_duration(self.duration_delta, DurationFormat::HourMinSec) }</td>
+                <td class="mdc-data-table__cell mdc-data-table__cell--numeric">{ format_duration(self.stint_data.duration_delta, DurationFormat::HourMinSec) }</td>
                 <td class="mdc-data-table__cell mdc-data-table__cell--numeric">
                     <MaterialTextField ..damage_modifier_props />
                 </td>
-                <td class="mdc-data-table__cell mdc-data-table__cell--numeric">{ self.calculated_laps }</td>
+                <td class="mdc-data-table__cell mdc-data-table__cell--numeric">{ self.stint_data.calculated_laps }</td>
                 <td class="mdc-data-table__cell mdc-data-table__cell--numeric">
                     <MaterialTextField ..actual_laps_props />
                 </td>
@@ -282,7 +146,7 @@ impl ScheduleDataRow {
                     <Select id={format!("driver-name-{}", index)}
                         select_width_class="select-width"
                         fixed_position={true}
-                        selected_value={Some(self.driver_name.to_string())}
+                        selected_value={Some(self.stint_data.driver_name.to_string())}
                         onchange={driver_name_on_change}>
                         <SelectItem text="" value="" />
                         {
@@ -296,49 +160,14 @@ impl ScheduleDataRow {
                         }
                     </Select>
                 </td>
-                <td class="mdc-data-table__cell">{ self.availability.clone() }</td>
-                <td class="mdc-data-table__cell mdc-data-table__cell--numeric">{ self.stint_number }</td>
-                <td class="mdc-data-table__cell mdc-data-table__cell--numeric">{ self.stint_preference }</td>
-                <td class="mdc-data-table__cell mdc-data-table__cell--numeric">{ self.factor }</td>
-                <td class="mdc-data-table__cell mdc-data-table__cell--numeric">{ self.local_start.format(time_format) }</td>
-                <td class="mdc-data-table__cell mdc-data-table__cell--numeric">{ self.local_end.format(time_format) }</td>
+                <td class="mdc-data-table__cell">{ self.stint_data.availability.clone() }</td>
+                <td class="mdc-data-table__cell mdc-data-table__cell--numeric">{ self.stint_data.stint_number }</td>
+                <td class="mdc-data-table__cell mdc-data-table__cell--numeric">{ self.stint_data.stint_preference }</td>
+                <td class="mdc-data-table__cell mdc-data-table__cell--numeric">{ self.stint_data.factor }</td>
+                <td class="mdc-data-table__cell mdc-data-table__cell--numeric">{ self.stint_data.local_start.format(time_format) }</td>
+                <td class="mdc-data-table__cell mdc-data-table__cell--numeric">{ self.stint_data.local_end.format(time_format) }</td>
             </tr>
         }
-    }
-}
-
-fn calculate_stint_duration_and_laps(
-    stint_utc_start: DateTime<Utc>,
-    stint_type: &StintType,
-    fuel_stint_times: &FuelStintAverageTimes,
-    race_end_utc: DateTime<Utc>,
-    tire_change_time: Duration,
-) -> (Duration, i32) {
-    let fuel_stint_data = match stint_type {
-        StintType::FuelSavingNoTires | StintType::FuelSavingWithTires => {
-            &fuel_stint_times.fuel_saving_stint
-        }
-        StintType::StandardNoTires | StintType::StandardWithTires => {
-            &fuel_stint_times.standard_fuel_stint
-        }
-    };
-    let track_time_with_pit = match stint_type {
-        StintType::FuelSavingWithTires | StintType::StandardWithTires => {
-            fuel_stint_data.track_time_with_pit + tire_change_time
-        }
-        StintType::FuelSavingNoTires | StintType::StandardNoTires => {
-            fuel_stint_data.track_time_with_pit
-        }
-    };
-
-    if stint_utc_start + track_time_with_pit > race_end_utc {
-        let stint_duration = race_end_utc - stint_utc_start;
-        let calculated_laps = (stint_duration.num_milliseconds() as f64
-            / fuel_stint_data.lap_time.num_milliseconds() as f64)
-            .ceil() as i32;
-        (stint_duration, calculated_laps)
-    } else {
-        (track_time_with_pit, fuel_stint_data.lap_count)
     }
 }
 
@@ -348,120 +177,39 @@ fn get_driver_select_view(driver: &Driver) -> Html {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct ScheduleRelatedData {
-    pub overall_event_config: Option<EventConfigData>,
-    pub fuel_stint_times: Option<FuelStintAverageTimes>,
-    pub overall_fuel_stint_config: OverallFuelStintConfigData,
-    pub drivers: Vec<Driver>,
-}
-
 pub enum FuelStintScheduleMsg {
-    OnCreate(Option<Vec<ScheduleDataRow>>, ScheduleRelatedData),
     UpdateFuelStintType(StintType, usize),
     UpdateActualEndTime(NaiveTime, usize),
     UpdateDriver(SelectChangeEventData, usize),
+    UpdateDamageModifier(Duration, usize),
 }
 
 pub struct FuelStintSchedule {
-    _producer: Box<dyn Bridge<EventBus>>,
-    schedule_rows: Vec<ScheduleDataRow>,
-    overall_event_config: Option<EventConfigData>,
+    plan_id: Uuid,
+    schedule_rows: Vec<ScheduleRow>,
+    overall_event_config: Option<EventConfigDto>,
     fuel_stint_times: Option<FuelStintAverageTimes>,
     overall_fuel_stint_config: Option<OverallFuelStintConfigData>,
     drivers: Option<Vec<Driver>>,
     mdc_data_table_node_ref: NodeRef,
     data_table: Option<MDCDataTable>,
+    context: RacePlannerContext,
 }
 
 impl FuelStintSchedule {
-    fn create_schedule(&mut self) -> bool {
-        if self.overall_event_config.is_some()
-            && self.fuel_stint_times.is_some()
-            && self.overall_fuel_stint_config.is_some()
-            && self.schedule_rows.is_empty()
-        {
-            let event_config = self.overall_event_config.as_ref().unwrap();
-            let fuel_stint_times = self.fuel_stint_times.as_ref().unwrap();
-            let fuel_stint_config = self.overall_fuel_stint_config.as_ref().unwrap();
-
-            if event_config.race_start_utc == event_config.race_end_utc
-                || fuel_stint_times.standard_fuel_stint.track_time == Duration::zero()
-            {
-                return false;
-            }
-
-            let schedule_row = ScheduleDataRow::new(event_config, fuel_stint_times);
-            let mut is_schedule_complete = schedule_row.utc_end >= event_config.race_end_utc;
-            self.schedule_rows.push(schedule_row);
-
-            while !is_schedule_complete {
-                let previous_row = self.schedule_rows.last().unwrap();
-                let schedule_row = ScheduleDataRow::from_previous(
-                    previous_row,
-                    StintType::FuelSavingWithTires,
-                    fuel_stint_times,
-                    event_config.race_end_utc,
-                    fuel_stint_config.tire_change_time,
-                );
-                is_schedule_complete = schedule_row.utc_end >= event_config.race_end_utc;
-                self.schedule_rows.push(schedule_row);
-            }
-            true
-        } else {
-            false
-        }
-    }
-
     fn update_schedule(&mut self, update_row_index: usize) {
         let event_config = self.overall_event_config.as_ref().unwrap();
         let fuel_stint_times = self.fuel_stint_times.as_ref().unwrap();
         let fuel_stint_config = self.overall_fuel_stint_config.as_ref().unwrap();
 
         let initial_schedule_length = self.schedule_rows.len();
-        let updated_row = &self.schedule_rows[update_row_index];
-        let mut is_schedule_complete = updated_row.utc_end >= event_config.race_end_utc;
-        let mut next_row_index = update_row_index;
-        while !is_schedule_complete {
-            next_row_index += 1;
-            if next_row_index == self.schedule_rows.len() {
-                let previous_row = self.schedule_rows.last().unwrap();
-                let schedule_row = ScheduleDataRow::from_previous(
-                    previous_row,
-                    StintType::FuelSavingWithTires,
-                    fuel_stint_times,
-                    event_config.race_end_utc,
-                    fuel_stint_config.tire_change_time,
-                );
-
-                is_schedule_complete = schedule_row.utc_end >= event_config.race_end_utc;
-                self.schedule_rows.push(schedule_row);
-            } else {
-                let previous_row = &self.schedule_rows[next_row_index - 1];
-                let previous_row_actual_end = previous_row.actual_end;
-                let previous_row_driver_name = previous_row.driver_name.clone();
-                let previous_row_stint_number = previous_row.stint_number;
-                let previous_row_tod_end =
-                    previous_row_actual_end.naive_utc() + event_config.tod_offset;
-
-                let next_row = &mut self.schedule_rows[next_row_index];
-                next_row.update(
-                    previous_row_actual_end,
-                    previous_row_tod_end,
-                    previous_row_driver_name,
-                    previous_row_stint_number,
-                    fuel_stint_times,
-                    event_config.race_end_utc,
-                    fuel_stint_config.tire_change_time,
-                );
-
-                is_schedule_complete = next_row.utc_end >= event_config.race_end_utc;
-            }
-        }
-
-        while self.schedule_rows.len() > next_row_index + 1 {
-            self.schedule_rows.pop();
-        }
+        update_schedule(
+            &mut self.schedule_rows,
+            update_row_index,
+            event_config,
+            fuel_stint_times,
+            fuel_stint_config,
+        );
 
         if initial_schedule_length != self.schedule_rows.len() {
             if let Some(data_table) = self.data_table.take() {
@@ -471,140 +219,318 @@ impl FuelStintSchedule {
     }
 }
 
+fn create_schedule(
+    plan_id: Uuid,
+    overall_event_config: Option<EventConfigDto>,
+    fuel_stint_times: Option<FuelStintAverageTimes>,
+    overall_fuel_stint_config: Option<OverallFuelStintConfigData>,
+) -> Vec<ScheduleRow> {
+    if overall_event_config.is_some()
+        && fuel_stint_times.is_some()
+        && overall_fuel_stint_config.is_some()
+    {
+        let event_config = overall_event_config.as_ref().unwrap();
+        let fuel_stint_times = fuel_stint_times.as_ref().unwrap();
+        let fuel_stint_config = overall_fuel_stint_config.as_ref().unwrap();
+
+        if event_config.race_start_utc == event_config.race_end_utc
+            || fuel_stint_times.standard_fuel_stint.track_time == Duration::zero()
+        {
+            return vec![];
+        }
+
+        let mut schedule_rows = vec![];
+        let stint_data = ScheduleStintDto::new(event_config, fuel_stint_times);
+        let mut is_schedule_complete = stint_data.utc_end >= event_config.race_end_utc;
+        schedule_rows.push(ScheduleRow { stint_data });
+
+        while !is_schedule_complete {
+            let previous_row = schedule_rows.last().unwrap();
+            let stint_data = ScheduleStintDto::from_previous(
+                &previous_row.stint_data,
+                StintType::FuelSavingWithTires,
+                fuel_stint_times,
+                event_config.race_end_utc,
+                fuel_stint_config.tire_change_time,
+                Duration::zero(),
+            );
+            is_schedule_complete = stint_data.utc_end >= event_config.race_end_utc;
+            schedule_rows.push(ScheduleRow { stint_data });
+        }
+
+        http::schedules::create_schedule(
+            plan_id,
+            schedule_rows
+                .iter()
+                .map(|row| row.stint_data.clone())
+                .collect(),
+        );
+        schedule_rows
+    } else {
+        vec![]
+    }
+}
+
+fn update_schedule(
+    schedule_rows: &mut Vec<ScheduleRow>,
+    update_row_index: usize,
+    event_config: &EventConfigDto,
+    fuel_stint_times: &FuelStintAverageTimes,
+    fuel_stint_config: &OverallFuelStintConfigData,
+) {
+    let updated_row = &schedule_rows[update_row_index];
+    let mut is_schedule_complete = updated_row.stint_data.utc_end >= event_config.race_end_utc;
+    let mut next_row_index = update_row_index;
+    let mut damage_modifier = updated_row.stint_data.damage_modifier;
+    while !is_schedule_complete {
+        next_row_index += 1;
+        if next_row_index == schedule_rows.len() {
+            let previous_row = schedule_rows.last().unwrap();
+            let stint_data = ScheduleStintDto::from_previous(
+                &previous_row.stint_data,
+                StintType::FuelSavingWithTires,
+                fuel_stint_times,
+                event_config.race_end_utc,
+                fuel_stint_config.tire_change_time,
+                damage_modifier,
+            );
+
+            is_schedule_complete = stint_data.utc_end >= event_config.race_end_utc;
+            schedule_rows.push(ScheduleRow { stint_data });
+        } else {
+            let previous_row = &schedule_rows[next_row_index - 1];
+            let previous_row_actual_end = previous_row.stint_data.actual_end;
+            let previous_row_driver_name = previous_row.stint_data.driver_name.clone();
+            let previous_row_stint_number = previous_row.stint_data.stint_number;
+            let previous_row_tod_end =
+                previous_row_actual_end.naive_utc() + event_config.tod_offset;
+
+            let next_row = &mut schedule_rows[next_row_index];
+            next_row.stint_data.update(
+                previous_row_actual_end,
+                previous_row_tod_end,
+                previous_row_driver_name,
+                previous_row_stint_number,
+                fuel_stint_times,
+                event_config.race_end_utc,
+                fuel_stint_config.tire_change_time,
+                damage_modifier,
+            );
+
+            is_schedule_complete = next_row.stint_data.utc_end >= event_config.race_end_utc;
+            damage_modifier = damage_modifier + next_row.stint_data.damage_modifier;
+        }
+    }
+
+    while schedule_rows.len() > next_row_index + 1 {
+        schedule_rows.pop();
+    }
+}
+
 impl Component for FuelStintSchedule {
     type Message = FuelStintScheduleMsg;
     type Properties = ();
 
     fn create(ctx: &Context<Self>) -> Self {
-        let mut event_bus_bridge =
-            EventBus::bridge(ctx.link().batch_callback(|message| match message {
-                EventBusOutput::SendScheduleAndRelatedData(schedule_rows, data) => {
-                    Some(FuelStintScheduleMsg::OnCreate(schedule_rows, data))
-                }
+        let plan_id = ctx
+            .link()
+            .route()
+            .and_then(|route: PlannerRoutes| match route {
+                PlannerRoutes::Schedule { id } => Some(id),
                 _ => None,
-            }));
-        event_bus_bridge.send(EventBusInput::GetScheduleAndRelatedData);
+            })
+            .expect("plan id to be set from the route");
+        let (planner_context, _) = ctx
+            .link()
+            .context::<RacePlannerContext>(Callback::noop())
+            .expect("No Planner Context Provided");
+
+        let overall_event_config = planner_context.data.overall_event_config.clone();
+        let fuel_stint_times = planner_context.data.fuel_stint_average_times.clone();
+        let overall_fuel_stint_config = planner_context.data.overall_fuel_stint_config.clone();
+        let schedule_rows = planner_context.data.schedule_rows.as_ref().map(|stints| {
+            stints
+                .iter()
+                .map(|stint_data| ScheduleRow {
+                    stint_data: stint_data.clone(),
+                })
+                .collect::<Vec<_>>()
+        });
+
+        let schedule_rows = match schedule_rows {
+            Some(mut rows) => {
+                if overall_event_config.is_some()
+                    && fuel_stint_times.is_some()
+                    && overall_fuel_stint_config.is_some()
+                {
+                    let event_config = overall_event_config.as_ref().unwrap();
+                    let fuel_stint_times = fuel_stint_times.as_ref().unwrap();
+                    let fuel_stint_config = overall_fuel_stint_config.as_ref().unwrap();
+
+                    if event_config.race_start_utc == event_config.race_end_utc
+                        || fuel_stint_times.standard_fuel_stint.track_time == Duration::zero()
+                    {
+                        vec![]
+                    } else {
+                        rows[0].stint_data.update(
+                            event_config.race_start_utc,
+                            event_config.race_start_tod,
+                            "".to_string(),
+                            1,
+                            fuel_stint_times,
+                            event_config.race_end_utc,
+                            fuel_stint_config.tire_change_time,
+                            Duration::zero(),
+                        );
+                        update_schedule(
+                            &mut rows,
+                            0,
+                            event_config,
+                            fuel_stint_times,
+                            fuel_stint_config,
+                        );
+                        rows
+                    }
+                } else {
+                    vec![]
+                }
+            }
+            None => create_schedule(
+                plan_id,
+                overall_event_config,
+                fuel_stint_times,
+                overall_fuel_stint_config,
+            ),
+        };
+
         Self {
-            _producer: event_bus_bridge,
-            schedule_rows: vec![],
-            overall_event_config: None,
-            fuel_stint_times: None,
-            overall_fuel_stint_config: None,
+            plan_id,
+            schedule_rows,
+            overall_event_config: planner_context.data.overall_event_config.clone(),
+            fuel_stint_times: planner_context.data.fuel_stint_average_times.clone(),
+            overall_fuel_stint_config: planner_context.data.overall_fuel_stint_config.clone(),
             drivers: None,
             mdc_data_table_node_ref: NodeRef::default(),
             data_table: None,
+            context: planner_context,
         }
     }
 
     fn update(&mut self, _ctx: &Context<Self>, msg: Self::Message) -> bool {
         match msg {
-            FuelStintScheduleMsg::OnCreate(schedule_rows, data) => {
-                self.overall_event_config = data.overall_event_config;
-                self.fuel_stint_times = data.fuel_stint_times;
-                self.overall_fuel_stint_config = Some(data.overall_fuel_stint_config);
-                self.drivers = Some(data.drivers);
-
-                match schedule_rows {
-                    Some(rows) => {
-                        if self.overall_event_config.is_some()
-                            && self.fuel_stint_times.is_some()
-                            && self.overall_fuel_stint_config.is_some()
-                        {
-                            let event_config = self.overall_event_config.as_ref().unwrap();
-                            let fuel_stint_times = self.fuel_stint_times.as_ref().unwrap();
-                            let fuel_stint_config =
-                                self.overall_fuel_stint_config.as_ref().unwrap();
-
-                            if event_config.race_start_utc == event_config.race_end_utc
-                                || fuel_stint_times.standard_fuel_stint.track_time
-                                    == Duration::zero()
-                            {
-                                return false;
-                            }
-
-                            self.schedule_rows = rows;
-                            self.schedule_rows[0].update(
-                                event_config.race_start_utc,
-                                event_config.race_start_tod,
-                                "".to_string(),
-                                1,
-                                fuel_stint_times,
-                                event_config.race_end_utc,
-                                fuel_stint_config.tire_change_time,
-                            );
-                            self.update_schedule(0);
-                            true
-                        } else {
-                            false
-                        }
-                    }
-                    None => self.create_schedule(),
-                }
-            }
             FuelStintScheduleMsg::UpdateFuelStintType(stint_type, index) => {
-                let row = &mut self.schedule_rows[index];
-                let (stint_duration, laps) = calculate_stint_duration_and_laps(
-                    row.utc_start,
-                    &stint_type,
+                let previous_row_stint_data = if index > 0 {
+                    Some(self.schedule_rows[index - 1].stint_data.clone())
+                } else {
+                    None
+                };
+
+                let stint_data = &mut self.schedule_rows[index].stint_data;
+                stint_data.stint_type = stint_type;
+                stint_data.update(
+                    stint_data.utc_start,
+                    stint_data.tod_start,
+                    previous_row_stint_data
+                        .as_ref()
+                        .map(|row| row.driver_name.clone())
+                        .unwrap_or("".to_string()),
+                    previous_row_stint_data
+                        .as_ref()
+                        .map(|row| row.stint_number)
+                        .unwrap_or(0),
                     self.fuel_stint_times.as_ref().unwrap(),
                     self.overall_event_config.as_ref().unwrap().race_end_utc,
                     self.overall_fuel_stint_config
                         .as_ref()
                         .unwrap()
                         .tire_change_time,
+                    previous_row_stint_data
+                        .map(|row| row.damage_modifier)
+                        .unwrap_or(Duration::zero()),
                 );
-                row.stint_type = stint_type;
-                row.utc_end = row.utc_start + stint_duration;
-                row.tod_end = row.tod_start + stint_duration;
-                row.actual_end = row.utc_end;
-                row.calculated_laps = laps;
-                row.actual_laps = laps;
                 self.update_schedule(index);
-                true
             }
             FuelStintScheduleMsg::UpdateActualEndTime(end_time, index) => {
-                let row = &mut self.schedule_rows[index];
-                let mut actual_end_time = row.actual_end.with_hour(end_time.hour()).unwrap();
+                let stint_data = &mut self.schedule_rows[index].stint_data;
+                let mut actual_end_time = stint_data.actual_end.with_hour(end_time.hour()).unwrap();
                 actual_end_time = actual_end_time.with_minute(end_time.minute()).unwrap();
                 actual_end_time = actual_end_time.with_second(end_time.second()).unwrap();
 
-                row.actual_end = actual_end_time;
-                row.duration_delta = actual_end_time - row.utc_end;
+                stint_data.actual_end = actual_end_time;
+                stint_data.duration_delta = actual_end_time - stint_data.utc_end;
                 self.update_schedule(index);
-                true
             }
             FuelStintScheduleMsg::UpdateDriver(data, row_index) => {
                 //subtract one from the selected index to account for the blank option
                 let driver_index = data.index - 1;
 
                 if driver_index < 0 {
-                    let row = &mut self.schedule_rows[row_index];
-                    row.driver_name = "".to_string();
-                    row.stint_preference = 0;
-                    row.stint_number = 1;
+                    let stint_data = &mut self.schedule_rows[row_index].stint_data;
+                    stint_data.driver_name = "".to_string();
+                    stint_data.stint_preference = 0;
+                    stint_data.stint_number = 1;
                 } else {
                     let driver = &self.drivers.as_ref().unwrap()[driver_index as usize];
                     let mut stint_number = 1;
 
                     if row_index > 0 {
-                        let previous_row = &self.schedule_rows[row_index - 1];
-                        let previous_row_driver_name = previous_row.driver_name.clone();
-                        let previous_row_stint_number = previous_row.stint_number;
+                        let previous_stint_data = &self.schedule_rows[row_index - 1].stint_data;
+                        let previous_row_driver_name = previous_stint_data.driver_name.clone();
+                        let previous_row_stint_number = previous_stint_data.stint_number;
 
                         if previous_row_driver_name == data.value {
                             stint_number = previous_row_stint_number + 1;
                         }
                     }
 
-                    let row = &mut self.schedule_rows[row_index];
-                    row.driver_name = data.value.clone();
-                    row.stint_preference = driver.stint_preference;
-                    row.stint_number = stint_number;
+                    let stint_data = &mut self.schedule_rows[row_index].stint_data;
+                    stint_data.driver_name = data.value.clone();
+                    stint_data.stint_preference = driver.stint_preference;
+                    stint_data.stint_number = stint_number;
                 }
                 self.update_schedule(row_index);
-                true
+            }
+            FuelStintScheduleMsg::UpdateDamageModifier(value, index) => {
+                let previous_row_stint_data = if index > 0 {
+                    Some(self.schedule_rows[index - 1].stint_data.clone())
+                } else {
+                    None
+                };
+
+                let stint_data = &mut self.schedule_rows[index].stint_data;
+                stint_data.damage_modifier = value;
+                stint_data.update(
+                    stint_data.utc_start,
+                    stint_data.tod_start,
+                    previous_row_stint_data
+                        .as_ref()
+                        .map(|row| row.driver_name.clone())
+                        .unwrap_or("".to_string()),
+                    previous_row_stint_data
+                        .as_ref()
+                        .map(|row| row.stint_number)
+                        .unwrap_or(0),
+                    self.fuel_stint_times.as_ref().unwrap(),
+                    self.overall_event_config.as_ref().unwrap().race_end_utc,
+                    self.overall_fuel_stint_config
+                        .as_ref()
+                        .unwrap()
+                        .tire_change_time,
+                    previous_row_stint_data
+                        .map(|row| row.damage_modifier)
+                        .unwrap_or(Duration::zero()),
+                );
+                self.update_schedule(index);
             }
         }
+        http::schedules::update_schedule(
+            self.plan_id,
+            self.schedule_rows
+                .iter()
+                .map(|s| s.stint_data.clone())
+                .collect(),
+        );
+        true
     }
 
     fn changed(&mut self, _ctx: &Context<Self>) -> bool {
@@ -614,7 +540,7 @@ impl Component for FuelStintSchedule {
     fn view(&self, ctx: &Context<Self>) -> Html {
         let (planner_context, _) = ctx
             .link()
-            .context::<PlannerContext>(Callback::noop())
+            .context::<RacePlannerContext>(Callback::noop())
             .expect("planner context must be set");
         html! {
             <div id="fuel-stint-schedule" class="mdc-card">
@@ -700,9 +626,14 @@ impl Component for FuelStintSchedule {
 
     fn destroy(&mut self, _ctx: &Context<Self>) {
         if !self.schedule_rows.is_empty() {
-            self._producer
-                .send(EventBusInput::PutSchedule(self.schedule_rows.clone()));
+            self.context.dispatch(RacePlannerAction::SetStints(
+                self.schedule_rows
+                    .iter()
+                    .map(|row| row.stint_data.clone())
+                    .collect(),
+            ));
         }
+
         if let Some(data_table) = &self.data_table {
             data_table.destroy();
         }

@@ -1,18 +1,19 @@
 [package]
-name = "endurance_racing_planner_common"
-version = "0.1.0"
-edition = "2018"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
+name = 'endurance_racing_planner_common'
+version = '0.1.0'
+edition = '2018'
 [dependencies.serde]
-version = "1.0.136"
-features= ["derive"]
+version = '1.0.136'
+features = ['derive']
 
 [dependencies.chrono]
-version = "0.4.19"
-features = ["serde"]
+version = '0.4.19'
+features = ['serde']
 
 [dependencies.uuid]
-version = "0.8.2"
-features = ["v4", "serde", "wasm-bindgen"]
+version = '1.1.2'
+features = [
+    'v4',
+    'serde',
+    'js',
+]

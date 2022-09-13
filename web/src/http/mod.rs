@@ -1,4 +1,5 @@
 pub mod plans;
+pub mod schedules;
 
 use std::error::Error;
 
@@ -24,9 +25,10 @@ fn get_request_builder(method: Method, route: &str) -> Result<RequestBuilder, Bo
         .bearer_auth(get_auth_token()?))
 }
 
-pub fn post<T>(route: String, body: T, callback: Callback<T>) -> ()
+pub fn post<T, U>(route: String, body: T, callback: Option<Callback<U>>) -> ()
 where
     T: Serialize + DeserializeOwned + 'static,
+    U: Serialize + DeserializeOwned + 'static,
 {
     spawn_local(async move {
         let response = get_request_builder(Method::POST, &route)
@@ -35,12 +37,13 @@ where
             .body(serde_json::to_string(&body).unwrap())
             .send()
             .await
-            .unwrap()
-            .json::<T>()
-            .await
             .unwrap();
 
-        callback.emit(response)
+        if let Some(callback) = callback {
+            let response = response.json::<U>().await.unwrap();
+
+            callback.emit(response)
+        }
     })
 }
 
@@ -84,6 +87,21 @@ where
 {
     spawn_local(async move {
         get_request_builder(Method::PATCH, &route)
+            .unwrap()
+            .header(CONTENT_TYPE, "application/json")
+            .body(serde_json::to_string(&body).unwrap())
+            .send()
+            .await
+            .unwrap();
+    })
+}
+
+pub fn put<T>(route: String, body: T) -> ()
+where
+    T: Serialize + DeserializeOwned + 'static,
+{
+    spawn_local(async move {
+        get_request_builder(Method::PUT, &route)
             .unwrap()
             .header(CONTENT_TYPE, "application/json")
             .body(serde_json::to_string(&body).unwrap())

@@ -1,5 +1,5 @@
 ﻿use crate::http::plans::patch_plan;
-use crate::planner::{PlannerContext, PlannerContextAction};
+use crate::planner::{RacePlannerAction, RacePlannerContext};
 use crate::{
     bindings,
     md_text_field::{MaterialTextField, MaterialTextFieldProps},
@@ -7,10 +7,9 @@ use crate::{
         format_date_time, format_duration, parse_duration_from_str, DurationFormat, DATE_FORMAT,
     },
 };
-use chrono::{DateTime, Duration, NaiveDateTime, TimeZone, Utc};
+use chrono::{NaiveDateTime, TimeZone, Utc};
 use endurance_racing_planner_common::{EventConfigDto, PatchRacePlannerDto};
 use gloo_console::error;
-use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 use yew::context::ContextHandle;
 use yew::{html, props, Callback, Component, Context, Html};
@@ -20,67 +19,13 @@ pub enum EventConfigMsg {
     ChangeSessionStart(String),
     ChangeRaceStartToD(String),
     ChangeRaceDuration(String),
-    OnCreate(EventConfigData),
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct EventConfigData {
-    #[serde(with = "crate::duration_serde")]
-    pub race_duration: Duration,
-    pub session_start_utc: DateTime<Utc>,
-    pub race_start_utc: DateTime<Utc>,
-    pub race_end_utc: DateTime<Utc>,
-    pub race_start_tod: NaiveDateTime,
-    pub race_end_tod: NaiveDateTime,
-    #[serde(with = "crate::duration_serde")]
-    pub green_flag_offset: Duration,
-    #[serde(with = "crate::duration_serde")]
-    pub tod_offset: Duration,
-}
-
-impl EventConfigData {
-    pub fn new() -> Self {
-        let utc_now = Utc::now();
-        Self {
-            race_duration: Duration::zero(),
-            session_start_utc: utc_now,
-            race_start_utc: utc_now,
-            race_end_utc: utc_now,
-            race_start_tod: utc_now.naive_local(),
-            race_end_tod: utc_now.naive_local(),
-            green_flag_offset: Duration::zero(),
-            tod_offset: Duration::zero(),
-        }
-    }
-
-    fn update_race_times(&mut self) {
-        self.race_start_utc = self.session_start_utc + self.green_flag_offset;
-        self.race_end_utc = self.race_start_utc + self.race_duration;
-        self.race_end_tod = self.race_start_tod + self.race_duration;
-        self.tod_offset = self.race_start_tod - self.race_start_utc.naive_utc();
-    }
-}
-
-impl From<&EventConfigDto> for EventConfigData {
-    fn from(dto: &EventConfigDto) -> Self {
-        let utc_now = Utc::now();
-        Self {
-            race_duration: dto.race_duration,
-            session_start_utc: dto.session_start_utc,
-            race_start_utc: utc_now,
-            race_end_utc: utc_now,
-            race_start_tod: dto.race_start_tod,
-            race_end_tod: utc_now.naive_utc(),
-            green_flag_offset: dto.green_flag_offset,
-            tod_offset: Duration::zero(),
-        }
-    }
+    OnCreate(EventConfigDto),
 }
 
 pub struct EventConfig {
-    data: EventConfigData,
+    data: EventConfigDto,
     plan_id: Uuid,
-    _planner_context_listener: ContextHandle<PlannerContext>,
+    _planner_context_listener: ContextHandle<RacePlannerContext>,
 }
 
 impl Component for EventConfig {
@@ -90,30 +35,22 @@ impl Component for EventConfig {
     fn create(ctx: &Context<Self>) -> Self {
         let (planner_context, planner_context_listener) = ctx
             .link()
-            .context::<PlannerContext>(ctx.link().batch_callback(
-                |context: PlannerContext| -> Option<EventConfigMsg> {
+            .context::<RacePlannerContext>(ctx.link().batch_callback(
+                |context: RacePlannerContext| -> Option<EventConfigMsg> {
                     match &context.data.overall_event_config {
-                        Some(event_config) => {
-                            let mut config_data: EventConfigData = event_config.into();
-                            config_data.update_race_times();
-                            Some(EventConfigMsg::OnCreate(config_data))
-                        }
+                        Some(event_config) => Some(EventConfigMsg::OnCreate(event_config.clone())),
                         None => None,
                     }
                 },
             ))
             .expect("No Planner Context Provided");
 
-        let mut data = planner_context
-            .data
-            .overall_event_config
-            .as_ref()
-            .map(|dto| dto.into())
-            .unwrap_or_else(|| EventConfigData::new());
-        data.update_race_times();
-
         Self {
-            data,
+            data: planner_context
+                .data
+                .overall_event_config
+                .clone()
+                .unwrap_or_else(|| EventConfigDto::new()),
             plan_id: planner_context.data.id,
             _planner_context_listener: planner_context_listener,
         }
@@ -133,12 +70,7 @@ impl Component for EventConfig {
                             PatchRacePlannerDto {
                                 id: self.plan_id,
                                 title: None,
-                                overall_event_config: Some(EventConfigDto {
-                                    race_duration: self.data.race_duration,
-                                    session_start_utc: self.data.session_start_utc,
-                                    race_start_tod: self.data.race_start_tod,
-                                    green_flag_offset: self.data.green_flag_offset,
-                                }),
+                                overall_event_config: Some(self.data.clone()),
                                 overall_fuel_stint_config: None,
                                 fuel_stint_average_times: None,
                                 time_of_day_lap_factors: None,
@@ -293,12 +225,8 @@ impl EventConfig {
     fn update_planner_context(&self, ctx: &Context<Self>) -> () {
         let (planner_context, _) = ctx
             .link()
-            .context::<PlannerContext>(Callback::noop())
+            .context::<RacePlannerContext>(Callback::noop())
             .expect("planner context to exist");
-        planner_context
-            .dispatch
-            .emit(PlannerContextAction::UpdateOverallEventConfig(
-                self.data.clone(),
-            ));
+        planner_context.dispatch(RacePlannerAction::SetOverallEventConfig(self.data.clone()));
     }
 }

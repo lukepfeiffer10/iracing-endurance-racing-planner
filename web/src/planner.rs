@@ -1,24 +1,20 @@
 ﻿use crate::bindings::enable_tab_bar;
 use crate::event_bus::{EventBus, EventBusOutput};
 use crate::http::plans::{create_plan, get_plan, patch_plan};
-use crate::overview::fuel_stint_times::StintData;
-use crate::overview::overall_event_config::EventConfigData;
-use crate::overview::per_driver_lap_factors::DriverLapFactor;
-use crate::overview::time_of_day_lap_factors::TimeOfDayLapFactor;
+use crate::http::schedules::get_schedule;
 use crate::overview::Overview;
-use crate::roster::{Driver, DriverRoster};
-use crate::schedule::fuel_stint_schedule::ScheduleDataRow;
+use crate::roster::DriverRoster;
 use crate::schedule::Schedule;
-use crate::{AppStateAction, AppStateContext};
 use boolinator::Boolinator;
 use chrono::{Duration, NaiveDateTime};
+use endurance_racing_planner_common::schedule::ScheduleStintDto;
 use endurance_racing_planner_common::{
-    EventConfigDto, OverallFuelStintConfigData, PatchRacePlannerDto, RacePlannerDto,
+    Driver, EventConfigDto, OverallFuelStintConfigData, PatchRacePlannerDto, RacePlannerDto,
 };
-use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
 use std::rc::Rc;
 use uuid::Uuid;
+use yew::context::ContextHandle;
 use yew::html::Scope;
 use yew::prelude::*;
 use yew::{Component, Context, Html};
@@ -77,30 +73,147 @@ impl Display for PlannerRoutes {
     }
 }
 
-#[derive(Clone, PartialEq)]
-pub struct PlannerContext {
-    pub data: Rc<RacePlannerDto>,
-    pub dispatch: Callback<PlannerContextAction>,
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct RacePlanner {
+    pub data: RacePlannerDto,
 }
 
-pub enum PlannerContextAction {
-    UpdateOverallEventConfig(EventConfigData),
-    UpdateFuelStintConfig(OverallFuelStintConfigData),
-    UpdateFuelStintTimes(endurance_racing_planner_common::FuelStintAverageTimes),
+impl RacePlanner {
+    pub fn new() -> Self {
+        Self {
+            data: RacePlannerDto::new(),
+        }
+    }
+}
+
+pub enum RacePlannerAction {
+    SetOverallEventConfig(EventConfigDto),
+    SetFuelStintConfig(OverallFuelStintConfigData),
+    SetFuelStintTimes(endurance_racing_planner_common::FuelStintAverageTimes),
+    SetStints(Vec<ScheduleStintDto>),
+    SetTitle(String),
+    SetPlan(RacePlannerDto),
+    SetDriverRoster(Vec<Driver>),
+}
+
+impl Reducible for RacePlanner {
+    type Action = RacePlannerAction;
+
+    fn reduce(self: Rc<Self>, action: Self::Action) -> Rc<Self> {
+        let current_plan = self.as_ref().to_owned().data;
+        match action {
+            RacePlannerAction::SetPlan(plan) => RacePlanner { data: plan },
+            RacePlannerAction::SetTitle(title) => RacePlanner {
+                data: RacePlannerDto {
+                    title,
+                    ..current_plan
+                },
+            },
+            RacePlannerAction::SetFuelStintConfig(fuel_config) => RacePlanner {
+                data: RacePlannerDto {
+                    overall_fuel_stint_config: Some(fuel_config),
+                    ..current_plan
+                },
+            },
+            RacePlannerAction::SetFuelStintTimes(times) => RacePlanner {
+                data: RacePlannerDto {
+                    fuel_stint_average_times: Some(times),
+                    ..current_plan
+                },
+            },
+            RacePlannerAction::SetOverallEventConfig(event_config) => RacePlanner {
+                data: RacePlannerDto {
+                    overall_event_config: Some(event_config),
+                    ..current_plan
+                },
+            },
+            RacePlannerAction::SetStints(stints) => RacePlanner {
+                data: RacePlannerDto {
+                    schedule_rows: Some(stints),
+                    ..current_plan
+                },
+            },
+            RacePlannerAction::SetDriverRoster(drivers) => RacePlanner {
+                data: RacePlannerDto {
+                    driver_roster: drivers,
+                    ..current_plan
+                },
+            },
+        }
+        .into()
+    }
+}
+
+pub type RacePlannerContext = UseReducerHandle<RacePlanner>;
+
+#[derive(Properties, Debug, PartialEq)]
+pub struct RacePlannerProviderProps {
+    #[prop_or_default]
+    pub children: Children,
+}
+
+#[function_component(RacePlannerProvider)]
+pub fn race_planner_provider(props: &RacePlannerProviderProps) -> Html {
+    //TODO: setup an is_loading here
+    let race_planner = use_reducer(|| RacePlanner::new());
+
+    let current_route = use_route::<PlannerRoutes>().unwrap();
+    let history = use_history().unwrap();
+    let load_planner = {
+        let race_planner = race_planner.clone();
+        move |_: &Option<bool>| {
+            let id = match current_route {
+                PlannerRoutes::Schedule { id }
+                | PlannerRoutes::Roster { id }
+                | PlannerRoutes::Overview { id } => id,
+            };
+
+            let default_plan = RacePlannerDto::new();
+            let update_plan_callback = {
+                let race_planner = race_planner.clone();
+
+                Callback::from(move |plan: RacePlannerDto| {
+                    race_planner.dispatch(RacePlannerAction::SetPlan(plan))
+                })
+            };
+            if Uuid::is_nil(&id) {
+                history.replace(PlannerRoutes::Overview {
+                    id: default_plan.id,
+                });
+                create_plan(default_plan.clone(), update_plan_callback);
+            } else {
+                get_plan(id, update_plan_callback);
+                let update_schedule_callback = {
+                    let race_planner = race_planner.clone();
+                    Callback::from(move |schedule| {
+                        race_planner.dispatch(RacePlannerAction::SetStints(schedule))
+                    })
+                };
+                get_schedule(id, update_schedule_callback);
+            }
+
+            || ()
+        }
+    };
+    use_effect_with_deps(load_planner, None);
+
+    html! {
+        <ContextProvider<RacePlannerContext> context={race_planner}>
+            {props.children.clone()}
+        </ContextProvider<RacePlannerContext>>
+    }
 }
 
 pub enum PlannerMsg {
     ChangeRoute(PlannerRoutes),
     UpdateTab,
-    UpdatePlan(RacePlannerDto),
     UpdatePlanTitle(String),
-    UpdatePlanContext(PlannerContextAction),
 }
 
 pub struct Planner {
     _event_bus_bridge: Box<dyn Bridge<EventBus>>,
     _route_listener: HistoryHandle,
-    context: PlannerContext,
+    _context_listener: ContextHandle<RacePlannerContext>,
 }
 
 impl Component for Planner {
@@ -120,67 +233,38 @@ impl Component for Planner {
             .add_history_listener(link.callback(|_| PlannerMsg::UpdateTab))
             .unwrap();
 
-        let current_route = link.route::<PlannerRoutes>().unwrap();
-        let id = match current_route {
-            PlannerRoutes::Schedule { id }
-            | PlannerRoutes::Roster { id }
-            | PlannerRoutes::Overview { id } => id,
-        };
-
-        let mut default_plan = RacePlannerDto::new();
-        if Uuid::is_nil(&id) {
-            link.history().unwrap().replace(PlannerRoutes::Overview {
-                id: default_plan.id,
-            });
-            create_plan(
-                default_plan.clone(),
-                link.callback(|plan| PlannerMsg::UpdatePlan(plan)),
-            );
-        } else {
-            default_plan = RacePlannerDto { id, ..default_plan };
-            get_plan(id, link.callback(|plan| PlannerMsg::UpdatePlan(plan)));
-        }
+        let (_, context_listener) = link
+            .context::<RacePlannerContext>(link.callback(|_| PlannerMsg::UpdateTab))
+            .unwrap();
 
         Self {
             _event_bus_bridge: event_bus_bridge,
             _route_listener: route_listener,
-            context: PlannerContext {
-                data: Rc::new(default_plan),
-                dispatch: ctx
-                    .link()
-                    .callback(|action| PlannerMsg::UpdatePlanContext(action)),
-            },
+            _context_listener: context_listener,
         }
     }
 
     fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
+        let (race_planner_context, _) = ctx
+            .link()
+            .context::<RacePlannerContext>(Callback::noop())
+            .expect("Race planner context to be present");
+
         match msg {
             PlannerMsg::ChangeRoute(route) => {
                 ctx.link().history().unwrap().push(route);
                 false
             }
             PlannerMsg::UpdateTab => true,
-            PlannerMsg::UpdatePlan(plan) => {
-                let (app_state_context, _) = ctx
-                    .link()
-                    .context::<AppStateContext>(Callback::noop())
-                    .unwrap();
-                app_state_context.dispatch(AppStateAction::SetPageTitle(plan.title.clone()));
-
-                self.context.data = Rc::new(plan);
-
-                true
-            }
             PlannerMsg::UpdatePlanTitle(title) => {
-                let mut planner = Rc::make_mut(&mut self.context.data);
-                planner.title = title.clone();
+                race_planner_context.dispatch(RacePlannerAction::SetTitle(title.clone()));
+                let plan_id = race_planner_context.data.id;
 
-                let plan_data = &self.context.data;
                 patch_plan(
-                    plan_data.id,
+                    plan_id,
                     PatchRacePlannerDto {
-                        id: plan_data.id,
-                        title: Some(title),
+                        id: plan_id,
+                        title: Some(title.clone()),
                         overall_event_config: None,
                         overall_fuel_stint_config: None,
                         fuel_stint_average_times: None,
@@ -192,26 +276,6 @@ impl Component for Planner {
                 );
                 false
             }
-            PlannerMsg::UpdatePlanContext(action) => {
-                let mut current_plan = Rc::make_mut(&mut self.context.data);
-                match action {
-                    PlannerContextAction::UpdateFuelStintConfig(fuel_config) => {
-                        current_plan.overall_fuel_stint_config = Some(fuel_config);
-                    }
-                    PlannerContextAction::UpdateFuelStintTimes(times) => {
-                        current_plan.fuel_stint_average_times = Some(times);
-                    }
-                    PlannerContextAction::UpdateOverallEventConfig(event_config) => {
-                        current_plan.overall_event_config = Some(EventConfigDto {
-                            race_duration: event_config.race_duration,
-                            session_start_utc: event_config.session_start_utc,
-                            race_start_tod: event_config.race_start_tod,
-                            green_flag_offset: event_config.green_flag_offset,
-                        })
-                    }
-                }
-                true
-            }
         }
     }
 
@@ -222,22 +286,25 @@ impl Component for Planner {
     fn view(&self, ctx: &Context<Self>) -> Html {
         let link = ctx.link();
         let current_route = link.route::<PlannerRoutes>().unwrap();
+        let (race_planner_context, _) = ctx
+            .link()
+            .context::<RacePlannerContext>(Callback::noop())
+            .expect("Race planner contex to be present");
+        let plan_id = race_planner_context.data.id;
 
         html! {
             <>
                 <div class="content">
-                    <ContextProvider<PlannerContext> context={self.context.clone()}>
-                        <Switch<PlannerRoutes> render={Switch::render(Self::switch)} />
-                    </ContextProvider<PlannerContext>>
+                    <Switch<PlannerRoutes> render={Switch::render(Self::switch)} />
                 </div>
                 <footer>
                     <div class="mdc-tab-bar" role="tablist">
                         <div class="mdc-tab-scroller">
                             <div class="mdc-tab-scroller__scroll-area">
                               <div class="mdc-tab-scroller__scroll-content">
-                                { render_tab(PlannerRoutes::Overview { id: self.context.data.id }, &current_route, link) }
-                                { render_tab(PlannerRoutes::Schedule { id: self.context.data.id }, &current_route, link) }
-                                { render_tab(PlannerRoutes::Roster { id: self.context.data.id }, &current_route, link) }
+                                { render_tab(PlannerRoutes::Overview { id: plan_id }, &current_route, link) }
+                                { render_tab(PlannerRoutes::Schedule { id: plan_id }, &current_route, link) }
+                                { render_tab(PlannerRoutes::Roster { id: plan_id }, &current_route, link) }
                               </div>
                             </div>
                         </div>
@@ -274,38 +341,6 @@ impl Planner {
                     <Schedule />
                 }
             }
-        }
-    }
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct FuelStintAverageTimes {
-    pub standard_fuel_stint: StintData,
-    pub fuel_saving_stint: StintData,
-}
-
-pub struct RacePlanner {
-    pub overall_event_config: Option<EventConfigData>,
-    pub overall_fuel_stint_config: OverallFuelStintConfigData,
-    pub fuel_stint_average_times: Option<FuelStintAverageTimes>,
-    pub time_of_day_lap_factors: Vec<TimeOfDayLapFactor>,
-    pub per_driver_lap_factors: Vec<DriverLapFactor>,
-    pub driver_roster: Vec<Driver>,
-    pub schedule_rows: Option<Vec<ScheduleDataRow>>,
-    pub title: String,
-}
-
-impl RacePlanner {
-    pub fn new() -> Self {
-        Self {
-            overall_event_config: None,
-            overall_fuel_stint_config: OverallFuelStintConfigData::new(),
-            fuel_stint_average_times: None,
-            time_of_day_lap_factors: vec![],
-            per_driver_lap_factors: vec![],
-            driver_roster: vec![],
-            schedule_rows: None,
-            title: "New Plan".to_string(),
         }
     }
 }
