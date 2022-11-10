@@ -42,5 +42,5 @@ Install the [AWS SAM CLI](https://github.com/aws/aws-sam-cli)
 
 Run the following command to start a local docker container to mimic the AWS stack
 ```shell
-sam local start-api --docker-network race-planner
+sam local start-api --docker-network race-planner --warm-containers EAGER
 ```
