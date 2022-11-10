@@ -10,6 +10,7 @@ use yew::{classes, html, props, Component, Context, Html, Properties};
 
 const TIME_OF_DAY_TIME_FORMAT: &str = "%I:%M %p";
 
+#[derive(Debug, PartialEq, Clone)]
 pub struct TimeOfDayLapFactor {
     time_of_day: String,
     lap_time: Duration,
@@ -18,6 +19,8 @@ pub struct TimeOfDayLapFactor {
     factor: f64,
     has_edited_lap_time: bool,
 }
+
+impl Eq for TimeOfDayLapFactor {}
 
 impl TimeOfDayLapFactor {
     fn set_lap_time_if_unset(&mut self, lap_time: Duration) {

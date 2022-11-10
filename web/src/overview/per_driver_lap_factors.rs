@@ -1,25 +1,26 @@
-﻿use crate::event_bus::{EventBusInput, EventBusOutput};
-use crate::planner::PlannerContext;
+﻿use crate::planner::RacePlannerContext;
 use crate::{
-    event_bus::EventBus,
     md_text_field::{MaterialTextField, MaterialTextFieldProps},
     planner::{format_duration, parse_duration_from_str, DurationFormat, PlannerRoutes},
-    roster::Driver,
 };
 use chrono::Duration;
+use endurance_racing_planner_common::Driver;
 use gloo_console::error;
+use yew::context::ContextHandle;
 use yew::html::Scope;
 use yew::prelude::*;
 use yew::{props, Properties};
-use yew_agent::{Bridge, Bridged};
 use yew_router::prelude::*;
 
+#[derive(Debug, PartialEq, Clone)]
 pub struct DriverLapFactor {
     driver_name: String,
     driver_color: String,
     lap_time: Duration,
     factor: f64,
 }
+
+impl Eq for DriverLapFactor {}
 
 impl DriverLapFactor {
     fn compute_factor_from_reference(&mut self, reference: Duration) {
@@ -31,7 +32,7 @@ impl DriverLapFactor {
 pub struct PerDriverLapFactors {
     factors: Vec<DriverLapFactor>,
     standard_lap_time: Duration,
-    _producer: Box<dyn Bridge<EventBus>>,
+    _context_handle: ContextHandle<RacePlannerContext>,
 }
 
 pub enum PerDriverLapFactorsMsg {
@@ -50,18 +51,20 @@ impl Component for PerDriverLapFactors {
     type Properties = PerDriverLapFactorsProps;
 
     fn create(ctx: &Context<Self>) -> Self {
-        let mut event_bus_bridge =
-            EventBus::bridge(ctx.link().batch_callback(|message| match message {
-                EventBusOutput::SendDriverRoster(drivers) => {
-                    Some(PerDriverLapFactorsMsg::LoadDrivers(drivers))
-                }
-                _ => None,
-            }));
-        event_bus_bridge.send(EventBusInput::GetDriverRoster);
+        let (_, context_handle) = ctx
+            .link()
+            .context::<RacePlannerContext>(ctx.link().callback(
+                |race_planner_context: RacePlannerContext| {
+                    PerDriverLapFactorsMsg::LoadDrivers(
+                        race_planner_context.data.driver_roster.clone(),
+                    )
+                },
+            ))
+            .expect("planner context must be set");
         Self {
             factors: vec![],
             standard_lap_time: Duration::zero(),
-            _producer: event_bus_bridge,
+            _context_handle: context_handle,
         }
     }
 
@@ -115,7 +118,7 @@ impl Component for PerDriverLapFactors {
         let link = ctx.link();
         let (planner_context, _) = ctx
             .link()
-            .context::<PlannerContext>(Callback::noop())
+            .context::<RacePlannerContext>(Callback::noop())
             .expect("planner context must be set");
         html! {
             <div id="driver-lap-factors" class="mdc-card">

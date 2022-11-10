@@ -8,3 +8,5 @@ mod V4__add_user_plans;
 mod V5__add_event_configs;
 mod V6__add_fuel_stint_config;
 mod V7__add_fuel_stint_average_times;
+mod V8__add_columns_to_event_config;
+mod V9__add_schedule_stinits;

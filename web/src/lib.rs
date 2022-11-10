@@ -2,7 +2,7 @@ use crate::auth::{get_me, handle_auth_code_redirect, login, ID_TOKEN_KEY};
 use crate::event_bus::{EventBus, EventBusInput};
 use crate::landing::Landing;
 use crate::loading::Loading;
-use crate::planner::Planner;
+use crate::planner::{Planner, RacePlannerProvider};
 use endurance_racing_planner_common::GoogleOpenIdClaims;
 use gloo_console::error;
 use gloo_storage::{LocalStorage, Storage};
@@ -55,7 +55,9 @@ fn switch(switch: &AppRoutes) -> Html {
     match switch {
         AppRoutes::Planner => {
             return html! {
-                <Planner />
+                <RacePlannerProvider>
+                    <Planner />
+                </RacePlannerProvider>
             }
         }
         AppRoutes::Landing => {

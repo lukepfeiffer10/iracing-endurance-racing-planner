@@ -22,8 +22,12 @@ pub async fn get_plan_by_id(
         r#"SELECT p.id, p.title, 
                 ec.race_duration as "race_duration: Option<_>", 
                 ec.session_start_utc as "session_start_utc: Option<_>", 
-                ec.race_start_tod as "race_start_tod: Option<_>", 
+                ec.race_start_utc as "race_start_utc: Option<_>", 
+                ec.race_end_utc as "race_end_utc: Option<_>", 
+                ec.race_start_tod as "race_start_tod: Option<_>",
+                ec.race_end_tod as "race_end_tod: Option<_>", 
                 ec.green_flag_offset as "green_flag_offset: Option<_>", 
+                ec.tod_offset as "tod_offset: Option<_>", 
                 fsc.pit_duration as "pit_duration: Option<_>", 
                 fsc.fuel_tank_size as "fuel_tank_size: Option<_>", 
                 fsc.tire_change_time as "tire_change_time: Option<_>", 
@@ -101,6 +105,10 @@ pub async fn get_plan_by_id(
             session_start_utc: p.session_start_utc.unwrap(),
             race_start_tod: p.race_start_tod.unwrap(),
             green_flag_offset: Duration::microseconds(p.green_flag_offset.unwrap().microseconds),
+            race_start_utc: p.race_start_utc.unwrap(),
+            race_end_utc: p.race_end_utc.unwrap(),
+            race_end_tod: p.race_end_tod.unwrap(),
+            tod_offset: Duration::microseconds(p.tod_offset.unwrap().microseconds),
         }),
         overall_fuel_stint_config: p
             .pit_duration
@@ -181,22 +189,31 @@ pub async fn patch_plan(pool: &PgPool, plan: PatchPlan) -> Result<bool, sqlx::Er
 
             let race_duration: PgInterval = data.race_duration.try_into().unwrap();
             let green_flag_offset: PgInterval = data.green_flag_offset.try_into().unwrap();
+            let tod_offset: PgInterval = data.tod_offset.try_into().unwrap();
             let upsert_event_config = sqlx::query!(
                 r#"
-                INSERT INTO event_configs AS ec (plan_id, race_duration, session_start_utc, race_start_tod, green_flag_offset)
-                VALUES ($5, $1, $2, $3, $4)
+                INSERT INTO event_configs AS ec (plan_id, race_duration, session_start_utc, race_start_utc, race_end_utc, race_start_tod, race_end_tod, green_flag_offset, tod_offset)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
                 ON CONFLICT (plan_id) DO UPDATE 
                 SET 
-                    race_duration = $1, 
-                    session_start_utc = $2, 
-                    race_start_tod = $3, 
-                    green_flag_offset = $4
-                WHERE ec.plan_id = $5"#,
+                    race_duration = $2, 
+                    session_start_utc = $3, 
+                    race_start_utc = $4,
+                    race_end_utc = $5,
+                    race_start_tod = $6,
+                    race_end_tod = $7, 
+                    green_flag_offset = $8,
+                    tod_offset = $9
+                WHERE ec.plan_id = $1"#,                
+                plan.id,
                 race_duration,
                 data.session_start_utc,
+                data.race_start_utc,
+                data.race_end_utc,
                 data.race_start_tod,
+                data.race_end_tod,
                 green_flag_offset,
-                plan.id
+                tod_offset
             )
             .execute(pool);
 

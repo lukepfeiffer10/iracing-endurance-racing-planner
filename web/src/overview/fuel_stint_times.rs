@@ -1,7 +1,7 @@
 ﻿use crate::http::plans::patch_plan;
 use crate::md_text_field::{MaterialTextField, MaterialTextFieldProps};
 use crate::planner::{
-    format_duration, parse_duration_from_str, DurationFormat, PlannerContext, PlannerContextAction,
+    format_duration, parse_duration_from_str, DurationFormat, RacePlannerAction, RacePlannerContext,
 };
 use chrono::Duration;
 use endurance_racing_planner_common::{
@@ -15,7 +15,7 @@ use yew::prelude::*;
 use yew::props;
 use yew::Properties;
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct StintData {
     #[serde(with = "crate::duration_serde")]
     pub lap_time: Duration,
@@ -29,6 +29,8 @@ pub struct StintData {
     pub track_time_with_pit: Duration,
     pub fuel_per_stint: f32,
 }
+
+impl Eq for StintData {}
 
 impl StintData {
     pub fn new() -> StintData {
@@ -134,7 +136,7 @@ pub struct FuelStintTimesProps {
 pub struct FuelStintTimes {
     standard_fuel_stint: StintData,
     fuel_saving_stint: StintData,
-    _context_listener: ContextHandle<PlannerContext>,
+    _context_listener: ContextHandle<RacePlannerContext>,
 }
 
 impl Component for FuelStintTimes {
@@ -144,12 +146,12 @@ impl Component for FuelStintTimes {
     fn create(ctx: &Context<Self>) -> Self {
         let (planner_context, planner_context_handle) = ctx
             .link()
-            .context::<PlannerContext>(ctx.link().batch_callback(|context: PlannerContext| {
-                match &context.data.fuel_stint_average_times {
+            .context::<RacePlannerContext>(ctx.link().batch_callback(
+                |context: RacePlannerContext| match &context.data.fuel_stint_average_times {
                     Some(data) => Some(FuelStintTimesMsg::OnCreate(data.clone())),
                     None => None,
-                }
-            }))
+                },
+            ))
             .expect("No Planner Context Provided");
 
         let stint_data = planner_context.data.fuel_stint_average_times.as_ref();
@@ -167,7 +169,7 @@ impl Component for FuelStintTimes {
     fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
         let (planner_context, _) = ctx
             .link()
-            .context::<PlannerContext>(Callback::noop())
+            .context::<RacePlannerContext>(Callback::noop())
             .expect("planner context to be populated");
         let plan_id = planner_context.data.id;
 
@@ -199,14 +201,12 @@ impl Component for FuelStintTimes {
                     }
                 }) {
                     Ok(_) => {
-                        planner_context
-                            .dispatch
-                            .emit(PlannerContextAction::UpdateFuelStintTimes(
-                                FuelStintAverageTimes {
-                                    standard_fuel_stint: self.standard_fuel_stint.clone().into(),
-                                    fuel_saving_stint: self.fuel_saving_stint.clone().into(),
-                                },
-                            ));
+                        planner_context.dispatch(RacePlannerAction::SetFuelStintTimes(
+                            FuelStintAverageTimes {
+                                standard_fuel_stint: self.standard_fuel_stint.clone().into(),
+                                fuel_saving_stint: self.fuel_saving_stint.clone().into(),
+                            },
+                        ));
                         true
                     }
                     Err(message) => {
@@ -240,14 +240,12 @@ impl Component for FuelStintTimes {
                     }
                 }) {
                     Ok(_) => {
-                        planner_context
-                            .dispatch
-                            .emit(PlannerContextAction::UpdateFuelStintTimes(
-                                FuelStintAverageTimes {
-                                    standard_fuel_stint: self.standard_fuel_stint.clone().into(),
-                                    fuel_saving_stint: self.fuel_saving_stint.clone().into(),
-                                },
-                            ));
+                        planner_context.dispatch(RacePlannerAction::SetFuelStintTimes(
+                            FuelStintAverageTimes {
+                                standard_fuel_stint: self.standard_fuel_stint.clone().into(),
+                                fuel_saving_stint: self.fuel_saving_stint.clone().into(),
+                            },
+                        ));
                         true
                     }
                     Err(message) => {

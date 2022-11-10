@@ -1,10 +1,13 @@
 mod duration_serde;
+pub mod schedule;
+pub mod uuid_gen;
 
 use chrono::{DateTime, Duration, NaiveDateTime, NaiveTime, Utc};
+use schedule::ScheduleStintDto;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-#[derive(Serialize, Deserialize, PartialEq, Clone)]
+#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct RacePlannerDto {
     pub id: Uuid,
@@ -15,7 +18,7 @@ pub struct RacePlannerDto {
     pub time_of_day_lap_factors: Vec<TimeOfDayLapFactor>,
     pub per_driver_lap_factors: Vec<DriverLapFactor>,
     pub driver_roster: Vec<Driver>,
-    pub schedule_rows: Option<Vec<ScheduleDataRow>>,
+    pub schedule_rows: Option<Vec<ScheduleStintDto>>,
 }
 
 impl RacePlannerDto {
@@ -45,21 +48,49 @@ pub struct PatchRacePlannerDto {
     pub time_of_day_lap_factors: Option<Vec<TimeOfDayLapFactor>>,
     pub per_driver_lap_factors: Option<Vec<DriverLapFactor>>,
     pub driver_roster: Option<Vec<Driver>>,
-    pub schedule_rows: Option<Vec<ScheduleDataRow>>,
+    pub schedule_rows: Option<Vec<ScheduleStintDto>>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct EventConfigDto {
     #[serde(with = "crate::duration_serde")]
     pub race_duration: Duration,
     pub session_start_utc: DateTime<Utc>,
+    pub race_start_utc: DateTime<Utc>,
+    pub race_end_utc: DateTime<Utc>,
     pub race_start_tod: NaiveDateTime,
+    pub race_end_tod: NaiveDateTime,
     #[serde(with = "crate::duration_serde")]
     pub green_flag_offset: Duration,
+    #[serde(with = "crate::duration_serde")]
+    pub tod_offset: Duration,
 }
 
-#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
+impl EventConfigDto {
+    pub fn new() -> Self {
+        let utc_now = Utc::now();
+        Self {
+            race_duration: Duration::zero(),
+            session_start_utc: utc_now,
+            race_start_utc: utc_now,
+            race_end_utc: utc_now,
+            race_start_tod: utc_now.naive_local(),
+            race_end_tod: utc_now.naive_local(),
+            green_flag_offset: Duration::zero(),
+            tod_offset: Duration::zero(),
+        }
+    }
+
+    pub fn update_race_times(&mut self) {
+        self.race_start_utc = self.session_start_utc + self.green_flag_offset;
+        self.race_end_utc = self.race_start_utc + self.race_duration;
+        self.race_end_tod = self.race_start_tod + self.race_duration;
+        self.tod_offset = self.race_start_tod - self.race_start_utc.naive_utc();
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct OverallFuelStintConfigData {
     #[serde(with = "crate::duration_serde")]
@@ -81,7 +112,7 @@ impl OverallFuelStintConfigData {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct FuelStintAverageTimes {
     pub standard_fuel_stint: StintDataDto,
@@ -111,7 +142,9 @@ pub struct StintDataDto {
     pub fuel_per_stint: f32,
 }
 
-#[derive(Serialize, Deserialize, PartialEq, Clone)]
+impl Eq for StintDataDto {}
+
+#[derive(Serialize, Deserialize, PartialEq, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct TimeOfDayLapFactor {
     pub time_of_day: String,
@@ -124,7 +157,9 @@ pub struct TimeOfDayLapFactor {
     pub has_edited_lap_time: bool,
 }
 
-#[derive(Serialize, Deserialize, PartialEq, Clone)]
+impl Eq for TimeOfDayLapFactor {}
+
+#[derive(Serialize, Deserialize, PartialEq, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct DriverLapFactor {
     pub driver_name: String,
@@ -134,7 +169,9 @@ pub struct DriverLapFactor {
     pub factor: f64,
 }
 
-#[derive(Serialize, Deserialize, PartialEq, Clone)]
+impl Eq for DriverLapFactor {}
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct Driver {
     pub name: String,
@@ -144,39 +181,6 @@ pub struct Driver {
     pub utc_offset: i32,
     pub irating: i32,
     pub stint_preference: i32,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
-#[serde(rename_all = "camelCase")]
-pub struct ScheduleDataRow {
-    pub stint_type: StintType,
-    pub fuel_stint_number: i32,
-    pub utc_start: DateTime<Utc>,
-    pub utc_end: DateTime<Utc>,
-    pub tod_start: NaiveDateTime,
-    pub tod_end: NaiveDateTime,
-    pub actual_end: DateTime<Utc>,
-    #[serde(with = "crate::duration_serde")]
-    pub duration_delta: Duration,
-    #[serde(with = "crate::duration_serde")]
-    pub damage_modifier: Duration,
-    pub calculated_laps: i32,
-    pub actual_laps: i32,
-    pub driver_name: String,
-    pub availability: String,
-    pub stint_number: i32,
-    pub stint_preference: i32,
-    pub factor: f32,
-    pub local_start: NaiveDateTime,
-    pub local_end: NaiveDateTime,
-}
-
-#[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
-pub enum StintType {
-    FuelSavingNoTires,
-    FuelSavingWithTires,
-    StandardNoTires,
-    StandardWithTires,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
