@@ -84,11 +84,14 @@ fn create_auth_client() -> BasicClient {
     let token_url = TokenUrl::new("https://www.googleapis.com/oauth2/v3/token".to_string())
         .expect("Invalid token endpoint URL");
 
+    let redirect_url = window()
+        .expect("window to be present")
+        .location()
+        .origin()
+        .expect("location origin to be present");
     // Set up the config for the Google OAuth2 process.
     BasicClient::new(google_client_id, None, auth_url, Some(token_url))
-        .set_redirect_uri(
-            RedirectUrl::new("http://localhost:9000/".to_string()).expect("Invalid redirect URL"),
-        )
+        .set_redirect_uri(RedirectUrl::new(redirect_url).expect("Invalid redirect URL"))
         // Google supports OAuth 2.0 Token Revocation (RFC-7009)
         .set_revocation_uri(
             RevocationUrl::new("https://oauth2.googleapis.com/revoke".to_string())
@@ -275,7 +278,7 @@ pub async fn get_me() -> Result<User, Box<dyn Error>> {
     let token: String = LocalStorage::get(ID_TOKEN_KEY)?;
     let client = reqwest::Client::new();
     let me = client
-        .get("http://localhost:3000/users/me")
+        .get(format!("{}/users/me", env!("API_BASE_PATH")))
         .header("Accept", "application/json")
         .header("Authorization", format!("Bearer {}", token))
         .send()

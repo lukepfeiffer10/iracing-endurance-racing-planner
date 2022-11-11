@@ -11,7 +11,7 @@ use yew::Callback;
 
 use crate::auth::ID_TOKEN_KEY;
 
-const BASE_PATH: &str = "http://localhost:3000";
+const BASE_PATH: &str = env!("API_BASE_PATH");
 
 fn get_auth_token() -> Result<String, StorageError> {
     LocalStorage::get(ID_TOKEN_KEY)
