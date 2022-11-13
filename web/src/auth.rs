@@ -76,9 +76,7 @@ impl From<&str> for AuthError {
 }
 
 fn create_auth_client() -> BasicClient {
-    let google_client_id = ClientId::new(
-        "709154627100-fbcvr0njtbah2jfgv5bghnt7t39r28k9.apps.googleusercontent.com".to_string(),
-    );
+    let google_client_id = ClientId::new(env!("OAUTH_CLIENT_ID").to_string());
     let auth_url = AuthUrl::new("https://accounts.google.com/o/oauth2/v2/auth".to_string())
         .expect("Invalid authorization endpoint URL");
     let token_url = TokenUrl::new("https://www.googleapis.com/oauth2/v3/token".to_string())
