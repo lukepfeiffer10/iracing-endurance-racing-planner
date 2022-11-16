@@ -76,7 +76,10 @@ impl From<&str> for AuthError {
 }
 
 fn create_auth_client() -> BasicClient {
-    let google_client_id = ClientId::new(dotenv!("OAUTH_CLIENT_ID").to_string());
+    let client_id = option_env!("OAUTH_CLIENT_ID")
+        .unwrap_or_else(|| dotenv!("OAUTH_CLIENT_ID"))
+        .to_string();
+    let google_client_id = ClientId::new(client_id);
     let auth_url = AuthUrl::new("https://accounts.google.com/o/oauth2/v2/auth".to_string())
         .expect("Invalid authorization endpoint URL");
     let token_url = TokenUrl::new("https://www.googleapis.com/oauth2/v3/token".to_string())
@@ -276,7 +279,10 @@ pub async fn get_me() -> Result<User, Box<dyn Error>> {
     let token: String = LocalStorage::get(ID_TOKEN_KEY)?;
     let client = reqwest::Client::new();
     let me = client
-        .get(format!("{}/users/me", dotenv!("API_BASE_PATH")))
+        .get(format!(
+            "{}/users/me",
+            option_env!("API_BASE_PATH").unwrap_or_else(|| dotenv!("API_BASE_PATH"))
+        ))
         .header("Accept", "application/json")
         .header("Authorization", format!("Bearer {}", token))
         .send()

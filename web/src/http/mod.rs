@@ -11,7 +11,10 @@ use yew::Callback;
 
 use crate::auth::ID_TOKEN_KEY;
 
-const BASE_PATH: &str = dotenv!("API_BASE_PATH");
+const BASE_PATH: &str = match option_env!("API_BASE_PATH") {
+    Some(base_path) => base_path,
+    None => dotenv!("API_BASE_PATH"),
+};
 
 fn get_auth_token() -> Result<String, StorageError> {
     LocalStorage::get(ID_TOKEN_KEY)
