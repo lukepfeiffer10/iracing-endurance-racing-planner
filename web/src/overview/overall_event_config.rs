@@ -19,7 +19,7 @@ pub enum EventConfigMsg {
     ChangeSessionStart(String),
     ChangeRaceStartToD(String),
     ChangeRaceDuration(String),
-    OnCreate(EventConfigDto),
+    OnCreate(Uuid, EventConfigDto),
 }
 
 pub struct EventConfig {
@@ -38,7 +38,10 @@ impl Component for EventConfig {
             .context::<RacePlannerContext>(ctx.link().batch_callback(
                 |context: RacePlannerContext| -> Option<EventConfigMsg> {
                     match &context.data.overall_event_config {
-                        Some(event_config) => Some(EventConfigMsg::OnCreate(event_config.clone())),
+                        Some(event_config) => Some(EventConfigMsg::OnCreate(
+                            context.data.id,
+                            event_config.clone(),
+                        )),
                         None => None,
                     }
                 },
@@ -126,7 +129,8 @@ impl Component for EventConfig {
                     }
                 }
             }
-            EventConfigMsg::OnCreate(config) => {
+            EventConfigMsg::OnCreate(plan_id, config) => {
+                self.plan_id = plan_id;
                 self.data = config;
                 should_update = true;
             }

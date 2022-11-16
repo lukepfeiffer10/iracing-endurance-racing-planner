@@ -93,5 +93,11 @@ features = [
     'js',
 ]
 
+[dependencies.dotenv]
+version = '0.15'
+
+[dependencies.dotenv_codegen]
+version = '0.15'
+
 [dependencies.endurance_racing_planner_common]
 path = '../common'

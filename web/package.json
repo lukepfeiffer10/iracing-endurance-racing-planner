@@ -4,7 +4,7 @@
   "version": "0.1.0",
   "scripts": {
     "build": "rimraf dist pkg && webpack",
-    "start": "rimraf dist pkg && export API_BASE_PATH=http://localhost:3000 && export OAUTH_CLIENT_ID=709154627100-fbcvr0njtbah2jfgv5bghnt7t39r28k9.apps.googleusercontent.com && webpack-dev-server --open",
+    "start": "rimraf dist pkg && webpack-dev-server --open",
     "test": "cargo test && wasm-pack test --headless"
   },
   "devDependencies": {

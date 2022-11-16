@@ -21,6 +21,9 @@ use yew_mdc::components::{
 };
 use yew_router::prelude::*;
 
+#[macro_use]
+extern crate dotenv_codegen;
+
 mod auth;
 mod bindings;
 mod duration_serde;
