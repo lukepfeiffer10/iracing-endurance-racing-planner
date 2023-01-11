@@ -1,6 +1,7 @@
 ﻿#![allow(non_snake_case)]
 #![allow(dead_code)]
 
+mod V10__update_user_plans;
 mod V1__initial;
 mod V2__add_plan;
 mod V3__add_modified_to_plan;
