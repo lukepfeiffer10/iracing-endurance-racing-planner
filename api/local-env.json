@@ -1,0 +1,5 @@
+{
+    "Parameters": {
+        "DATABASE_URL": "postgres://race_planner:RacingPlanner!2@planner-db/race_planner"
+    }
+}
