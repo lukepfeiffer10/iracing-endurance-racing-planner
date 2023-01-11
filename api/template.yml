@@ -1,13 +1,39 @@
 ﻿AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
 
+Parameters:
+  DatabaseUrl:
+    Type: String
+    Description: The database connection string
+  AllowedOrigin:
+    Type: String
+    Description: The valid origin for connecting to the api
+  OAuthAudience:
+    Type: String
+    Description: The valid audience for OAuth authentication
+  VpcSecurityGroupIds:
+    Type: List<AWS::EC2::SecurityGroup::Id>
+  VpcSubnetIds:
+    Type: List<AWS::EC2::Subnet::Id>
+  LambdaRole:
+    Type: String
+
+Globals:
+  Function:
+    VpcConfig:
+      SecurityGroupIds: !Ref VpcSecurityGroupIds
+      SubnetIds: !Ref VpcSubnetIds
+    Environment:
+      Variables:
+        DATABASE_URL: !Ref DatabaseUrl
+
 Resources:
   Api:
     Type: AWS::Serverless::HttpApi
     Properties:
       CorsConfiguration:
-        AllowOrigins:
-          - "http://localhost:9000"
+        AllowOrigins: 
+          - !Ref AllowedOrigin
         AllowMethods:
           - GET
           - POST
@@ -24,7 +50,7 @@ Resources:
             IdentitySource: $request.header.Authorization
             JwtConfiguration:
               audience:
-                - "709154627100-fbcvr0njtbah2jfgv5bghnt7t39r28k9.apps.googleusercontent.com"
+                - !Ref OAuthAudience
               issuer: "https://accounts.google.com"
         DefaultAuthorizer: GoogleOpenIdAuthorizer
   AddPlan:
@@ -36,6 +62,7 @@ Resources:
       Runtime: provided.al2
       Timeout: 10
       CodeUri: target/lambda/add-plan/
+      Role: !Ref LambdaRole
       Events:
         HttpApiEvent:
           Type: HttpApi
@@ -53,6 +80,7 @@ Resources:
       Runtime: provided.al2
       Timeout: 10
       CodeUri: target/lambda/get-plan/
+      Role: !Ref LambdaRole
       Events:
         HttpApiEvent:
           Type: HttpApi
@@ -70,6 +98,7 @@ Resources:
       Runtime: provided.al2
       Timeout: 10
       CodeUri: target/lambda/patch-plan/
+      Role: !Ref LambdaRole
       Events:
         HttpApiEvent:
           Type: HttpApi
@@ -87,6 +116,7 @@ Resources:
       Runtime: provided.al2
       Timeout: 10
       CodeUri: target/lambda/get-plans/
+      Role: !Ref LambdaRole
       Events:
         HttpApiEvent:
           Type: HttpApi
@@ -104,6 +134,7 @@ Resources:
       Runtime: provided.al2
       Timeout: 10
       CodeUri: target/lambda/get-user/
+      Role: !Ref LambdaRole
       Events:
         HttpApiEvent:
           Type: HttpApi
@@ -121,6 +152,7 @@ Resources:
       Runtime: provided.al2
       Timeout: 10
       CodeUri: target/lambda/add-user/
+      Role: !Ref LambdaRole
       Events:
         HttpApiEvent:
           Type: HttpApi
@@ -138,6 +170,7 @@ Resources:
       Runtime: provided.al2
       Timeout: 10
       CodeUri: target/lambda/me/
+      Role: !Ref LambdaRole
       Events:
         HttpApiEvent:
           Type: HttpApi
@@ -155,6 +188,7 @@ Resources:
       Runtime: provided.al2
       Timeout: 10
       CodeUri: target/lambda/add-schedule/
+      Role: !Ref LambdaRole
       Events:
         HttpApiEvent:
           Type: HttpApi
@@ -172,6 +206,7 @@ Resources:
       Runtime: provided.al2
       Timeout: 10
       CodeUri: target/lambda/get-schedule/
+      Role: !Ref LambdaRole
       Events:
         HttpApiEvent:
           Type: HttpApi
@@ -189,6 +224,7 @@ Resources:
       Runtime: provided.al2
       Timeout: 10
       CodeUri: target/lambda/put-schedule/
+      Role: !Ref LambdaRole
       Events:
         HttpApiEvent:
           Type: HttpApi

@@ -1,4 +1,5 @@
-﻿use crate::{http, UserInfo};
+﻿use crate::http::CustomError;
+use crate::{http, UserInfo};
 use endurance_racing_planner_common::{GoogleOpenIdClaims, User};
 use gloo_storage::{LocalStorage, SessionStorage, Storage};
 use jwt_compact::alg::{Rsa, RsaPublicKey};
@@ -101,6 +102,7 @@ fn create_auth_client() -> BasicClient {
 }
 
 pub fn login() {
+    LocalStorage::clear();
     let nonce = CsrfToken::new_random();
     // Generate the authorization URL to which we'll redirect the user.
     let (authorize_url, csrf_state) = create_auth_client()
@@ -147,13 +149,14 @@ pub async fn handle_auth_code_redirect() -> Result<Option<UserInfo>, AuthError> 
             validate_state_parameter(&fragments)?;
             let token = validate_id_token(&fragments).await?;
             validate_nonce(token.claims())?;
-            let get_me_result =
-                (get_me().await).map_err(|_| AuthError::Other("failed to get me".into()));
-            let me = match get_me_result {
+            let me = match get_me().await {
                 Ok(user) => Ok(user),
-                Err(_) => match create_user(&token.claims().custom).await {
-                    Ok(created_user) => Ok(created_user),
-                    Err(_) => Err(AuthError::Other("failed to create a user".into())),
+                Err(e) => match e {
+                    CustomError::FailedRequest => match create_user(&token.claims().custom).await {
+                        Ok(created_user) => Ok(created_user),
+                        Err(_) => Err(AuthError::Other("failed to create a user".into())),
+                    },
+                    _ => Err(AuthError::Other("failed to get me".into())),
                 },
             }?;
 
@@ -275,20 +278,6 @@ async fn create_user(claims: &GoogleOpenIdClaims) -> Result<User, Box<dyn Error>
     Ok(new_user)
 }
 
-pub async fn get_me() -> Result<User, Box<dyn Error>> {
-    let token: String = LocalStorage::get(ID_TOKEN_KEY)?;
-    let client = reqwest::Client::new();
-    let me = client
-        .get(format!(
-            "{}/users/me",
-            option_env!("API_BASE_PATH").unwrap_or_else(|| dotenv!("API_BASE_PATH"))
-        ))
-        .header("Accept", "application/json")
-        .header("Authorization", format!("Bearer {}", token))
-        .send()
-        .await?
-        .json::<User>()
-        .await?;
-
-    Ok(me)
+pub async fn get_me() -> Result<User, CustomError> {
+    http::get_async::<User>("/users/me".to_string()).await
 }
