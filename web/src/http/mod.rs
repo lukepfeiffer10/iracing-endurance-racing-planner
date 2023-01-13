@@ -1,3 +1,4 @@
+pub mod drivers;
 pub mod plans;
 pub mod schedules;
 

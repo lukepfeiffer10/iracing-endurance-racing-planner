@@ -4,11 +4,10 @@ use crate::planner::{
     format_duration, parse_duration_from_str, DurationFormat, PlannerRoutes, RacePlannerAction,
     RacePlannerContext,
 };
-use crate::roster::Driver;
 use chrono::{Duration, NaiveTime, Timelike};
 use endurance_racing_planner_common::schedule::{ScheduleStintDto, StintType};
 use endurance_racing_planner_common::{
-    EventConfigDto, FuelStintAverageTimes, OverallFuelStintConfigData,
+    Driver, EventConfigDto, FuelStintAverageTimes, OverallFuelStintConfigData,
 };
 use gloo_console::error;
 use serde::{Deserialize, Serialize};
@@ -93,6 +92,21 @@ impl ScheduleRow {
             FuelStintScheduleMsg::UpdateDriver(data, index)
         });
 
+        let driver =
+            drivers.and_then(|drivers| drivers.iter().find(|d| d.id == self.stint_data.driver_id));
+
+        let local_start = if let Some(driver) = driver {
+            self.stint_data.utc_start + Duration::hours(driver.utc_offset as i64)
+        } else {
+            self.stint_data.utc_start
+        };
+
+        let local_end = if let Some(driver) = driver {
+            self.stint_data.utc_end + Duration::hours(driver.utc_offset as i64)
+        } else {
+            self.stint_data.utc_start
+        };
+
         let row_id = format!("row-{}", index);
         html! {
             <tr data-row-id={row_id.clone()} class="mdc-data-table__row">
@@ -146,9 +160,9 @@ impl ScheduleRow {
                     <Select id={format!("driver-name-{}", index)}
                         select_width_class="select-width"
                         fixed_position={true}
-                        selected_value={Some(self.stint_data.driver_name.to_string())}
+                        selected_value={Some(self.stint_data.driver_id.to_string())}
                         onchange={driver_name_on_change}>
-                        <SelectItem text="" value="" />
+                        <SelectItem text="" value="0" />
                         {
                             drivers
                                 .map_or(html! {},
@@ -162,10 +176,10 @@ impl ScheduleRow {
                 </td>
                 <td class="mdc-data-table__cell">{ self.stint_data.availability.clone() }</td>
                 <td class="mdc-data-table__cell mdc-data-table__cell--numeric">{ self.stint_data.stint_number }</td>
-                <td class="mdc-data-table__cell mdc-data-table__cell--numeric">{ self.stint_data.stint_preference }</td>
+                <td class="mdc-data-table__cell mdc-data-table__cell--numeric">{ driver.map_or(0, |d| d.stint_preference) }</td>
                 <td class="mdc-data-table__cell mdc-data-table__cell--numeric">{ self.stint_data.factor }</td>
-                <td class="mdc-data-table__cell mdc-data-table__cell--numeric">{ self.stint_data.local_start.format(time_format) }</td>
-                <td class="mdc-data-table__cell mdc-data-table__cell--numeric">{ self.stint_data.local_end.format(time_format) }</td>
+                <td class="mdc-data-table__cell mdc-data-table__cell--numeric">{ local_start.format(time_format) }</td>
+                <td class="mdc-data-table__cell mdc-data-table__cell--numeric">{ local_end.format(time_format) }</td>
             </tr>
         }
     }
@@ -173,7 +187,7 @@ impl ScheduleRow {
 
 fn get_driver_select_view(driver: &Driver) -> Html {
     html! {
-        <SelectItem text={driver.name.clone()} value={driver.name.clone()} />
+        <SelectItem text={driver.name.clone()} value={driver.id.to_string()} />
     }
 }
 
@@ -300,7 +314,7 @@ fn update_schedule(
         } else {
             let previous_row = &schedule_rows[next_row_index - 1];
             let previous_row_actual_end = previous_row.stint_data.actual_end;
-            let previous_row_driver_name = previous_row.stint_data.driver_name.clone();
+            let previous_row_driver_id = previous_row.stint_data.driver_id;
             let previous_row_stint_number = previous_row.stint_data.stint_number;
             let previous_row_tod_end =
                 previous_row_actual_end.naive_utc() + event_config.tod_offset;
@@ -309,7 +323,7 @@ fn update_schedule(
             next_row.stint_data.update(
                 previous_row_actual_end,
                 previous_row_tod_end,
-                previous_row_driver_name,
+                previous_row_driver_id,
                 previous_row_stint_number,
                 fuel_stint_times,
                 event_config.race_end_utc,
@@ -375,7 +389,7 @@ impl Component for FuelStintSchedule {
                         rows[0].stint_data.update(
                             event_config.race_start_utc,
                             event_config.race_start_tod,
-                            "".to_string(),
+                            0,
                             1,
                             fuel_stint_times,
                             event_config.race_end_utc,
@@ -403,13 +417,19 @@ impl Component for FuelStintSchedule {
             ),
         };
 
+        let drivers = if planner_context.data.driver_roster.len() == 0 {
+            None
+        } else {
+            Some(planner_context.data.driver_roster.clone())
+        };
+
         Self {
             plan_id,
             schedule_rows,
             overall_event_config: planner_context.data.overall_event_config.clone(),
             fuel_stint_times: planner_context.data.fuel_stint_average_times.clone(),
             overall_fuel_stint_config: planner_context.data.overall_fuel_stint_config.clone(),
-            drivers: None,
+            drivers,
             mdc_data_table_node_ref: NodeRef::default(),
             data_table: None,
             context: planner_context,
@@ -432,8 +452,8 @@ impl Component for FuelStintSchedule {
                     stint_data.tod_start,
                     previous_row_stint_data
                         .as_ref()
-                        .map(|row| row.driver_name.clone())
-                        .unwrap_or("".to_string()),
+                        .map(|row| row.driver_id)
+                        .unwrap_or(0),
                     previous_row_stint_data
                         .as_ref()
                         .map(|row| row.stint_number)
@@ -463,29 +483,30 @@ impl Component for FuelStintSchedule {
             FuelStintScheduleMsg::UpdateDriver(data, row_index) => {
                 //subtract one from the selected index to account for the blank option
                 let driver_index = data.index - 1;
+                let selected_driver_id = data
+                    .value
+                    .parse::<i32>()
+                    .expect("selected driver value to be an integer");
 
                 if driver_index < 0 {
                     let stint_data = &mut self.schedule_rows[row_index].stint_data;
-                    stint_data.driver_name = "".to_string();
-                    stint_data.stint_preference = 0;
+                    stint_data.driver_id = 0;
                     stint_data.stint_number = 1;
                 } else {
-                    let driver = &self.drivers.as_ref().unwrap()[driver_index as usize];
                     let mut stint_number = 1;
 
                     if row_index > 0 {
                         let previous_stint_data = &self.schedule_rows[row_index - 1].stint_data;
-                        let previous_row_driver_name = previous_stint_data.driver_name.clone();
+                        let previous_row_driver_id = previous_stint_data.driver_id;
                         let previous_row_stint_number = previous_stint_data.stint_number;
 
-                        if previous_row_driver_name == data.value {
+                        if previous_row_driver_id == selected_driver_id {
                             stint_number = previous_row_stint_number + 1;
                         }
                     }
 
                     let stint_data = &mut self.schedule_rows[row_index].stint_data;
-                    stint_data.driver_name = data.value.clone();
-                    stint_data.stint_preference = driver.stint_preference;
+                    stint_data.driver_id = selected_driver_id;
                     stint_data.stint_number = stint_number;
                 }
                 self.update_schedule(row_index);
@@ -504,8 +525,8 @@ impl Component for FuelStintSchedule {
                     stint_data.tod_start,
                     previous_row_stint_data
                         .as_ref()
-                        .map(|row| row.driver_name.clone())
-                        .unwrap_or("".to_string()),
+                        .map(|row| row.driver_id)
+                        .unwrap_or(0),
                     previous_row_stint_data
                         .as_ref()
                         .map(|row| row.stint_number)
@@ -534,7 +555,7 @@ impl Component for FuelStintSchedule {
     }
 
     fn changed(&mut self, _ctx: &Context<Self>) -> bool {
-        false
+        true
     }
 
     fn view(&self, ctx: &Context<Self>) -> Html {

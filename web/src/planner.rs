@@ -1,19 +1,23 @@
 ﻿use crate::bindings::enable_tab_bar;
 use crate::event_bus::{EventBus, EventBusOutput};
-use crate::http::plans::{create_plan, get_plan, patch_plan};
-use crate::http::schedules::get_schedule;
+use crate::http::drivers::get_plan_drivers_async;
+use crate::http::plans::{create_plan, get_plan_async, patch_plan};
+use crate::http::schedules::get_schedule_async;
 use crate::overview::Overview;
 use crate::roster::DriverRoster;
 use crate::schedule::Schedule;
+use crate::Loading;
 use boolinator::Boolinator;
 use chrono::{Duration, NaiveDateTime};
 use endurance_racing_planner_common::schedule::ScheduleStintDto;
 use endurance_racing_planner_common::{
     Driver, EventConfigDto, OverallFuelStintConfigData, PatchRacePlannerDto, RacePlannerDto,
 };
+use futures::join;
 use std::fmt::{Display, Formatter};
 use std::rc::Rc;
 use uuid::Uuid;
+use wasm_bindgen_futures::spawn_local;
 use yew::context::ContextHandle;
 use yew::html::Scope;
 use yew::prelude::*;
@@ -156,11 +160,13 @@ pub struct RacePlannerProviderProps {
 pub fn race_planner_provider(props: &RacePlannerProviderProps) -> Html {
     //TODO: setup an is_loading here
     let race_planner = use_reducer(|| RacePlanner::new());
+    let is_loading = use_state(|| false);
 
     let current_route = use_route::<PlannerRoutes>().unwrap();
     let history = use_history().unwrap();
     let load_planner = {
         let race_planner = race_planner.clone();
+        let is_loading = is_loading.clone();
         move |_: &Option<bool>| {
             let id = match current_route {
                 PlannerRoutes::Schedule { id }
@@ -168,28 +174,25 @@ pub fn race_planner_provider(props: &RacePlannerProviderProps) -> Html {
                 | PlannerRoutes::Overview { id } => id,
             };
 
-            let default_plan = RacePlannerDto::new();
-            let update_plan_callback = {
-                let race_planner = race_planner.clone();
-
-                Callback::from(move |plan: RacePlannerDto| {
-                    race_planner.dispatch(RacePlannerAction::SetPlan(plan))
-                })
-            };
+            let default_plan = &race_planner.data;
             if Uuid::is_nil(&id) {
                 history.replace(PlannerRoutes::Overview {
                     id: default_plan.id,
                 });
-                create_plan(default_plan.clone(), update_plan_callback);
+                create_plan(
+                    default_plan.clone(),
+                    Callback::from(move |plan: RacePlannerDto| {
+                        race_planner.dispatch(RacePlannerAction::SetPlan(plan))
+                    }),
+                );
             } else {
-                get_plan(id, update_plan_callback);
-                let update_schedule_callback = {
-                    let race_planner = race_planner.clone();
-                    Callback::from(move |schedule| {
-                        race_planner.dispatch(RacePlannerAction::SetStints(schedule))
-                    })
-                };
-                get_schedule(id, update_schedule_callback);
+                is_loading.set(true);
+                let is_loading = is_loading.clone();
+                load_plan(
+                    id,
+                    race_planner,
+                    Callback::from(move |_| is_loading.set(false)),
+                )
             }
 
             || ()
@@ -197,11 +200,43 @@ pub fn race_planner_provider(props: &RacePlannerProviderProps) -> Html {
     };
     use_effect_with_deps(load_planner, None);
 
-    html! {
-        <ContextProvider<RacePlannerContext> context={race_planner}>
-            {props.children.clone()}
-        </ContextProvider<RacePlannerContext>>
+    if *is_loading {
+        html! { <Loading /> }
+    } else {
+        html! {
+            <ContextProvider<RacePlannerContext> context={race_planner}>
+                {props.children.clone()}
+            </ContextProvider<RacePlannerContext>>
+        }
     }
+}
+
+fn load_plan(plan_id: Uuid, race_planner_context: RacePlannerContext, done_callback: Callback<()>) {
+    spawn_local(async move {
+        let get_plan = get_plan_async(plan_id);
+        let get_schedule = get_schedule_async(plan_id);
+        let get_driver_roster = get_plan_drivers_async(plan_id);
+
+        let (plan_result, schedule_result, driver_roster_result) =
+            join!(get_plan, get_schedule, get_driver_roster);
+
+        match plan_result {
+            Ok(plan) => race_planner_context.dispatch(RacePlannerAction::SetPlan(plan)),
+            Err(e) => panic!("failed to load the plan: {:?}", e),
+        }
+        match schedule_result {
+            Ok(stints) => race_planner_context.dispatch(RacePlannerAction::SetStints(stints)),
+            Err(_) => (), //TODO: log the error
+        };
+        match driver_roster_result {
+            Ok(drivers) => {
+                race_planner_context.dispatch(RacePlannerAction::SetDriverRoster(drivers))
+            }
+            Err(_) => (), //TODO: log the error
+        };
+
+        done_callback.emit(())
+    });
 }
 
 pub enum PlannerMsg {

@@ -89,6 +89,7 @@ pub struct Stint {
     pub calculated_laps: i32,
     pub actual_laps: i32,
     pub driver_stint_count: i32,
+    pub driver_id: Option<i32>,
 }
 
 impl From<&ScheduleStintDto> for Stint {
@@ -107,6 +108,11 @@ impl From<&ScheduleStintDto> for Stint {
             calculated_laps: dto.calculated_laps,
             actual_laps: dto.actual_laps,
             driver_stint_count: dto.stint_number,
+            driver_id: if dto.driver_id == 0 {
+                None
+            } else {
+                Some(dto.driver_id)
+            },
         }
     }
 }
@@ -126,13 +132,10 @@ impl Into<ScheduleStintDto> for &Stint {
             damage_modifier: Duration::microseconds(self.damage_modifier.microseconds),
             calculated_laps: self.calculated_laps,
             actual_laps: self.actual_laps,
-            driver_name: "".into(),
+            driver_id: self.driver_id.unwrap_or_default(),
             availability: "".into(),
             stint_number: self.driver_stint_count,
-            stint_preference: 0,
             factor: 1_f32,
-            local_start: self.utc_start.naive_local(),
-            local_end: self.utc_end.naive_local(),
         }
     }
 }

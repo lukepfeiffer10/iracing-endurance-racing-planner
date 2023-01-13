@@ -1,26 +1,30 @@
 ﻿use crate::bindings;
+use crate::http::drivers::{create_plan_driver, update_driver};
 use crate::md_text_field::{
     MaterialTextField, MaterialTextFieldIcon, MaterialTextFieldIconStyle, MaterialTextFieldProps,
 };
 use crate::planner::{RacePlannerAction, RacePlannerContext};
 use serde::{Deserialize, Serialize};
+use yew::context::ContextHandle;
 use yew::prelude::*;
 use yew::{html::Scope, props, Component, Context, Html};
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
 pub struct Driver {
+    pub id: i32,
     pub name: String,
     pub total_stints: i32,
     pub fair_share: bool,
     pub color: String,
-    pub utc_offset: i32,
-    pub irating: i32,
-    pub stint_preference: i32,
+    pub utc_offset: i16,
+    pub irating: i16,
+    pub stint_preference: i16,
 }
 
 impl From<&endurance_racing_planner_common::Driver> for Driver {
     fn from(driver: &endurance_racing_planner_common::Driver) -> Self {
         Self {
+            id: driver.id,
             name: driver.name.clone(),
             total_stints: driver.total_stints,
             fair_share: driver.fair_share,
@@ -35,6 +39,7 @@ impl From<&endurance_racing_planner_common::Driver> for Driver {
 impl Into<endurance_racing_planner_common::Driver> for Driver {
     fn into(self) -> endurance_racing_planner_common::Driver {
         endurance_racing_planner_common::Driver {
+            id: self.id,
             name: self.name,
             total_stints: self.total_stints,
             fair_share: self.fair_share,
@@ -49,6 +54,7 @@ impl Into<endurance_racing_planner_common::Driver> for Driver {
 impl Driver {
     fn new() -> Self {
         Driver {
+            id: 0,
             name: "".to_string(),
             total_stints: 0,
             fair_share: false,
@@ -82,7 +88,7 @@ impl Driver {
             value: self.utc_offset.to_string(),
             end_aligned: true,
             on_change: link.callback(move |value: String| {
-                let value = value.parse::<i32>().unwrap();
+                let value = value.parse::<i16>().unwrap();
                 DriverRosterMsg::UpdateDriverUtcOffset(value, index)
             }),
         }};
@@ -90,7 +96,7 @@ impl Driver {
             value: self.irating.to_string(),
             end_aligned: true,
             on_change: link.callback(move |value: String| {
-                let value = value.parse::<i32>().unwrap();
+                let value = value.parse::<i16>().unwrap();
                 DriverRosterMsg::UpdateDriverIrating(value, index)
             }),
         }};
@@ -98,7 +104,7 @@ impl Driver {
             value: self.stint_preference.to_string(),
             end_aligned: true,
             on_change: link.callback(move |value: String| {
-                let value = value.parse::<i32>().unwrap();
+                let value = value.parse::<i16>().unwrap();
                 DriverRosterMsg::UpdateDriverStintPreference(value, index)
             }),
         }};
@@ -134,6 +140,7 @@ impl Driver {
 impl Clone for Driver {
     fn clone(&self) -> Self {
         Self {
+            id: self.id,
             name: self.name.clone(),
             total_stints: self.total_stints,
             fair_share: self.fair_share,
@@ -149,15 +156,16 @@ pub enum DriverRosterMsg {
     AddDriver,
     UpdateDriverName(String, usize),
     UpdateDriverColor(String, usize),
-    UpdateDriverUtcOffset(i32, usize),
-    UpdateDriverIrating(i32, usize),
-    UpdateDriverStintPreference(i32, usize),
-    LoadDrivers(Vec<Driver>),
+    UpdateDriverUtcOffset(i16, usize),
+    UpdateDriverIrating(i16, usize),
+    UpdateDriverStintPreference(i16, usize),
+    UpdateDriverId(i32, usize),
 }
 
 pub struct DriverRoster {
     drivers: Vec<Driver>,
     planner_context: RacePlannerContext,
+    _planner_context_handle: ContextHandle<RacePlannerContext>,
 }
 
 impl Component for DriverRoster {
@@ -165,29 +173,24 @@ impl Component for DriverRoster {
     type Properties = ();
 
     fn create(ctx: &Context<Self>) -> Self {
-        let (planner_context, _) = ctx
+        let (planner_context, _planner_context_handle) = ctx
             .link()
-            .context::<RacePlannerContext>(ctx.link().callback(
-                |race_planner_context: RacePlannerContext| {
-                    DriverRosterMsg::LoadDrivers(
-                        race_planner_context
-                            .data
-                            .driver_roster
-                            .iter()
-                            .map(|d| d.into())
-                            .collect(),
-                    )
-                },
-            ))
+            .context::<RacePlannerContext>(Callback::noop())
             .expect("planner context must be set");
         Self {
-            drivers: Vec::new(),
-            planner_context: planner_context,
+            drivers: planner_context
+                .data
+                .driver_roster
+                .iter()
+                .map(|d| d.into())
+                .collect(),
+            planner_context,
+            _planner_context_handle,
         }
     }
 
-    fn update(&mut self, _ctx: &Context<Self>, msg: Self::Message) -> bool {
-        match msg {
+    fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
+        let render = match msg {
             DriverRosterMsg::AddDriver => {
                 self.drivers.push(Driver::new());
                 true
@@ -215,13 +218,33 @@ impl Component for DriverRoster {
             DriverRosterMsg::UpdateDriverStintPreference(stint_preference, index) => {
                 let driver_to_update = &mut self.drivers[index];
                 driver_to_update.stint_preference = stint_preference;
+                if driver_to_update.id == 0 {
+                    create_plan_driver(
+                        self.planner_context.data.id,
+                        driver_to_update.clone().into(),
+                        ctx.link().callback(
+                            move |driver: endurance_racing_planner_common::Driver| {
+                                DriverRosterMsg::UpdateDriverId(driver.id, index)
+                            },
+                        ),
+                    );
+                } else {
+                    update_driver(driver_to_update.clone().into());
+                }
                 false
             }
-            DriverRosterMsg::LoadDrivers(drivers) => {
-                self.drivers = drivers;
-                true
+            DriverRosterMsg::UpdateDriverId(id, index) => {
+                let driver_to_update = &mut self.drivers[index];
+                driver_to_update.id = id;
+                false
             }
-        }
+        };
+
+        self.planner_context
+            .dispatch(RacePlannerAction::SetDriverRoster(
+                self.drivers.iter().map(|d| d.clone().into()).collect(),
+            ));
+        return render;
     }
 
     fn changed(&mut self, _ctx: &Context<Self>) -> bool {
@@ -279,10 +302,5 @@ impl Component for DriverRoster {
         }
     }
 
-    fn destroy(&mut self, _ctx: &Context<Self>) {
-        self.planner_context
-            .dispatch(RacePlannerAction::SetDriverRoster(
-                self.drivers.iter().map(|d| d.clone().into()).collect(),
-            ));
-    }
+    fn destroy(&mut self, _ctx: &Context<Self>) {}
 }

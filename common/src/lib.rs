@@ -174,13 +174,14 @@ impl Eq for DriverLapFactor {}
 #[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct Driver {
+    pub id: i32,
     pub name: String,
     pub total_stints: i32,
     pub fair_share: bool,
     pub color: String,
-    pub utc_offset: i32,
-    pub irating: i32,
-    pub stint_preference: i32,
+    pub utc_offset: i16,
+    pub irating: i16,
+    pub stint_preference: i16,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
