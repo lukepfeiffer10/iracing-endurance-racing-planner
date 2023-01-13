@@ -4,7 +4,7 @@
 pub fn loading() -> Html {
     html! {
         <div class="loading">
-            <img class="logo" src="android-chrome-512x512.png" height="64" width="64" />
+            <img class="logo" src="/android-chrome-512x512.png" height="64" width="64" />
             <div class="text" style="--i:1">{ "A" }</div>
             <div class="text" style="--i:2">{ "R" }</div>
             <div class="text" style="--i:3">{ "T" }</div>

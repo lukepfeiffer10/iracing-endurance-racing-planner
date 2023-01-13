@@ -233,3 +233,57 @@ Resources:
             Method: put
             Path: /plans/{id}/schedule
             PayloadFormatVersion: "2.0"
+  GetPlanDrivers:
+    Type: AWS::Serverless::Function
+    Properties:
+      MemorySize: 128
+      Architectures: [ "arm64" ]
+      Handler: bootstrap
+      Runtime: provided.al2
+      Timeout: 10
+      CodeUri: target/lambda/get-plan-drivers/
+      Role: !Ref LambdaRole
+      Events:
+        HttpApiEvent:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref Api
+            Method: get
+            Path: /plans/{id}/drivers
+            PayloadFormatVersion: "2.0"
+  PostPlanDriver:
+    Type: AWS::Serverless::Function
+    Properties:
+      MemorySize: 128
+      Architectures: [ "arm64" ]
+      Handler: bootstrap
+      Runtime: provided.al2
+      Timeout: 10
+      CodeUri: target/lambda/add-plan-driver/
+      Role: !Ref LambdaRole
+      Events:
+        HttpApiEvent:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref Api
+            Method: post
+            Path: /plans/{id}/drivers
+            PayloadFormatVersion: "2.0"
+  PutDriver:
+    Type: AWS::Serverless::Function
+    Properties:
+      MemorySize: 128
+      Architectures: [ "arm64" ]
+      Handler: bootstrap
+      Runtime: provided.al2
+      Timeout: 10
+      CodeUri: target/lambda/put-driver/
+      Role: !Ref LambdaRole
+      Events:
+        HttpApiEvent:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref Api
+            Method: put
+            Path: /drivers/{id}
+            PayloadFormatVersion: "2.0"

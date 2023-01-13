@@ -51,7 +51,7 @@ impl Component for PerDriverLapFactors {
     type Properties = PerDriverLapFactorsProps;
 
     fn create(ctx: &Context<Self>) -> Self {
-        let (_, context_handle) = ctx
+        let (planner_context, context_handle) = ctx
             .link()
             .context::<RacePlannerContext>(ctx.link().callback(
                 |race_planner_context: RacePlannerContext| {
@@ -62,7 +62,17 @@ impl Component for PerDriverLapFactors {
             ))
             .expect("planner context must be set");
         Self {
-            factors: vec![],
+            factors: planner_context
+                .data
+                .driver_roster
+                .iter()
+                .map(|driver| DriverLapFactor {
+                    driver_name: driver.name.clone(),
+                    driver_color: driver.color.clone(),
+                    lap_time: Duration::zero(),
+                    factor: 1.0,
+                })
+                .collect(),
             standard_lap_time: Duration::zero(),
             _context_handle: context_handle,
         }

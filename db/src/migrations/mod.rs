@@ -2,6 +2,8 @@
 #![allow(dead_code)]
 
 mod V10__update_user_plans;
+mod V11__add_driver_roster;
+mod V12__add_driver_relationship_to_stint;
 mod V1__initial;
 mod V2__add_plan;
 mod V3__add_modified_to_plan;

@@ -48,6 +48,21 @@ name = 'put-schedule'
 path = 'src/bin/put_schedule.rs'
 test = false
 
+[[bin]]
+name = 'add-plan-driver'
+path = 'src/bin/add_plan_driver.rs'
+test = false
+
+[[bin]]
+name = 'get-plan-drivers'
+path = 'src/bin/get_plan_drivers.rs'
+test = false
+
+[[bin]]
+name = 'put-driver'
+path = 'src/bin/put_driver.rs'
+test = false
+
 [package]
 name = 'api'
 version = '0.1.0'

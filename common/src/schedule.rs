@@ -59,13 +59,10 @@ pub struct ScheduleStintDto {
     pub damage_modifier: Duration,
     pub calculated_laps: i32,
     pub actual_laps: i32,
-    pub driver_name: String,
+    pub driver_id: i32,
     pub availability: String,
     pub stint_number: i32,
-    pub stint_preference: i32,
     pub factor: f32,
-    pub local_start: NaiveDateTime,
-    pub local_end: NaiveDateTime,
 }
 
 impl Eq for ScheduleStintDto {}
@@ -86,13 +83,10 @@ impl ScheduleStintDto {
             damage_modifier: Duration::zero(),
             calculated_laps: fuel_stint_times.fuel_saving_stint.lap_count,
             actual_laps: fuel_stint_times.fuel_saving_stint.lap_count,
-            driver_name: "".to_string(),
+            driver_id: 0,
             availability: "".to_string(),
             stint_number: 1,
-            stint_preference: 0,
             factor: 0.0,
-            local_start: config.race_start_utc.naive_local(),
-            local_end: config.race_start_utc.naive_local() + stint_duration,
         }
     }
 
@@ -129,13 +123,10 @@ impl ScheduleStintDto {
             damage_modifier: previous_row.damage_modifier.clone(),
             calculated_laps,
             actual_laps: calculated_laps,
-            driver_name: "".to_string(),
+            driver_id: 0,
             availability: "".to_string(),
             stint_number: 1,
-            stint_preference: 0,
             factor: 0.0,
-            local_start: utc_start.naive_local(),
-            local_end: utc_start.naive_local() + stint_duration,
         }
     }
 
@@ -143,7 +134,7 @@ impl ScheduleStintDto {
         &mut self,
         utc_start: DateTime<Utc>,
         tod_start: NaiveDateTime,
-        previous_row_driver_name: String,
+        previous_row_driver_id: i32,
         previous_row_stint_number: i32,
         fuel_stint_times: &FuelStintAverageTimes,
         race_end_utc: DateTime<Utc>,
@@ -166,11 +157,9 @@ impl ScheduleStintDto {
         self.calculated_laps = calculated_laps;
         self.actual_laps = calculated_laps;
         self.duration_delta = self.actual_end - self.utc_end;
-        self.local_start = self.utc_start.naive_local();
-        self.local_end = self.local_start + stint_duration;
 
-        if (self.driver_name != "" && previous_row_driver_name != "")
-            && previous_row_driver_name == self.driver_name
+        if (self.driver_id != 0 && previous_row_driver_id != 0)
+            && previous_row_driver_id == self.driver_id
         {
             self.stint_number = previous_row_stint_number + 1;
         } else {

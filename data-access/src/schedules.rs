@@ -24,6 +24,7 @@ pub async fn get_schedule_by_plan_id(
             ,calculated_laps
             ,actual_laps
             ,driver_stint_count
+            ,driver_id
             from public.stints s
             WHERE s.plan_id = $1"#,
         plan_id
@@ -43,7 +44,7 @@ pub async fn create_schedule(
     schedule: Vec<Stint>,
 ) -> Result<bool, sqlx::Error> {
     let mut query_builder: QueryBuilder<Postgres> = QueryBuilder::new(
-        "INSERT INTO stints (id, plan_id, stint_type, number, utc_start, utc_end, tod_start, tod_end, actual_end, duration_delta, damage_modifier, calculated_laps, actual_laps, driver_stint_count) "
+        "INSERT INTO stints (id, plan_id, stint_type, number, utc_start, utc_end, tod_start, tod_end, actual_end, duration_delta, damage_modifier, calculated_laps, actual_laps, driver_stint_count, driver_id) "
     );
 
     query_builder.push_values(schedule.iter(), |mut builder, stint_data| {
@@ -61,7 +62,8 @@ pub async fn create_schedule(
             .push_bind(stint_data.damage_modifier.clone())
             .push_bind(stint_data.calculated_laps)
             .push_bind(stint_data.actual_laps)
-            .push_bind(stint_data.driver_stint_count);
+            .push_bind(stint_data.driver_stint_count)
+            .push_bind(stint_data.driver_id);
     });
 
     let query = query_builder.build();
@@ -84,7 +86,8 @@ pub async fn update_schedule(pool: &PgPool, schedule: Vec<Stint>) -> Result<(), 
                 damage_modifier = u.damage_modifier,
                 calculated_laps = u.calculated_laps,
                 actual_laps = u.actual_laps,
-                driver_stint_count = u.driver_stint_count
+                driver_stint_count = u.driver_stint_count,
+                driver_id = u.driver_id
             FROM (",
     );
 
@@ -102,7 +105,8 @@ pub async fn update_schedule(pool: &PgPool, schedule: Vec<Stint>) -> Result<(), 
             .push_bind(stint.damage_modifier.clone())
             .push_bind(stint.calculated_laps)
             .push_bind(stint.actual_laps)
-            .push_bind(stint.driver_stint_count);
+            .push_bind(stint.driver_stint_count)
+            .push_bind(stint.driver_id);
     });
 
     query_builder.push(
@@ -118,7 +122,9 @@ pub async fn update_schedule(pool: &PgPool, schedule: Vec<Stint>) -> Result<(), 
                 damage_modifier,
                 calculated_laps,
                 actual_laps,
-                driver_stint_count)
+                driver_stint_count,
+                driver_id
+            )
             where s.id = u.id",
     );
 
