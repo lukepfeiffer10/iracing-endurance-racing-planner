@@ -104,7 +104,7 @@ impl ScheduleRow {
         let local_end = if let Some(driver) = driver {
             self.stint_data.utc_end + Duration::hours(driver.utc_offset as i64)
         } else {
-            self.stint_data.utc_start
+            self.stint_data.utc_end
         };
 
         let row_id = format!("row-{}", index);

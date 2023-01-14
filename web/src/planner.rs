@@ -131,12 +131,15 @@ impl Reducible for RacePlanner {
                     ..current_plan
                 },
             },
-            RacePlannerAction::SetStints(stints) => RacePlanner {
-                data: RacePlannerDto {
-                    schedule_rows: Some(stints),
-                    ..current_plan
-                },
-            },
+            RacePlannerAction::SetStints(stints) => {
+                let schedule_rows = if stints.len() > 0 { Some(stints) } else { None };
+                RacePlanner {
+                    data: RacePlannerDto {
+                        schedule_rows,
+                        ..current_plan
+                    },
+                }
+            }
             RacePlannerAction::SetDriverRoster(drivers) => RacePlanner {
                 data: RacePlannerDto {
                     driver_roster: drivers,
