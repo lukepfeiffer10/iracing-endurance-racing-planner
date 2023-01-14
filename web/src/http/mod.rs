@@ -77,7 +77,7 @@ fn get_request_builder(method: Method, route: &str) -> Result<RequestBuilder, Cu
         .bearer_auth(get_auth_token()?))
 }
 
-fn handle_error(e: CustomError) {
+pub fn handle_error(e: CustomError) {
     match e {
         CustomError::TokenNotFound(_) | CustomError::BadToken(_) | CustomError::TokenExpired => {
             login()

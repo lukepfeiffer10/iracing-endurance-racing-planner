@@ -1,3 +1,5 @@
+use chrono::Duration;
+use sqlx::postgres::types::PgInterval;
 use uuid::Uuid;
 
 pub struct Driver {
@@ -8,6 +10,7 @@ pub struct Driver {
     pub utc_offset: i16,
     pub irating: i16,
     pub stint_preference: i16,
+    pub lap_time: Option<PgInterval>,
 }
 
 impl Driver {
@@ -20,6 +23,7 @@ impl Driver {
             utc_offset: d.utc_offset,
             irating: d.irating,
             stint_preference: d.stint_preference,
+            lap_time: d.lap_time.map(|l| l.try_into().unwrap()),
         }
     }
 }
@@ -41,6 +45,10 @@ impl Into<endurance_racing_planner_common::Driver> for &Driver {
             utc_offset: self.utc_offset,
             irating: self.irating,
             stint_preference: self.stint_preference,
+            lap_time: self
+                .lap_time
+                .as_ref()
+                .map(|l| Duration::microseconds(l.microseconds)),
         }
     }
 }

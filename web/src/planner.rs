@@ -1,6 +1,7 @@
 ﻿use crate::bindings::enable_tab_bar;
 use crate::event_bus::{EventBus, EventBusOutput};
 use crate::http::drivers::get_plan_drivers_async;
+use crate::http::handle_error;
 use crate::http::plans::{create_plan, get_plan_async, patch_plan};
 use crate::http::schedules::get_schedule_async;
 use crate::overview::Overview;
@@ -225,17 +226,17 @@ fn load_plan(plan_id: Uuid, race_planner_context: RacePlannerContext, done_callb
 
         match plan_result {
             Ok(plan) => race_planner_context.dispatch(RacePlannerAction::SetPlan(plan)),
-            Err(e) => panic!("failed to load the plan: {:?}", e),
+            Err(e) => handle_error(e),
         }
         match schedule_result {
             Ok(stints) => race_planner_context.dispatch(RacePlannerAction::SetStints(stints)),
-            Err(_) => (), //TODO: log the error
+            Err(e) => handle_error(e),
         };
         match driver_roster_result {
             Ok(drivers) => {
                 race_planner_context.dispatch(RacePlannerAction::SetDriverRoster(drivers))
             }
-            Err(_) => (), //TODO: log the error
+            Err(e) => handle_error(e),
         };
 
         done_callback.emit(())

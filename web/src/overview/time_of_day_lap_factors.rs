@@ -71,52 +71,54 @@ impl Component for TimeOfDayLapFactors {
     type Message = TimeOfDayLapFactorsMsg;
     type Properties = TimeOfDayLapFactorsProps;
 
-    fn create(_ctx: &Context<Self>) -> Self {
+    fn create(ctx: &Context<Self>) -> Self {
+        let Self::Properties { lap_time } = ctx.props();
+
         let factors = vec![
             TimeOfDayLapFactor {
                 time_of_day: "Night1".to_string(),
-                lap_time: Duration::zero(),
+                lap_time: lap_time.clone(),
                 tod_start: NaiveTime::from_hms(0, 0, 0),
                 delta: Duration::zero(),
-                factor: 0.0,
+                factor: 1.0,
                 has_edited_lap_time: false,
             },
             TimeOfDayLapFactor {
                 time_of_day: "Morning".to_string(),
-                lap_time: Duration::zero(),
+                lap_time: lap_time.clone(),
                 tod_start: NaiveTime::from_hms(4, 0, 0),
                 delta: Duration::zero(),
-                factor: 0.0,
+                factor: 1.0,
                 has_edited_lap_time: false,
             },
             TimeOfDayLapFactor {
                 time_of_day: "Afternoon".to_string(),
-                lap_time: Duration::zero(),
+                lap_time: lap_time.clone(),
                 tod_start: NaiveTime::from_hms(11, 0, 0),
                 delta: Duration::zero(),
-                factor: 0.0,
+                factor: 1.0,
                 has_edited_lap_time: false,
             },
             TimeOfDayLapFactor {
                 time_of_day: "Evening".to_string(),
-                lap_time: Duration::zero(),
+                lap_time: lap_time.clone(),
                 tod_start: NaiveTime::from_hms(18, 0, 0),
                 delta: Duration::zero(),
-                factor: 0.0,
+                factor: 1.0,
                 has_edited_lap_time: false,
             },
             TimeOfDayLapFactor {
                 time_of_day: "Night2".to_string(),
-                lap_time: Duration::zero(),
+                lap_time: lap_time.clone(),
                 tod_start: NaiveTime::from_hms(21, 0, 0),
                 delta: Duration::zero(),
-                factor: 0.0,
+                factor: 1.0,
                 has_edited_lap_time: false,
             },
         ];
         Self {
             factors,
-            reference_lap_time: Duration::zero(),
+            reference_lap_time: lap_time.clone(),
         }
     }
 

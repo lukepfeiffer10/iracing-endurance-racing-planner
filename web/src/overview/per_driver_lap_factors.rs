@@ -1,4 +1,6 @@
-﻿use crate::planner::RacePlannerContext;
+﻿use std::convert::TryInto;
+
+use crate::planner::RacePlannerContext;
 use crate::{
     md_text_field::{MaterialTextField, MaterialTextFieldProps},
     planner::{format_duration, parse_duration_from_str, DurationFormat, PlannerRoutes},
@@ -61,6 +63,8 @@ impl Component for PerDriverLapFactors {
                 },
             ))
             .expect("planner context must be set");
+
+        let Self::Properties { lap_time } = ctx.props();
         Self {
             factors: planner_context
                 .data
@@ -73,7 +77,7 @@ impl Component for PerDriverLapFactors {
                     factor: 1.0,
                 })
                 .collect(),
-            standard_lap_time: Duration::zero(),
+            standard_lap_time: *lap_time,
             _context_handle: context_handle,
         }
     }
@@ -130,6 +134,16 @@ impl Component for PerDriverLapFactors {
             .link()
             .context::<RacePlannerContext>(Callback::noop())
             .expect("planner context must be set");
+
+        let drivers_with_lap_time = self
+            .factors
+            .iter()
+            .filter(|f| f.lap_time > Duration::zero())
+            .collect::<Vec<_>>();
+        let average_lap_time = drivers_with_lap_time
+            .iter()
+            .fold(Duration::zero(), |acc, f| acc + f.lap_time)
+            / drivers_with_lap_time.len().try_into().unwrap();
         html! {
             <div id="driver-lap-factors" class="mdc-card">
                 <div class="mdc-card-wrapper__text-section">

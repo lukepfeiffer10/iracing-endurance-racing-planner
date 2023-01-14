@@ -1,4 +1,5 @@
 mod duration_serde;
+mod option_duration_serde;
 pub mod schedule;
 pub mod uuid_gen;
 
@@ -182,6 +183,16 @@ pub struct Driver {
     pub utc_offset: i16,
     pub irating: i16,
     pub stint_preference: i16,
+    #[serde(default)]
+    #[serde(with = "crate::option_duration_serde")]
+    pub lap_time: Option<Duration>,
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct PatchDriver {
+    #[serde(with = "crate::duration_serde")]
+    pub lap_time: Duration,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

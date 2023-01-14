@@ -47,6 +47,7 @@ impl Into<endurance_racing_planner_common::Driver> for Driver {
             utc_offset: self.utc_offset,
             irating: self.irating,
             stint_preference: self.stint_preference,
+            lap_time: None,
         }
     }
 }
