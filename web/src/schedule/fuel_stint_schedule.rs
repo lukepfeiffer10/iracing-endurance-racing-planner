@@ -95,16 +95,14 @@ impl ScheduleRow {
         let driver =
             drivers.and_then(|drivers| drivers.iter().find(|d| d.id == self.stint_data.driver_id));
 
-        let local_start = if let Some(driver) = driver {
-            self.stint_data.utc_start + Duration::hours(driver.utc_offset as i64)
+        let (local_start, local_end, driver_color) = if let Some(driver) = driver {
+            (
+                self.stint_data.utc_start + Duration::hours(driver.utc_offset as i64),
+                self.stint_data.utc_end + Duration::hours(driver.utc_offset as i64),
+                driver.color.as_str(),
+            )
         } else {
-            self.stint_data.utc_start
-        };
-
-        let local_end = if let Some(driver) = driver {
-            self.stint_data.utc_end + Duration::hours(driver.utc_offset as i64)
-        } else {
-            self.stint_data.utc_end
+            (self.stint_data.utc_start, self.stint_data.utc_end, "")
         };
 
         let row_id = format!("row-{}", index);
@@ -162,6 +160,7 @@ impl ScheduleRow {
                         fixed_position={true}
                         selected_value={Some(self.stint_data.driver_id.to_string())}
                         onchange={driver_name_on_change}>
+                        //style={format!("background-color: {}", driver_color)}>
                         <SelectItem text="" value="0" />
                         {
                             drivers
@@ -178,8 +177,8 @@ impl ScheduleRow {
                 <td class="mdc-data-table__cell mdc-data-table__cell--numeric">{ self.stint_data.stint_number }</td>
                 <td class="mdc-data-table__cell mdc-data-table__cell--numeric">{ driver.map_or(0, |d| d.stint_preference) }</td>
                 <td class="mdc-data-table__cell mdc-data-table__cell--numeric">{ self.stint_data.factor }</td>
-                <td class="mdc-data-table__cell mdc-data-table__cell--numeric">{ local_start.format(time_format) }</td>
-                <td class="mdc-data-table__cell mdc-data-table__cell--numeric">{ local_end.format(time_format) }</td>
+                <td class="mdc-data-table__cell mdc-data-table__cell--numeric" style={format!("background-color: {}", driver_color)}>{ local_start.format(time_format) }</td>
+                <td class="mdc-data-table__cell mdc-data-table__cell--numeric" style={format!("background-color: {}", driver_color)}>{ local_end.format(time_format) }</td>
             </tr>
         }
     }
@@ -607,7 +606,7 @@ impl Component for FuelStintSchedule {
                                       <th class="mdc-data-table__header-cell mdc-data-table__header-cell--numeric" role="columnheader" scope="col">{ "Duration Delta" }</th>
                                       <th class="mdc-data-table__header-cell mdc-data-table__header-cell--numeric" role="columnheader" scope="col">{ "Damage Modifier" }</th>
                                       <th class="mdc-data-table__header-cell mdc-data-table__header-cell--numeric" role="columnheader" scope="col">{ "Calc" }<br/>{ "Laps" }</th>
-                                      <th class="mdc-data-table__header-cell mdc-data-table__header-cell--numeric" role="columnheader" scope="col">{ "Actual" }<br/>{ "Laps" }</th>
+                                      <th class="mdc-data-table__header-cell mdc-data-table__header-cell--numeric" role="columnheader" scope="col">{ "Actual Laps" }</th>
                                       <th class="mdc-data-table__header-cell" role="columnheader" scope="col">{ "Driver" }</th>
                                       <th class="mdc-data-table__header-cell" role="columnheader" scope="col">{ "Availability" }</th>
                                       <th class="mdc-data-table__header-cell mdc-data-table__header-cell--numeric" role="columnheader" scope="col">{ "Stint" }<br/>{ "Num" }</th>

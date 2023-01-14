@@ -161,7 +161,8 @@ pub async fn get_plans_by_user_id(
         r#"SELECT p.*, u.name as owner FROM plans p 
             INNER JOIN user_plans up ON up.plan_id = p.id 
             INNER JOIN users u ON u.id = p.created_by
-            WHERE up.user_id = $1"#,
+            WHERE up.user_id = $1
+            ORDER BY p.modified_date desc"#,
         user_id
     )
     .fetch_all(pool)

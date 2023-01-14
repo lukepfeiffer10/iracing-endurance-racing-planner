@@ -26,7 +26,8 @@ pub async fn get_schedule_by_plan_id(
             ,driver_stint_count
             ,driver_id
             from public.stints s
-            WHERE s.plan_id = $1"#,
+            WHERE s.plan_id = $1
+            ORDER BY s.number"#,
         plan_id
     )
     .fetch_all(pool)
