@@ -1,17 +1,19 @@
-﻿use crate::entities::plan::{
-    FuelStintAverageTimes, PatchPlan, PatchPlanType, PlanWithOverview, PlanWithOwner, StintType,
-};
-use crate::entities::Plan;
-use chrono::{DateTime, Duration, Utc};
+﻿use chrono::{DateTime, Duration, Utc};
 use endurance_racing_planner_common::{
     EventConfigDto, OverallFuelStintConfigData, RacePlannerDto, StintDataDto,
 };
-use futures::try_join;
-use sqlx::postgres::types::PgInterval;
-use sqlx::postgres::PgArguments;
-use sqlx::query::Query;
-use sqlx::types::Uuid;
-use sqlx::{PgPool, Postgres};
+use sqlx::{
+    postgres::{types::PgInterval, PgArguments},
+    query::Query,
+    types::Uuid,
+    PgPool, Postgres,
+};
+use tokio::try_join;
+
+use crate::data_access::entities::{
+    plan::{PatchPlan, PatchPlanType, PlanWithOverview, PlanWithOwner, StintType, FuelStintAverageTimes},
+    Plan,
+};
 
 pub async fn get_plan_by_id(
     pool: &PgPool,
@@ -132,7 +134,7 @@ pub async fn get_plan_by_id(
 }
 
 pub async fn create_plan(pool: &PgPool, plan: Plan) -> Result<Plan, sqlx::Error> {
-    let plan: Plan = sqlx::query_as!(
+    let plan = sqlx::query_as!(
         Plan,
         r#"INSERT INTO plans (id, title, created_by, created_date) VALUES ($1, $2, $3, $4)
                 RETURNING *"#,
@@ -259,7 +261,7 @@ pub async fn patch_plan(pool: &PgPool, plan: PatchPlan) -> Result<bool, sqlx::Er
                 tire_change_time,
                 config.add_tire_time,
                 plan.id
-            )
+            ) 
             .execute(pool);
 
             let result = try_join!(

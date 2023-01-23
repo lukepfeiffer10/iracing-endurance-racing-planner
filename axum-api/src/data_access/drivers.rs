@@ -1,7 +1,7 @@
 use sqlx::PgPool;
 use uuid::Uuid;
 
-use crate::entities::driver::Driver;
+use crate::data_access::entities::driver::Driver;
 
 pub async fn get_drivers_by_plan_id(
     pool: &PgPool,

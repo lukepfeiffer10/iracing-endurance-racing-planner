@@ -1,19 +1,26 @@
-use axum::extract::Path;
-use axum::http::{header, StatusCode};
-use axum::response::IntoResponse;
-use axum::{Extension, Json};
-use data_access::entities::schedule::Stint;
-use data_access::schedules::{create_schedule, get_schedule_by_plan_id, update_schedule};
+use axum::{
+    extract::{Path, State},
+    http::{header, StatusCode},
+    response::IntoResponse,
+    Extension, Json,
+};
 use endurance_racing_planner_common::schedule::ScheduleStintDto;
-use sqlx::types::Uuid;
-use sqlx::PgPool;
+use sqlx::{types::Uuid, PgPool};
+
+use crate::data_access::{
+    entities::schedule::Stint,
+    schedules::{create_schedule, get_schedule_by_plan_id, update_schedule},
+};
 
 pub(crate) async fn add_schedule(
     Path(plan_id): Path<Uuid>,
-    Extension(pool): Extension<PgPool>,
+    State(pool): State<PgPool>,
     Json(schedule): Json<Vec<ScheduleStintDto>>,
 ) -> impl IntoResponse {
-    let new_schedule: Vec<Stint> = schedule.iter().map(|stint| stint.into()).collect();
+    let new_schedule = schedule
+        .iter()
+        .map(|stint| stint.into())
+        .collect::<Vec<_>>();
 
     let new_schedule_result = create_schedule(&pool, plan_id, new_schedule).await;
     match new_schedule_result {
@@ -56,7 +63,10 @@ pub(crate) async fn put_schedule(
     Extension(pool): Extension<PgPool>,
     Json(schedule): Json<Vec<ScheduleStintDto>>,
 ) -> impl IntoResponse {
-    let schedule: Vec<Stint> = schedule.iter().map(|stint| stint.into()).collect();
+    let schedule = schedule
+        .iter()
+        .map(|stint| stint.into())
+        .collect::<Vec<Stint>>();
 
     let result = update_schedule(&pool, schedule).await;
     match result {

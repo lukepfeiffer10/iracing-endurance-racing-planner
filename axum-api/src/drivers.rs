@@ -1,10 +1,19 @@
-use axum::{extract::Path, http::StatusCode, response::IntoResponse, Extension, Json};
-use data_access::drivers::{create_driver, get_drivers_by_plan_id, update_driver};
+use axum::{
+    extract::{Path, State},
+    http::StatusCode,
+    response::IntoResponse,
+    Extension, Json,
+};
 use endurance_racing_planner_common::Driver;
 use sqlx::{types::Uuid, PgPool};
 
+use crate::data_access::{
+    self,
+    drivers::{create_driver, get_drivers_by_plan_id, update_driver},
+};
+
 pub(crate) async fn add_driver(
-    Extension(pool): Extension<PgPool>,
+    State(pool): State<PgPool>,
     Path(plan_id): Path<Uuid>,
     Json(driver): Json<Driver>,
 ) -> impl IntoResponse {

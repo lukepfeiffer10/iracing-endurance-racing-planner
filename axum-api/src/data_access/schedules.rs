@@ -2,7 +2,7 @@ use endurance_racing_planner_common::schedule::ScheduleStintDto;
 use sqlx::{PgPool, Postgres, QueryBuilder};
 use uuid::Uuid;
 
-use crate::entities::schedule::{Stint, StintType};
+use crate::data_access::entities::schedule::{Stint, StintType};
 
 pub async fn get_schedule_by_plan_id(
     pool: &PgPool,

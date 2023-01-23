@@ -3,11 +3,10 @@ use axum::{
     response::IntoResponse,
     Extension, Json,
 };
-use data_access::user::Users;
 use endurance_racing_planner_common::User;
 use sqlx::PgPool;
 
-use crate::AuthenticatedUser;
+use crate::{data_access::user::Users, AuthenticatedUser};
 
 pub(crate) async fn me(user: AuthenticatedUser) -> impl IntoResponse {
     (StatusCode::OK, Json(user.0))
