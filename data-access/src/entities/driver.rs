@@ -1,5 +1,6 @@
 use uuid::Uuid;
 
+#[derive(Debug)]
 pub struct Driver {
     pub id: i32,
     pub plan_id: Uuid,
