@@ -12,31 +12,21 @@ serde_json = "1.0.79"
 tokio = { version = "1.0", features = ["full"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+uuid = "1.2.2"
+endurance_racing_planner_common = { version = "0.1.0", path = "../common" }
 
 [dependencies.chrono]
-version = '0.4.19'
+version = "0.4.19"
 
 [dependencies.jwt-compact]
-version = '0.5.0'
+version = "0.5.0"
 default-features = false
-features = [
-    'clock',
-    'with_rsa',
-]
+features = ['clock', 'with_rsa']
 
 [dependencies.tower-http]
-version = '0.3.4'
+version = "0.3.4"
 features = ['cors']
 
 [dependencies.sqlx]
-version = '0.6.1'
-features = [
-    'postgres',
-    'runtime-tokio-rustls',
-]
-
-[dependencies.endurance_racing_planner_common]
-path = '../common'
-
-[dependencies.data_access]
-path = '../data-access'
+version = "0.6.1"
+features = ["postgres", "runtime-tokio-rustls", "uuid", "chrono"]

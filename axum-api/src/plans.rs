@@ -1,15 +1,23 @@
-use axum::extract::Path;
-use axum::http::{header, StatusCode};
-use axum::response::IntoResponse;
-use axum::{Extension, Json};
-use data_access::entities::plan::{PatchPlan, PatchPlanType};
-use data_access::entities::Plan;
-use data_access::plans::{create_plan, get_plan_by_id, get_plans_by_user_id};
+use axum::{
+    extract::Path,
+    http::{header, StatusCode},
+    response::IntoResponse,
+    Extension, Json,
+};
 use endurance_racing_planner_common::{PatchRacePlannerDto, PlanListDto, RacePlannerDto};
-use sqlx::types::Uuid;
-use sqlx::PgPool;
+use sqlx::{types::Uuid, PgPool};
 
-use crate::AuthenticatedUser;
+use crate::{
+    data_access::{
+        self,
+        entities::{
+            plan::{PatchPlan, PatchPlanType, StintType},
+            Plan,
+        },
+        plans::{create_plan, get_plan_by_id, get_plans_by_user_id},
+    },
+    AuthenticatedUser,
+};
 
 pub(crate) async fn add_plan(
     AuthenticatedUser(user): AuthenticatedUser,
@@ -87,9 +95,9 @@ pub(crate) async fn patch_plan(
     } else if plan.fuel_stint_average_times.is_some() {
         let fuel_stint_average_times = plan.fuel_stint_average_times.unwrap();
         let stint_type = if fuel_stint_average_times.standard_fuel_stint.is_some() {
-            data_access::entities::plan::StintType::Standard
+            StintType::Standard
         } else {
-            data_access::entities::plan::StintType::FuelSaving
+            StintType::FuelSaving
         };
         PatchPlanType::FuelStintAverageTime(
             fuel_stint_average_times

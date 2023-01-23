@@ -1,0 +1,3 @@
+[workspace]
+members = ["web", "axum-api"]
+resolver = "2"

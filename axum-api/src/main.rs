@@ -1,8 +1,3 @@
-mod drivers;
-mod plans;
-mod schedules;
-mod users;
-
 use axum::{
     async_trait,
     extract::FromRequestParts,
@@ -12,15 +7,22 @@ use axum::{
         request::Parts,
         HeaderValue, Method, StatusCode,
     },
-    routing::{get, patch, post, put},
+    routing::{get, post, put},
     Extension, Router, TypedHeader,
 };
-use data_access::user::Users;
 use endurance_racing_planner_common::{GoogleOpenIdClaims, User};
 use jwt_compact::UntrustedToken;
 use sqlx::PgPool;
 use std::net::SocketAddr;
 use tower_http::cors::CorsLayer;
+
+use crate::data_access::user::Users;
+
+mod data_access;
+mod drivers;
+mod plans;
+mod schedules;
+mod users;
 
 #[tokio::main]
 async fn main() {
@@ -37,18 +39,21 @@ async fn main() {
         // .route("/users", post(create_user))
         .route("/users/me", get(users::me))
         .route("/users", post(users::add_user))
-        .route("/plans", get(plans::get_plans))
-        .route("/plans", post(plans::add_plan))
-        .route("/plans/:id", get(plans::get_plan))
-        .route("/plans/:id", patch(plans::patch_plan))
-        .route("/plans/:id/schedule", post(schedules::add_schedule))
-        .route("/plans/:id/schedule", get(schedules::get_schedule))
-        .route("/plans/:id/schedule", put(schedules::put_schedule))
-        .route("/plans/:id/drivers", post(drivers::add_driver))
-        .route("/plans/:id/drivers", get(drivers::get_plan_drivers))
+        .route("/plans", get(plans::get_plans).post(plans::add_plan))
+        .route("/plans/:id", get(plans::get_plan).patch(plans::patch_plan))
+        .route(
+            "/plans/:id/schedule",
+            get(schedules::get_schedule)
+                .post(schedules::add_schedule)
+                .put(schedules::put_schedule),
+        )
+        .route(
+            "/plans/:id/drivers",
+            get(drivers::get_plan_drivers).post(drivers::add_driver),
+        )
         .route("/drivers/:id", put(drivers::put_driver))
         .layer(cors_layer())
-        .layer(Extension(db_context));
+        .with_state(db_context);
 
     // run our app with hyper
     // `axum::Server` is a re-export of `hyper::Server`
