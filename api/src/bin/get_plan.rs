@@ -1,4 +1,4 @@
-use api::initialize_lambda;
+use api::{initialize_lambda, AuthenticatedUser};
 use axum::{
     extract::Path, http::StatusCode, response::IntoResponse, routing::get, Extension, Json,
 };
@@ -14,8 +14,12 @@ async fn main() -> Result<(), Error> {
     Ok(())
 }
 
-async fn get_plan(Path(id): Path<Uuid>, Extension(pool): Extension<PgPool>) -> impl IntoResponse {
-    get_plan_by_id(&pool, id)
+async fn get_plan(
+    Path(id): Path<Uuid>,
+    Extension(pool): Extension<PgPool>,
+    AuthenticatedUser(user): AuthenticatedUser,
+) -> impl IntoResponse {
+    get_plan_by_id(&pool, id, user.id)
         .await
         .map(|plan| match plan {
             Some(plan) => Json(plan).into_response(),

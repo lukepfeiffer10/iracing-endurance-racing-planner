@@ -16,6 +16,7 @@ use sqlx::{PgPool, Postgres};
 pub async fn get_plan_by_id(
     pool: &PgPool,
     id: Uuid,
+    user_id: i32,
 ) -> Result<Option<RacePlannerDto>, sqlx::Error> {
     let plan = sqlx::query_as!(
         PlanWithOverview,
@@ -33,10 +34,12 @@ pub async fn get_plan_by_id(
                 fsc.tire_change_time as "tire_change_time: Option<_>", 
                 fsc.add_tire_time as "add_tire_time: Option<_>" 
             FROM plans p 
+                INNER JOIN user_plans up ON up.plan_id = p.id AND up.user_id = $2
                 LEFT OUTER JOIN event_configs ec ON ec.plan_id = p.id
                 LEFT OUTER JOIN fuel_stint_configs fsc ON fsc.plan_id = p.id
             WHERE p.id = $1"#,
-        id
+        id,
+        user_id
     )
     .fetch_optional(pool);
 

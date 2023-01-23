@@ -1,24 +1,22 @@
-use api::initialize_lambda;
 use axum::{
     http::{header, StatusCode},
     response::IntoResponse,
-    routing::post,
     Extension, Json,
 };
 use data_access::user::Users;
 use endurance_racing_planner_common::User;
-use lambda_http::Error;
 use sqlx::PgPool;
 
-#[tokio::main]
-async fn main() -> Result<(), Error> {
-    let handler = initialize_lambda("/users", post(add_user)).await?;
+use crate::AuthenticatedUser;
 
-    lambda_http::run(handler).await?;
-    Ok(())
+pub(crate) async fn me(user: AuthenticatedUser) -> impl IntoResponse {
+    (StatusCode::OK, Json(user.0))
 }
 
-async fn add_user(Json(user): Json<User>, Extension(pool): Extension<PgPool>) -> impl IntoResponse {
+pub(crate) async fn add_user(
+    Extension(pool): Extension<PgPool>,
+    Json(user): Json<User>,
+) -> impl IntoResponse {
     let new_user_result = Users::create_user(&pool, user).await;
     match new_user_result {
         Ok(new_user) => (
