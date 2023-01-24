@@ -416,7 +416,7 @@ impl Component for FuelStintSchedule {
             ),
         };
 
-        let drivers = if planner_context.data.driver_roster.len() == 0 {
+        let drivers = if planner_context.data.driver_roster.is_empty() {
             None
         } else {
             Some(planner_context.data.driver_roster.clone())
@@ -465,7 +465,7 @@ impl Component for FuelStintSchedule {
                         .tire_change_time,
                     previous_row_stint_data
                         .map(|row| row.damage_modifier)
-                        .unwrap_or(Duration::zero()),
+                        .unwrap_or_else(Duration::zero),
                 );
                 self.update_schedule(index);
             }
@@ -538,7 +538,7 @@ impl Component for FuelStintSchedule {
                         .tire_change_time,
                     previous_row_stint_data
                         .map(|row| row.damage_modifier)
-                        .unwrap_or(Duration::zero()),
+                        .unwrap_or_else(Duration::zero),
                 );
                 self.update_schedule(index);
             }
@@ -568,7 +568,7 @@ impl Component for FuelStintSchedule {
                     <div class="card-title">{ "Fuel Stint Schedule" }</div>
                 </div>
                 {
-                    if self.schedule_rows.len() == 0 {
+                    if self.schedule_rows.is_empty() {
                         html!{
                             <p>
                                 { "Complete the event config, fuel stint average times, and fuel stint config on the "}

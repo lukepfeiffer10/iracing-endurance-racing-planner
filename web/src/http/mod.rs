@@ -42,7 +42,7 @@ impl Debug for CustomError {
 
 fn get_auth_token() -> Result<String, CustomError> {
     LocalStorage::get(ID_TOKEN_KEY)
-        .map_err(|e| CustomError::TokenNotFound(e))
+        .map_err(CustomError::TokenNotFound)
         .and_then(
             move |token_string: String| match UntrustedToken::new(token_string.as_str()) {
                 Ok(token) => token
@@ -67,13 +67,10 @@ fn get_auth_token() -> Result<String, CustomError> {
 }
 
 fn get_request_builder(method: Method, route: &str) -> Result<RequestBuilder, CustomError> {
-    let base_url = Url::parse(BASE_PATH).map_err(|e| CustomError::BadUrl(e))?;
+    let base_url = Url::parse(BASE_PATH).map_err(CustomError::BadUrl)?;
     let client = reqwest::Client::new();
     Ok(client
-        .request(
-            method,
-            base_url.join(route).map_err(|e| CustomError::BadUrl(e))?,
-        )
+        .request(method, base_url.join(route).map_err(CustomError::BadUrl)?)
         .bearer_auth(get_auth_token()?))
 }
 
@@ -87,7 +84,7 @@ fn handle_error(e: CustomError) {
     }
 }
 
-pub fn post<T, U>(route: String, body: T, callback: Option<Callback<U>>) -> ()
+pub fn post<T, U>(route: String, body: T, callback: Option<Callback<U>>)
 where
     T: Serialize + DeserializeOwned + 'static,
     U: Serialize + DeserializeOwned + 'static,
@@ -129,7 +126,7 @@ where
         .unwrap()
 }
 
-pub fn get<T>(route: String, callback: Callback<T>) -> ()
+pub fn get<T>(route: String, callback: Callback<T>)
 where
     T: DeserializeOwned + 'static,
 {
@@ -158,7 +155,7 @@ where
         .map_err(|_| CustomError::FailedRequest)
 }
 
-pub fn patch<T>(route: String, body: T) -> ()
+pub fn patch<T>(route: String, body: T)
 where
     T: Serialize + DeserializeOwned + 'static,
 {
@@ -177,7 +174,7 @@ where
     })
 }
 
-pub fn put<T>(route: String, body: T) -> ()
+pub fn put<T>(route: String, body: T)
 where
     T: Serialize + DeserializeOwned + 'static,
 {

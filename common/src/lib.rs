@@ -37,6 +37,12 @@ impl RacePlannerDto {
     }
 }
 
+impl Default for RacePlannerDto {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 #[derive(Serialize, Deserialize, PartialEq, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct PatchRacePlannerDto {
@@ -90,6 +96,12 @@ impl EventConfigDto {
     }
 }
 
+impl Default for EventConfigDto {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct OverallFuelStintConfigData {
@@ -109,6 +121,12 @@ impl OverallFuelStintConfigData {
             tire_change_time: Duration::zero(),
             add_tire_time: false,
         }
+    }
+}
+
+impl Default for OverallFuelStintConfigData {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

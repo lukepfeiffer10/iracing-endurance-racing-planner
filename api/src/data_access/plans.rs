@@ -58,7 +58,8 @@ pub async fn get_plan_by_id(
             fuel_per_stint,
             stint_type as "stint_type: StintType"
         FROM fuel_stint_average_times
-        WHERE plan_id = $1"#,
+        WHERE plan_id = $1
+        ORDER BY stint_type"#,
         id
     )
     .fetch_all(pool);
@@ -67,6 +68,7 @@ pub async fn get_plan_by_id(
 
     let fuel_stint_average_times = if !fuel_stint_average_times.is_empty() {
         let mut stints = fuel_stint_average_times.into_iter();
+        
         Some(endurance_racing_planner_common::FuelStintAverageTimes {
             standard_fuel_stint: stints
                 .find(|s| match s.stint_type {

@@ -36,17 +36,17 @@ impl From<&endurance_racing_planner_common::Driver> for Driver {
     }
 }
 
-impl Into<endurance_racing_planner_common::Driver> for Driver {
-    fn into(self) -> endurance_racing_planner_common::Driver {
+impl From<Driver> for endurance_racing_planner_common::Driver {
+    fn from(val: Driver) -> Self {
         endurance_racing_planner_common::Driver {
-            id: self.id,
-            name: self.name,
-            total_stints: self.total_stints,
-            fair_share: self.fair_share,
-            color: self.color,
-            utc_offset: self.utc_offset,
-            irating: self.irating,
-            stint_preference: self.stint_preference,
+            id: val.id,
+            name: val.name,
+            total_stints: val.total_stints,
+            fair_share: val.fair_share,
+            color: val.color,
+            utc_offset: val.utc_offset,
+            irating: val.irating,
+            stint_preference: val.stint_preference,
         }
     }
 }
@@ -244,7 +244,7 @@ impl Component for DriverRoster {
             .dispatch(RacePlannerAction::SetDriverRoster(
                 self.drivers.iter().map(|d| d.clone().into()).collect(),
             ));
-        return render;
+        render
     }
 
     fn changed(&mut self, _ctx: &Context<Self>) -> bool {

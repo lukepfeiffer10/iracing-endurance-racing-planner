@@ -1,8 +1,8 @@
 use axum::{
-    extract::Path,
+    extract::{Path, State},
     http::{header, StatusCode},
     response::IntoResponse,
-    Extension, Json,
+    Json,
 };
 use endurance_racing_planner_common::{PatchRacePlannerDto, PlanListDto, RacePlannerDto};
 use sqlx::{types::Uuid, PgPool};
@@ -21,7 +21,7 @@ use crate::{
 
 pub(crate) async fn add_plan(
     AuthenticatedUser(user): AuthenticatedUser,
-    Extension(pool): Extension<PgPool>,
+    State(pool): State<PgPool>,
     Json(plan): Json<RacePlannerDto>,
 ) -> impl IntoResponse {
     let mut new_plan: Plan = plan.into();
@@ -42,7 +42,7 @@ pub(crate) async fn add_plan(
 
 pub(crate) async fn get_plans(
     AuthenticatedUser(user): AuthenticatedUser,
-    Extension(pool): Extension<PgPool>,
+    State(pool): State<PgPool>,
 ) -> impl IntoResponse {
     let plans = get_plans_by_user_id(&pool, user.id).await.map(|plans| {
         plans
@@ -51,7 +51,7 @@ pub(crate) async fn get_plans(
                 id: p.id,
                 title: p.title.clone(),
                 owner: p.owner.clone(),
-                last_modified: p.modified_date.or(Some(p.created_date)).unwrap(),
+                last_modified: p.modified_date.unwrap_or(p.created_date),
             })
             .collect::<Vec<PlanListDto>>()
     });
@@ -68,7 +68,7 @@ pub(crate) async fn get_plans(
 
 pub(crate) async fn get_plan(
     Path(id): Path<Uuid>,
-    Extension(pool): Extension<PgPool>,
+    State(pool): State<PgPool>,
     AuthenticatedUser(user): AuthenticatedUser,
 ) -> impl IntoResponse {
     get_plan_by_id(&pool, id, user.id)
@@ -84,7 +84,7 @@ pub(crate) async fn get_plan(
 
 pub(crate) async fn patch_plan(
     AuthenticatedUser(user): AuthenticatedUser,
-    Extension(pool): Extension<PgPool>,
+    State(pool): State<PgPool>,
     Path(id): Path<Uuid>,
     Json(plan): Json<PatchRacePlannerDto>,
 ) -> impl IntoResponse {

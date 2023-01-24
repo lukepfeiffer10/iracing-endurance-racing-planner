@@ -2,7 +2,7 @@ use axum::{
     extract::{Path, State},
     http::{header, StatusCode},
     response::IntoResponse,
-    Extension, Json,
+    Json,
 };
 use endurance_racing_planner_common::schedule::ScheduleStintDto;
 use sqlx::{types::Uuid, PgPool};
@@ -44,7 +44,7 @@ pub(crate) async fn add_schedule(
 
 pub(crate) async fn get_schedule(
     Path(id): Path<Uuid>,
-    Extension(pool): Extension<PgPool>,
+    State(pool): State<PgPool>,
 ) -> impl IntoResponse {
     get_schedule_by_plan_id(&pool, id)
         .await
@@ -60,7 +60,7 @@ pub(crate) async fn get_schedule(
 
 pub(crate) async fn put_schedule(
     Path(_plan_id): Path<Uuid>,
-    Extension(pool): Extension<PgPool>,
+    State(pool): State<PgPool>,
     Json(schedule): Json<Vec<ScheduleStintDto>>,
 ) -> impl IntoResponse {
     let schedule = schedule

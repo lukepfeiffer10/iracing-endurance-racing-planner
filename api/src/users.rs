@@ -1,7 +1,8 @@
 use axum::{
+    extract::State,
     http::{header, StatusCode},
     response::IntoResponse,
-    Extension, Json,
+    Json,
 };
 use endurance_racing_planner_common::User;
 use sqlx::PgPool;
@@ -13,7 +14,7 @@ pub(crate) async fn me(user: AuthenticatedUser) -> impl IntoResponse {
 }
 
 pub(crate) async fn add_user(
-    Extension(pool): Extension<PgPool>,
+    State(pool): State<PgPool>,
     Json(user): Json<User>,
 ) -> impl IntoResponse {
     let new_user_result = Users::create_user(&pool, user).await;

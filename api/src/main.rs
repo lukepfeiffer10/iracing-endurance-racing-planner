@@ -1,6 +1,6 @@
 use axum::{
     async_trait,
-    extract::FromRequestParts,
+    extract::{FromRef, FromRequestParts},
     headers::{authorization::Bearer, Authorization},
     http::{
         header::{AUTHORIZATION, CONTENT_TYPE},
@@ -8,7 +8,7 @@ use axum::{
         HeaderValue, Method, StatusCode,
     },
     routing::{get, post, put},
-    Extension, Router, TypedHeader,
+    Router, TypedHeader,
 };
 use endurance_racing_planner_common::{GoogleOpenIdClaims, User};
 use jwt_compact::UntrustedToken;
@@ -33,10 +33,6 @@ async fn main() {
 
     // build our application with a route
     let app = Router::new()
-        // `GET /` goes to `root`
-        // .route("/", get(root))
-        // // `POST /users` goes to `create_user`
-        // .route("/users", post(create_user))
         .route("/users/me", get(users::me))
         .route("/users", post(users::add_user))
         .route("/plans", get(plans::get_plans).post(plans::add_plan))
@@ -53,7 +49,7 @@ async fn main() {
         )
         .route("/drivers/:id", put(drivers::put_driver))
         .layer(cors_layer())
-        .with_state(db_context);
+        .with_state(AppState { pool: db_context });
 
     // run our app with hyper
     // `axum::Server` is a re-export of `hyper::Server`
@@ -79,25 +75,29 @@ fn cors_layer() -> CorsLayer {
         ])
 }
 
+#[derive(Clone)]
+pub struct AppState {
+    pool: PgPool,
+}
+
+impl FromRef<AppState> for PgPool {
+    fn from_ref(app_state: &AppState) -> PgPool {
+        app_state.pool.clone()
+    }
+}
+
 pub struct AuthenticatedUser(pub User);
 
 #[async_trait]
-impl<B> FromRequestParts<B> for AuthenticatedUser
+impl<S> FromRequestParts<S> for AuthenticatedUser
 where
-    B: Send + Sync,
+    AppState: FromRef<S>,
+    S: Send + Sync,
 {
     type Rejection = (StatusCode, String);
 
-    async fn from_request_parts(parts: &mut Parts, state: &B) -> Result<Self, Self::Rejection> {
-        let Extension(pool): Extension<PgPool> = Extension::from_request_parts(parts, state)
-            .await
-            .map_err(|err| {
-                tracing::error!(db_error = ?err);
-                (
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                    "database not found".to_string(),
-                )
-            })?;
+    async fn from_request_parts(parts: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
+        let pool: PgPool = AppState::from_ref(state).pool;
 
         let TypedHeader(Authorization(bearer)) =
             TypedHeader::<Authorization<Bearer>>::from_request_parts(parts, state)
@@ -111,7 +111,7 @@ where
                     .deserialize_claims_unchecked::<GoogleOpenIdClaims>()
                     .map_err(|_| (StatusCode::UNAUTHORIZED, "invalid token".to_string()))
             })
-            .and_then(|claims| Ok(claims.custom.sub))?;
+            .map(|claims| claims.custom.sub)?;
 
         Users::get_user_by_oauth_id(&pool, oauth_id)
             .await

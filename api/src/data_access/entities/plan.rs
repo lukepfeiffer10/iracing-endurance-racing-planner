@@ -117,6 +117,7 @@ pub struct FuelStintAverageTimes {
 }
 
 #[repr(i16)]
+#[derive(PartialEq, Eq, Hash)]
 pub enum StintType {
     Standard,
     FuelSaving,

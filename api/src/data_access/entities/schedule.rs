@@ -56,19 +56,19 @@ impl From<endurance_racing_planner_common::schedule::StintType> for StintType {
     }
 }
 
-impl Into<endurance_racing_planner_common::schedule::StintType> for StintType {
-    fn into(self) -> endurance_racing_planner_common::schedule::StintType {
-        match self {
-            Self::FuelSavingNoTires => {
+impl From<StintType> for endurance_racing_planner_common::schedule::StintType {
+    fn from(val: StintType) -> Self {
+        match val {
+            StintType::FuelSavingNoTires => {
                 endurance_racing_planner_common::schedule::StintType::FuelSavingNoTires
             }
-            Self::FuelSavingWithTires => {
+            StintType::FuelSavingWithTires => {
                 endurance_racing_planner_common::schedule::StintType::FuelSavingWithTires
             }
-            Self::StandardNoTires => {
+            StintType::StandardNoTires => {
                 endurance_racing_planner_common::schedule::StintType::StandardNoTires
             }
-            Self::StandardWithTires => {
+            StintType::StandardWithTires => {
                 endurance_racing_planner_common::schedule::StintType::StandardWithTires
             }
         }
@@ -117,24 +117,24 @@ impl From<&ScheduleStintDto> for Stint {
     }
 }
 
-impl Into<ScheduleStintDto> for &Stint {
-    fn into(self) -> ScheduleStintDto {
+impl From<&Stint> for ScheduleStintDto {
+    fn from(val: &Stint) -> Self {
         ScheduleStintDto {
-            id: self.id,
-            stint_type: self.stint_type.clone().into(),
-            fuel_stint_number: self.number,
-            utc_start: self.utc_start,
-            utc_end: self.utc_end,
-            tod_start: self.tod_start,
-            tod_end: self.tod_end,
-            actual_end: self.actual_end,
-            duration_delta: Duration::microseconds(self.duration_delta.microseconds),
-            damage_modifier: Duration::microseconds(self.damage_modifier.microseconds),
-            calculated_laps: self.calculated_laps,
-            actual_laps: self.actual_laps,
-            driver_id: self.driver_id.unwrap_or_default(),
+            id: val.id,
+            stint_type: val.stint_type.clone().into(),
+            fuel_stint_number: val.number,
+            utc_start: val.utc_start,
+            utc_end: val.utc_end,
+            tod_start: val.tod_start,
+            tod_end: val.tod_end,
+            actual_end: val.actual_end,
+            duration_delta: Duration::microseconds(val.duration_delta.microseconds),
+            damage_modifier: Duration::microseconds(val.damage_modifier.microseconds),
+            calculated_laps: val.calculated_laps,
+            actual_laps: val.actual_laps,
+            driver_id: val.driver_id.unwrap_or_default(),
             availability: "".into(),
-            stint_number: self.driver_stint_count,
+            stint_number: val.driver_stint_count,
             factor: 1_f32,
         }
     }

@@ -87,6 +87,12 @@ impl StintData {
     }
 }
 
+impl Default for StintData {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl From<StintDataDto> for StintData {
     fn from(dto: StintDataDto) -> Self {
         Self {
@@ -101,16 +107,16 @@ impl From<StintDataDto> for StintData {
     }
 }
 
-impl Into<StintDataDto> for StintData {
-    fn into(self) -> StintDataDto {
+impl From<StintData> for StintDataDto {
+    fn from(val: StintData) -> Self {
         StintDataDto {
-            lap_time: self.lap_time,
-            fuel_per_lap: self.fuel_per_lap,
-            lap_count: self.lap_count,
-            lap_time_with_pit: self.lap_time_with_pit,
-            track_time: self.track_time,
-            track_time_with_pit: self.track_time_with_pit,
-            fuel_per_stint: self.fuel_per_stint,
+            lap_time: val.lap_time,
+            fuel_per_lap: val.fuel_per_lap,
+            lap_count: val.lap_count,
+            lap_time_with_pit: val.lap_time_with_pit,
+            track_time: val.track_time,
+            track_time_with_pit: val.track_time_with_pit,
+            fuel_per_stint: val.fuel_per_stint,
         }
     }
 }
@@ -147,9 +153,12 @@ impl Component for FuelStintTimes {
         let (planner_context, planner_context_handle) = ctx
             .link()
             .context::<RacePlannerContext>(ctx.link().batch_callback(
-                |context: RacePlannerContext| match &context.data.fuel_stint_average_times {
-                    Some(data) => Some(FuelStintTimesMsg::OnCreate(data.clone())),
-                    None => None,
+                |context: RacePlannerContext| {
+                    context
+                        .data
+                        .fuel_stint_average_times
+                        .as_ref()
+                        .map(|data| FuelStintTimesMsg::OnCreate(data.clone()))
                 },
             ))
             .expect("No Planner Context Provided");
@@ -363,7 +372,7 @@ fn format_fuel_as_string(fuel: f32) -> String {
     format!("{:.2}", fuel)
 }
 
-fn send_patch_request(plan_id: Uuid, data: StintData, stint_type: &StintType) -> () {
+fn send_patch_request(plan_id: Uuid, data: StintData, stint_type: &StintType) {
     if data.lap_time > Duration::zero() && data.fuel_per_lap > 0.0 {
         patch_plan(
             plan_id,
@@ -379,7 +388,7 @@ fn send_patch_request(plan_id: Uuid, data: StintData, stint_type: &StintType) ->
                     },
                     fuel_saving_stint: match stint_type {
                         StintType::Standard => None,
-                        StintType::FuelSaving => Some(data.clone().into()),
+                        StintType::FuelSaving => Some(data.into()),
                     },
                 }),
                 time_of_day_lap_factors: None,

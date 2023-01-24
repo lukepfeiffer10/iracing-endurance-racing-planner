@@ -25,23 +25,23 @@ impl Driver {
     }
 }
 
-impl Into<endurance_racing_planner_common::Driver> for Driver {
-    fn into(self) -> endurance_racing_planner_common::Driver {
-        (&self).into()
+impl From<Driver> for endurance_racing_planner_common::Driver {
+    fn from(val: Driver) -> Self {
+        (&val).into()
     }
 }
 
-impl Into<endurance_racing_planner_common::Driver> for &Driver {
-    fn into(self) -> endurance_racing_planner_common::Driver {
+impl From<&Driver> for endurance_racing_planner_common::Driver {
+    fn from(val: &Driver) -> Self {
         endurance_racing_planner_common::Driver {
-            id: self.id,
-            name: self.name.clone(),
+            id: val.id,
+            name: val.name.clone(),
             total_stints: 0,
             fair_share: false,
-            color: self.color.clone(),
-            utc_offset: self.utc_offset,
-            irating: self.irating,
-            stint_preference: self.stint_preference,
+            color: val.color.clone(),
+            utc_offset: val.utc_offset,
+            irating: val.irating,
+            stint_preference: val.stint_preference,
         }
     }
 }

@@ -142,6 +142,7 @@ impl Component for Landing {
                         history.push(PlannerRoutes::Overview { id: Uuid::nil() })
                     })
                 };
+                #[allow(clippy::needless_return)]
                 return html! {
                     <div class="content">
                         <div id="new-plans-container">
@@ -174,7 +175,9 @@ impl Component for Landing {
                     </div>
                 };
             }
-            None => {
+            None =>
+            {
+                #[allow(clippy::needless_return)]
                 return html! {
                     <div id="login-content" class="flex-container flex-column">
                         <div id="login-card" class="mdc-card">

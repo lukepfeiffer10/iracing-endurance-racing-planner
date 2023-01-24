@@ -2,7 +2,7 @@ use axum::{
     extract::{Path, State},
     http::StatusCode,
     response::IntoResponse,
-    Extension, Json,
+    Json,
 };
 use endurance_racing_planner_common::Driver;
 use sqlx::{types::Uuid, PgPool};
@@ -34,7 +34,7 @@ pub(crate) async fn add_driver(
 
 pub(crate) async fn get_plan_drivers(
     Path(id): Path<Uuid>,
-    Extension(pool): Extension<PgPool>,
+    State(pool): State<PgPool>,
 ) -> impl IntoResponse {
     get_drivers_by_plan_id(&pool, id)
         .await
@@ -58,7 +58,7 @@ pub(crate) async fn get_plan_drivers(
 
 pub(crate) async fn put_driver(
     Path(driver_id): Path<i32>,
-    Extension(pool): Extension<PgPool>,
+    State(pool): State<PgPool>,
     Json(driver): Json<endurance_racing_planner_common::Driver>,
 ) -> impl IntoResponse {
     let driver = data_access::entities::driver::Driver::create(driver, Uuid::nil());

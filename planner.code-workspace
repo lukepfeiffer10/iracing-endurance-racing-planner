@@ -13,6 +13,11 @@
     ]
   },
   "settings": {
-    "rust-analyzer.check.command": "clippy"
+    "rust-analyzer.check.command": "clippy",
+    "rust-analyzer.check.extraArgs": [
+      "--",
+      "-A",
+      "clippy::let_unit_value"
+    ]
   }
 }

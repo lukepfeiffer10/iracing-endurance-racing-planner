@@ -53,7 +53,7 @@ impl Component for EventConfig {
                 .data
                 .overall_event_config
                 .clone()
-                .unwrap_or_else(|| EventConfigDto::new()),
+                .unwrap_or_else(EventConfigDto::new),
             plan_id: planner_context.data.id,
             _planner_context_listener: planner_context_listener,
         }
@@ -153,14 +153,14 @@ impl Component for EventConfig {
             label: Some("Race Duration (HH:MM:SS)".to_string()),
             id: "race_duration".to_string(),
             disabled: false,
-            on_change: link.callback(|value| EventConfigMsg::ChangeRaceDuration(value))
+            on_change: link.callback(EventConfigMsg::ChangeRaceDuration)
         }};
         let session_start_utc_text_field_props = props! {MaterialTextFieldProps {
             value: format_date_time(self.data.session_start_utc.naive_utc()),
             label: Some("Session Start (UTC)".to_string()),
             id: "session-start-utc".to_string(),
             disabled: false,
-            on_change: link.callback(|value| EventConfigMsg::ChangeSessionStart(value))
+            on_change: link.callback(EventConfigMsg::ChangeSessionStart)
         }};
         let race_start_utc_text_field_props = props! {MaterialTextFieldProps {
             value: format_date_time(self.data.race_start_utc.naive_utc()),
@@ -179,7 +179,7 @@ impl Component for EventConfig {
             label: Some("Race Start (ToD)".to_string()),
             id: "race-start-tod".to_string(),
             disabled: false,
-            on_change: link.callback(|value| EventConfigMsg::ChangeRaceStartToD(value))
+            on_change: link.callback(EventConfigMsg::ChangeRaceStartToD)
         }};
         let race_end_tod_text_field_props = props! {MaterialTextFieldProps {
             value: format_date_time(self.data.race_end_tod),
@@ -192,7 +192,7 @@ impl Component for EventConfig {
             label: Some("Green Flag Offset (HH:MM:SS)".to_string()),
             id: "green-flag-offset".to_string(),
             disabled: false,
-            on_change: link.callback(|value| EventConfigMsg::ChangeGreenFlagOffset(value))
+            on_change: link.callback(EventConfigMsg::ChangeGreenFlagOffset)
         }};
         let tod_offset_text_field_props = props! {MaterialTextFieldProps {
             value: format_duration(self.data.tod_offset, DurationFormat::HourMinSec),
@@ -226,7 +226,7 @@ impl Component for EventConfig {
 }
 
 impl EventConfig {
-    fn update_planner_context(&self, ctx: &Context<Self>) -> () {
+    fn update_planner_context(&self, ctx: &Context<Self>) {
         let (planner_context, _) = ctx
             .link()
             .context::<RacePlannerContext>(Callback::noop())
