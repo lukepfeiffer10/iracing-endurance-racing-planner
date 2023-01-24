@@ -10,13 +10,24 @@ services:
       - '5432:5432'
     volumes:
       - db-data:/var/lib/postgresql/data
-  # api:
-  #   image: ubuntu:latest
-  #   environment:
-  #     - DATABASE_URL=value
-  #   ports:
-  #     - '3000:3000'
-  #   depends_on:
-  #     - db
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 1024M
+  api:
+    build: .
+    environment:
+      - DATABASE_URL=postgres://race_planner:RacingPlanner!2@db/race_planner
+      - RUST_LOG=debug
+    ports:
+      - '3000:3000'
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1024M
+    depends_on:
+      - db
 volumes:
   db-data:

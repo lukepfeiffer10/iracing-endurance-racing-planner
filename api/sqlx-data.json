@@ -1,0 +1,725 @@
+{
+  "db": "PostgreSQL",
+  "05b12047cb1e088a05bcd0f1696c89a17d3222d9084cb5ed75368d0ab2bedcfe": {
+    "describe": {
+      "columns": [
+        {
+          "name": "id",
+          "ordinal": 0,
+          "type_info": "Uuid"
+        },
+        {
+          "name": "title",
+          "ordinal": 1,
+          "type_info": "Text"
+        },
+        {
+          "name": "created_by",
+          "ordinal": 2,
+          "type_info": "Int4"
+        },
+        {
+          "name": "created_date",
+          "ordinal": 3,
+          "type_info": "Timestamptz"
+        },
+        {
+          "name": "modified_by",
+          "ordinal": 4,
+          "type_info": "Int4"
+        },
+        {
+          "name": "modified_date",
+          "ordinal": 5,
+          "type_info": "Timestamptz"
+        }
+      ],
+      "nullable": [
+        false,
+        false,
+        false,
+        false,
+        true,
+        true
+      ],
+      "parameters": {
+        "Left": [
+          "Uuid",
+          "Text",
+          "Int4",
+          "Timestamptz"
+        ]
+      }
+    },
+    "query": "INSERT INTO plans (id, title, created_by, created_date) VALUES ($1, $2, $3, $4)\n                RETURNING *"
+  },
+  "2cef93f9fd8ef5881a8fde5a27b48cec3e72c4d0d659717ac48e05acf0e721eb": {
+    "describe": {
+      "columns": [
+        {
+          "name": "id",
+          "ordinal": 0,
+          "type_info": "Uuid"
+        },
+        {
+          "name": "stint_type: StintType",
+          "ordinal": 1,
+          "type_info": "Int2"
+        },
+        {
+          "name": "number",
+          "ordinal": 2,
+          "type_info": "Int4"
+        },
+        {
+          "name": "utc_start",
+          "ordinal": 3,
+          "type_info": "Timestamptz"
+        },
+        {
+          "name": "utc_end",
+          "ordinal": 4,
+          "type_info": "Timestamptz"
+        },
+        {
+          "name": "tod_start",
+          "ordinal": 5,
+          "type_info": "Timestamp"
+        },
+        {
+          "name": "tod_end",
+          "ordinal": 6,
+          "type_info": "Timestamp"
+        },
+        {
+          "name": "actual_end",
+          "ordinal": 7,
+          "type_info": "Timestamptz"
+        },
+        {
+          "name": "duration_delta",
+          "ordinal": 8,
+          "type_info": "Interval"
+        },
+        {
+          "name": "damage_modifier",
+          "ordinal": 9,
+          "type_info": "Interval"
+        },
+        {
+          "name": "calculated_laps",
+          "ordinal": 10,
+          "type_info": "Int4"
+        },
+        {
+          "name": "actual_laps",
+          "ordinal": 11,
+          "type_info": "Int4"
+        },
+        {
+          "name": "driver_stint_count",
+          "ordinal": 12,
+          "type_info": "Int4"
+        },
+        {
+          "name": "driver_id",
+          "ordinal": 13,
+          "type_info": "Int4"
+        }
+      ],
+      "nullable": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        true
+      ],
+      "parameters": {
+        "Left": [
+          "Uuid"
+        ]
+      }
+    },
+    "query": "select \n            id\n            ,stint_type as \"stint_type: StintType\"\n            ,\"number\"\n            ,utc_start\n            ,utc_end\n            ,tod_start\n            ,tod_end\n            ,actual_end\n            ,duration_delta\n            ,damage_modifier\n            ,calculated_laps\n            ,actual_laps\n            ,driver_stint_count\n            ,driver_id\n            from public.stints s\n            WHERE s.plan_id = $1\n            ORDER BY s.number"
+  },
+  "3bcdf2b51bd57c45e85f2c604ac41c9c0d2f25b1e4da6be63dc04dc56c9faebe": {
+    "describe": {
+      "columns": [],
+      "nullable": [],
+      "parameters": {
+        "Left": [
+          "Uuid",
+          "Interval",
+          "Timestamptz",
+          "Timestamptz",
+          "Timestamptz",
+          "Timestamp",
+          "Timestamp",
+          "Interval",
+          "Interval"
+        ]
+      }
+    },
+    "query": "\n                INSERT INTO event_configs AS ec (plan_id, race_duration, session_start_utc, race_start_utc, race_end_utc, race_start_tod, race_end_tod, green_flag_offset, tod_offset)\n                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)\n                ON CONFLICT (plan_id) DO UPDATE \n                SET \n                    race_duration = $2, \n                    session_start_utc = $3, \n                    race_start_utc = $4,\n                    race_end_utc = $5,\n                    race_start_tod = $6,\n                    race_end_tod = $7, \n                    green_flag_offset = $8,\n                    tod_offset = $9\n                WHERE ec.plan_id = $1"
+  },
+  "4c0851338fee9d9035f5b1fdc5162ec93a769f1663ec06ec3fd6575a1b9338ad": {
+    "describe": {
+      "columns": [],
+      "nullable": [],
+      "parameters": {
+        "Left": [
+          "Int4",
+          "Timestamptz",
+          "Uuid"
+        ]
+      }
+    },
+    "query": "UPDATE plans SET modified_by = $1, modified_date = $2 WHERE id = $3"
+  },
+  "65bafcd95d1487f5cae491b71f2b515ecac444c873fabdc921c0d06a9f975c00": {
+    "describe": {
+      "columns": [],
+      "nullable": [],
+      "parameters": {
+        "Left": [
+          "Int4",
+          "Uuid"
+        ]
+      }
+    },
+    "query": "INSERT INTO user_plans (user_id, plan_id) VALUES ($1, $2)"
+  },
+  "697f32626f96c4b569c8433a73d094cf3c954ebe77a47567d2df4f557e9bebb0": {
+    "describe": {
+      "columns": [],
+      "nullable": [],
+      "parameters": {
+        "Left": [
+          "Text",
+          "Text",
+          "Int2",
+          "Int2",
+          "Int2",
+          "Int4"
+        ]
+      }
+    },
+    "query": "UPDATE drivers \n               SET \n                name = $1,\n                color = $2,\n                utc_offset = $3,\n                irating = $4,\n                stint_preference = $5\n            WHERE id = $6"
+  },
+  "843923b9a0257cf80f1dff554e7dc8fdfc05f489328e8376513124dfb42996e3": {
+    "describe": {
+      "columns": [
+        {
+          "name": "id",
+          "ordinal": 0,
+          "type_info": "Int4"
+        },
+        {
+          "name": "name",
+          "ordinal": 1,
+          "type_info": "Text"
+        },
+        {
+          "name": "email",
+          "ordinal": 2,
+          "type_info": "Text"
+        },
+        {
+          "name": "oauth_id",
+          "ordinal": 3,
+          "type_info": "Text"
+        }
+      ],
+      "nullable": [
+        false,
+        false,
+        false,
+        false
+      ],
+      "parameters": {
+        "Left": [
+          "Int4"
+        ]
+      }
+    },
+    "query": "SELECT * FROM users WHERE id = $1"
+  },
+  "88e951ea73c6ee4df55b39786c62ef690d7730c96996609b92c1a8b0c93f5ec9": {
+    "describe": {
+      "columns": [],
+      "nullable": [],
+      "parameters": {
+        "Left": [
+          "Text",
+          "Int4",
+          "Timestamptz",
+          "Uuid"
+        ]
+      }
+    },
+    "query": "UPDATE plans SET title = $1, modified_by = $2, modified_date = $3 WHERE id = $4"
+  },
+  "9ab1fb2ff65388ce9f4b66a861f00e3af8280dcb088fe5b63322be8156fac400": {
+    "describe": {
+      "columns": [],
+      "nullable": [],
+      "parameters": {
+        "Left": [
+          "Interval",
+          "Int4",
+          "Interval",
+          "Bool",
+          "Uuid"
+        ]
+      }
+    },
+    "query": "\n                INSERT INTO fuel_stint_configs AS fsc (plan_id, pit_duration, fuel_tank_size, tire_change_time, add_tire_time)\n                VALUES ($5, $1, $2, $3, $4)\n                ON CONFLICT (plan_id) DO UPDATE \n                SET \n                    pit_duration = $1, \n                    fuel_tank_size = $2, \n                    tire_change_time = $3, \n                    add_tire_time = $4\n                WHERE fsc.plan_id = $5"
+  },
+  "a5d3694f9efcc4edf29131c19a6ff78bc318198449572e8c381fb74639c6c1f8": {
+    "describe": {
+      "columns": [
+        {
+          "name": "id",
+          "ordinal": 0,
+          "type_info": "Int4"
+        },
+        {
+          "name": "name",
+          "ordinal": 1,
+          "type_info": "Text"
+        },
+        {
+          "name": "email",
+          "ordinal": 2,
+          "type_info": "Text"
+        },
+        {
+          "name": "oauth_id",
+          "ordinal": 3,
+          "type_info": "Text"
+        }
+      ],
+      "nullable": [
+        false,
+        false,
+        false,
+        false
+      ],
+      "parameters": {
+        "Left": [
+          "Text",
+          "Text",
+          "Text"
+        ]
+      }
+    },
+    "query": "INSERT INTO users (name, email, oauth_id) VALUES ($1, $2, $3)\n                RETURNING *"
+  },
+  "aa2c62611c1fa2d968b7b49ab46573acf69c1961ac9d89fcbc410977c9711549": {
+    "describe": {
+      "columns": [
+        {
+          "name": "id",
+          "ordinal": 0,
+          "type_info": "Int4"
+        },
+        {
+          "name": "plan_id",
+          "ordinal": 1,
+          "type_info": "Uuid"
+        },
+        {
+          "name": "name",
+          "ordinal": 2,
+          "type_info": "Text"
+        },
+        {
+          "name": "color",
+          "ordinal": 3,
+          "type_info": "Text"
+        },
+        {
+          "name": "utc_offset",
+          "ordinal": 4,
+          "type_info": "Int2"
+        },
+        {
+          "name": "irating",
+          "ordinal": 5,
+          "type_info": "Int2"
+        },
+        {
+          "name": "stint_preference",
+          "ordinal": 6,
+          "type_info": "Int2"
+        }
+      ],
+      "nullable": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "parameters": {
+        "Left": [
+          "Uuid"
+        ]
+      }
+    },
+    "query": "SELECT * FROM drivers WHERE plan_id = $1 ORDER BY id"
+  },
+  "b7e72f6acfd49005d876a41d0aca01d941e742707eeeb47e5bd86a225d86d084": {
+    "describe": {
+      "columns": [
+        {
+          "name": "plan_id",
+          "ordinal": 0,
+          "type_info": "Uuid"
+        },
+        {
+          "name": "lap_time",
+          "ordinal": 1,
+          "type_info": "Interval"
+        },
+        {
+          "name": "fuel_per_lap",
+          "ordinal": 2,
+          "type_info": "Float4"
+        },
+        {
+          "name": "lap_count",
+          "ordinal": 3,
+          "type_info": "Int4"
+        },
+        {
+          "name": "lap_time_with_pit",
+          "ordinal": 4,
+          "type_info": "Interval"
+        },
+        {
+          "name": "track_time",
+          "ordinal": 5,
+          "type_info": "Interval"
+        },
+        {
+          "name": "track_time_with_pit",
+          "ordinal": 6,
+          "type_info": "Interval"
+        },
+        {
+          "name": "fuel_per_stint",
+          "ordinal": 7,
+          "type_info": "Float4"
+        },
+        {
+          "name": "stint_type: StintType",
+          "ordinal": 8,
+          "type_info": "Int2"
+        }
+      ],
+      "nullable": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "parameters": {
+        "Left": [
+          "Uuid"
+        ]
+      }
+    },
+    "query": "SELECT\n            plan_id,\n            lap_time,\n            fuel_per_lap,\n            lap_count,\n            lap_time_with_pit,\n            track_time,\n            track_time_with_pit,\n            fuel_per_stint,\n            stint_type as \"stint_type: StintType\"\n        FROM fuel_stint_average_times\n        WHERE plan_id = $1\n        ORDER BY stint_type"
+  },
+  "b85ce5addafbcecd1bf898473698d45839b35fa3ba0c244dc726f55e8fc34700": {
+    "describe": {
+      "columns": [
+        {
+          "name": "id",
+          "ordinal": 0,
+          "type_info": "Int4"
+        },
+        {
+          "name": "name",
+          "ordinal": 1,
+          "type_info": "Text"
+        },
+        {
+          "name": "email",
+          "ordinal": 2,
+          "type_info": "Text"
+        },
+        {
+          "name": "oauth_id",
+          "ordinal": 3,
+          "type_info": "Text"
+        }
+      ],
+      "nullable": [
+        false,
+        false,
+        false,
+        false
+      ],
+      "parameters": {
+        "Left": [
+          "Text"
+        ]
+      }
+    },
+    "query": "SELECT * FROM users WHERE oauth_id = $1"
+  },
+  "c57d8c84e49dfff495ef1115bdb8814a1e10e7bab1a1e82433b2e04bbb794794": {
+    "describe": {
+      "columns": [
+        {
+          "name": "id",
+          "ordinal": 0,
+          "type_info": "Uuid"
+        },
+        {
+          "name": "title",
+          "ordinal": 1,
+          "type_info": "Text"
+        },
+        {
+          "name": "created_by",
+          "ordinal": 2,
+          "type_info": "Int4"
+        },
+        {
+          "name": "created_date",
+          "ordinal": 3,
+          "type_info": "Timestamptz"
+        },
+        {
+          "name": "modified_by",
+          "ordinal": 4,
+          "type_info": "Int4"
+        },
+        {
+          "name": "modified_date",
+          "ordinal": 5,
+          "type_info": "Timestamptz"
+        },
+        {
+          "name": "owner",
+          "ordinal": 6,
+          "type_info": "Text"
+        }
+      ],
+      "nullable": [
+        false,
+        false,
+        false,
+        false,
+        true,
+        true,
+        false
+      ],
+      "parameters": {
+        "Left": [
+          "Int4"
+        ]
+      }
+    },
+    "query": "SELECT p.*, u.name as owner FROM plans p \n            INNER JOIN user_plans up ON up.plan_id = p.id \n            INNER JOIN users u ON u.id = p.created_by\n            WHERE up.user_id = $1\n            ORDER BY p.modified_date desc"
+  },
+  "d81ea4c080e893422e2b248b999d010d3e2c91d9cb65da453687cd1e9c7e7cb8": {
+    "describe": {
+      "columns": [],
+      "nullable": [],
+      "parameters": {
+        "Left": [
+          "Uuid",
+          "Interval",
+          "Float4",
+          "Int4",
+          "Interval",
+          "Interval",
+          "Interval",
+          "Float4",
+          "Int2"
+        ]
+      }
+    },
+    "query": "\n                INSERT INTO fuel_stint_average_times AS fs\n                    (plan_id,\n                    lap_time,\n                    fuel_per_lap,\n                    lap_count,\n                    lap_time_with_pit,\n                    track_time,\n                    track_time_with_pit,\n                    fuel_per_stint,\n                    stint_type)\n                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)\n                ON CONFLICT (plan_id, stint_type) DO UPDATE \n                SET \n                    lap_time = $2,\n                    fuel_per_lap = $3,\n                    lap_count = $4,\n                    lap_time_with_pit = $5,\n                    track_time = $6,\n                    track_time_with_pit = $7,\n                    fuel_per_stint = $8\n                WHERE fs.plan_id = $1 AND fs.stint_type = $9"
+  },
+  "e288be07b3513121cbc57a3d47369df16cce19f7449a6539a58618412e9cb674": {
+    "describe": {
+      "columns": [
+        {
+          "name": "id",
+          "ordinal": 0,
+          "type_info": "Uuid"
+        },
+        {
+          "name": "title",
+          "ordinal": 1,
+          "type_info": "Text"
+        },
+        {
+          "name": "race_duration: Option<_>",
+          "ordinal": 2,
+          "type_info": "Interval"
+        },
+        {
+          "name": "session_start_utc: Option<_>",
+          "ordinal": 3,
+          "type_info": "Timestamptz"
+        },
+        {
+          "name": "race_start_utc: Option<_>",
+          "ordinal": 4,
+          "type_info": "Timestamptz"
+        },
+        {
+          "name": "race_end_utc: Option<_>",
+          "ordinal": 5,
+          "type_info": "Timestamptz"
+        },
+        {
+          "name": "race_start_tod: Option<_>",
+          "ordinal": 6,
+          "type_info": "Timestamp"
+        },
+        {
+          "name": "race_end_tod: Option<_>",
+          "ordinal": 7,
+          "type_info": "Timestamp"
+        },
+        {
+          "name": "green_flag_offset: Option<_>",
+          "ordinal": 8,
+          "type_info": "Interval"
+        },
+        {
+          "name": "tod_offset: Option<_>",
+          "ordinal": 9,
+          "type_info": "Interval"
+        },
+        {
+          "name": "pit_duration: Option<_>",
+          "ordinal": 10,
+          "type_info": "Interval"
+        },
+        {
+          "name": "fuel_tank_size: Option<_>",
+          "ordinal": 11,
+          "type_info": "Int4"
+        },
+        {
+          "name": "tire_change_time: Option<_>",
+          "ordinal": 12,
+          "type_info": "Interval"
+        },
+        {
+          "name": "add_tire_time: Option<_>",
+          "ordinal": 13,
+          "type_info": "Bool"
+        }
+      ],
+      "nullable": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "parameters": {
+        "Left": [
+          "Uuid",
+          "Int4"
+        ]
+      }
+    },
+    "query": "SELECT p.id, p.title, \n                ec.race_duration as \"race_duration: Option<_>\", \n                ec.session_start_utc as \"session_start_utc: Option<_>\", \n                ec.race_start_utc as \"race_start_utc: Option<_>\", \n                ec.race_end_utc as \"race_end_utc: Option<_>\", \n                ec.race_start_tod as \"race_start_tod: Option<_>\",\n                ec.race_end_tod as \"race_end_tod: Option<_>\", \n                ec.green_flag_offset as \"green_flag_offset: Option<_>\", \n                ec.tod_offset as \"tod_offset: Option<_>\", \n                fsc.pit_duration as \"pit_duration: Option<_>\", \n                fsc.fuel_tank_size as \"fuel_tank_size: Option<_>\", \n                fsc.tire_change_time as \"tire_change_time: Option<_>\", \n                fsc.add_tire_time as \"add_tire_time: Option<_>\" \n            FROM plans p \n                INNER JOIN user_plans up ON up.plan_id = p.id AND up.user_id = $2\n                LEFT OUTER JOIN event_configs ec ON ec.plan_id = p.id\n                LEFT OUTER JOIN fuel_stint_configs fsc ON fsc.plan_id = p.id\n            WHERE p.id = $1"
+  },
+  "ffab7c35fe782a0fe437f365ed0aef50640b33fbdf3543077bee937417223665": {
+    "describe": {
+      "columns": [
+        {
+          "name": "id",
+          "ordinal": 0,
+          "type_info": "Int4"
+        },
+        {
+          "name": "plan_id",
+          "ordinal": 1,
+          "type_info": "Uuid"
+        },
+        {
+          "name": "name",
+          "ordinal": 2,
+          "type_info": "Text"
+        },
+        {
+          "name": "color",
+          "ordinal": 3,
+          "type_info": "Text"
+        },
+        {
+          "name": "utc_offset",
+          "ordinal": 4,
+          "type_info": "Int2"
+        },
+        {
+          "name": "irating",
+          "ordinal": 5,
+          "type_info": "Int2"
+        },
+        {
+          "name": "stint_preference",
+          "ordinal": 6,
+          "type_info": "Int2"
+        }
+      ],
+      "nullable": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "parameters": {
+        "Left": [
+          "Uuid",
+          "Text",
+          "Text",
+          "Int2",
+          "Int2",
+          "Int2"
+        ]
+      }
+    },
+    "query": "INSERT INTO drivers (plan_id, name, color, utc_offset, irating, stint_preference) VALUES ($1, $2, $3, $4, $5, $6)\n                RETURNING *"
+  }
+}
