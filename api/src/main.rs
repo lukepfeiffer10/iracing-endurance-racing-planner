@@ -10,6 +10,7 @@ use axum::{
     routing::{get, post, put},
     Router, TypedHeader,
 };
+use dotenvy::dotenv;
 use endurance_racing_planner_common::{GoogleOpenIdClaims, User};
 use jwt_compact::UntrustedToken;
 use sqlx::PgPool;
@@ -28,6 +29,7 @@ mod users;
 async fn main() {
     // initialize tracing
     tracing_subscriber::fmt::init();
+    dotenv().ok();
 
     let db_context = data_access::initialize().await.expect("database to exist");
 
