@@ -31,3 +31,14 @@ features = ['cors']
 [dependencies.sqlx]
 version = "0.6.1"
 features = ["postgres", "runtime-tokio-rustls", "uuid", "chrono", "offline"]
+
+[dependencies.reqwest]
+version = "0.11.9"
+features = ["json"]
+
+[dependencies.reqwest-middleware]
+version = "0.2.0"
+
+[dependencies.http-cache-reqwest]
+version = "0.5.2"
+features = ["manager-moka"]

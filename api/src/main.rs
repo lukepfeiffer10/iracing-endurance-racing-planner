@@ -12,9 +12,17 @@ use axum::{
 };
 use dotenvy::dotenv;
 use endurance_racing_planner_common::{GoogleOpenIdClaims, User};
-use jwt_compact::UntrustedToken;
+use http_cache_reqwest::{Cache, CacheMode, HttpCache, MokaManager};
+use jwt_compact::{
+    alg::{Rsa, RsaPublicKey},
+    jwk::JsonWebKey,
+    AlgorithmExt, TimeOptions, UntrustedToken,
+};
+use reqwest::Client;
+use reqwest_middleware::{ClientBuilder, ClientWithMiddleware};
+use serde::Deserialize;
 use sqlx::PgPool;
-use std::net::SocketAddr;
+use std::{env, net::SocketAddr};
 use tower_http::cors::CorsLayer;
 
 use crate::data_access::user::Users;
@@ -32,6 +40,13 @@ async fn main() {
     dotenv().ok();
 
     let db_context = data_access::initialize().await.expect("database to exist");
+    let http_client = ClientBuilder::new(Client::new())
+        .with(Cache(HttpCache {
+            mode: CacheMode::Default,
+            manager: MokaManager::default(),
+            options: None,
+        }))
+        .build();
 
     // build our application with a route
     let app = Router::new()
@@ -51,7 +66,10 @@ async fn main() {
         )
         .route("/drivers/:id", put(drivers::put_driver))
         .layer(cors_layer())
-        .with_state(AppState { pool: db_context });
+        .with_state(AppState {
+            pool: db_context,
+            http_client,
+        });
 
     // run our app with hyper
     // `axum::Server` is a re-export of `hyper::Server`
@@ -64,9 +82,11 @@ async fn main() {
 }
 
 fn cors_layer() -> CorsLayer {
+    let ui_origin =
+        env::var("UI_ORIGIN").expect("UI_ORIGIN environment variable to be set to enable CORS");
     CorsLayer::new()
         .allow_headers([CONTENT_TYPE, AUTHORIZATION])
-        .allow_origin("http://localhost:9000".parse::<HeaderValue>().unwrap())
+        .allow_origin(ui_origin.parse::<HeaderValue>().unwrap())
         .allow_methods([
             Method::GET,
             Method::PUT,
@@ -80,11 +100,18 @@ fn cors_layer() -> CorsLayer {
 #[derive(Clone)]
 pub struct AppState {
     pool: PgPool,
+    http_client: ClientWithMiddleware,
 }
 
 impl FromRef<AppState> for PgPool {
     fn from_ref(app_state: &AppState) -> PgPool {
         app_state.pool.clone()
+    }
+}
+
+impl FromRef<AppState> for ClientWithMiddleware {
+    fn from_ref(app_state: &AppState) -> ClientWithMiddleware {
+        app_state.http_client.clone()
     }
 }
 
@@ -106,14 +133,38 @@ where
                 .await
                 .map_err(|_| (StatusCode::UNAUTHORIZED, "no bearer token".to_string()))?;
 
+        let http_client = AppState::from_ref(state).http_client;
+        let oauth_signing_keys = get_google_signing_keys(http_client).await.map_err(|_| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "no oauth signing keys".to_string(),
+            )
+        })?;
         let oauth_id = UntrustedToken::new(bearer.token())
             .map_err(|_| (StatusCode::UNAUTHORIZED, "invalid token".to_string()))
             .and_then(|parsed_token| {
-                parsed_token
-                    .deserialize_claims_unchecked::<GoogleOpenIdClaims>()
-                    .map_err(|_| (StatusCode::UNAUTHORIZED, "invalid token".to_string()))
+                let mut signing_key = &oauth_signing_keys.keys[0].key;
+                let token_key_id = &parsed_token.header().key_id;
+                if let Some(key_id) = token_key_id {
+                    signing_key = oauth_signing_keys
+                        .keys
+                        .iter()
+                        .find(|key| &key.kid == key_id)
+                        .map(|k| &k.key)
+                        .ok_or((StatusCode::UNAUTHORIZED, "bad signing key".to_string()))?;
+                }
+                let rsa_public_key = RsaPublicKey::try_from(signing_key).unwrap();
+                let token_message = Rsa::rs256()
+                    .validate_integrity::<GoogleOpenIdClaims>(&parsed_token, &rsa_public_key);
+                token_message.map_err(|_| (StatusCode::UNAUTHORIZED, "invalid token".to_string()))
             })
-            .map(|claims| claims.custom.sub)?;
+            .and_then(|token| {
+                let claims = token
+                    .claims()
+                    .validate_expiration(&TimeOptions::default())
+                    .map_err(|_| (StatusCode::UNAUTHORIZED, "token expired".to_string()))?;
+                Ok(claims.custom.sub.clone())
+            })?;
 
         Users::get_user_by_oauth_id(&pool, oauth_id)
             .await
@@ -126,4 +177,46 @@ where
             .and_then(|user| user.ok_or((StatusCode::UNAUTHORIZED, "user not found".to_string())))
             .map(Self)
     }
+}
+
+#[derive(Deserialize)]
+struct GoogleDiscoveryResponse {
+    jwks_uri: String,
+}
+
+#[derive(Deserialize)]
+struct GoogleSigningKey<'a> {
+    kid: String,
+    #[serde(flatten)]
+    key: JsonWebKey<'a>,
+}
+
+#[derive(Deserialize)]
+struct GoogleSigningKeysResponse<'a> {
+    keys: Vec<GoogleSigningKey<'a>>,
+}
+
+async fn get_google_signing_keys(
+    client: ClientWithMiddleware,
+) -> Result<GoogleSigningKeysResponse<'static>, Box<dyn std::error::Error>> {
+    const GOOGLE_DISCOVERY_URL: &str =
+        "https://accounts.google.com/.well-known/openid-configuration";
+
+    let discovery_info = client
+        .get(GOOGLE_DISCOVERY_URL)
+        .header("Accept", "application/json")
+        .send()
+        .await?
+        .json::<GoogleDiscoveryResponse>()
+        .await?;
+
+    let signing_keys = client
+        .get(&discovery_info.jwks_uri)
+        .header("Accept", "application/json")
+        .send()
+        .await?
+        .json::<GoogleSigningKeysResponse>()
+        .await?;
+
+    Ok(signing_keys)
 }
