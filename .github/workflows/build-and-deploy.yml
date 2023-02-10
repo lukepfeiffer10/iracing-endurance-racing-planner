@@ -6,9 +6,7 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
-  OAUTH_CLIENT_ID: 709154627100-di88dffek3d6mrvgnr83kg4jlh28hopm.apps.googleusercontent.com
-  API_BASE_BATH: https://h0ynlr5wgj.execute-api.us-east-1.amazonaws.com
-
+  
 jobs:
   api-build:
     runs-on: ubuntu-latest
@@ -29,6 +27,10 @@ jobs:
   web-build:
     runs-on: ubuntu-latest
 
+    env:    
+      OAUTH_CLIENT_ID: 709154627100-di88dffek3d6mrvgnr83kg4jlh28hopm.apps.googleusercontent.com
+      API_BASE_BATH: https://h0ynlr5wgj.execute-api.us-east-1.amazonaws.com
+      
     steps:
     - uses: actions/checkout@v3
     - name: Restore
