@@ -75,7 +75,7 @@ impl Component for Overview {
             .fuel_stint_average_times
             .as_ref()
             .map(|times| times.standard_fuel_stint.lap_time)
-            .unwrap_or(Duration::zero());
+            .unwrap_or_else(Duration::zero);
         html! {
             <div class="mdc-typography flex-container flex-row">
                 <div id="left-column" class="flex-container flex-column">

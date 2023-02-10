@@ -132,7 +132,11 @@ impl Reducible for RacePlanner {
                 },
             },
             RacePlannerAction::SetStints(stints) => {
-                let schedule_rows = if stints.len() > 0 { Some(stints) } else { None };
+                let schedule_rows = if !stints.is_empty() {
+                    Some(stints)
+                } else {
+                    None
+                };
                 RacePlanner {
                     data: RacePlannerDto {
                         schedule_rows,
@@ -162,7 +166,7 @@ pub struct RacePlannerProviderProps {
 #[function_component(RacePlannerProvider)]
 pub fn race_planner_provider(props: &RacePlannerProviderProps) -> Html {
     //TODO: setup an is_loading here
-    let race_planner = use_reducer(|| RacePlanner::new());
+    let race_planner = use_reducer(RacePlanner::new);
     let is_loading = use_state(|| false);
 
     let current_route = use_route::<PlannerRoutes>().unwrap();
@@ -227,15 +231,11 @@ fn load_plan(plan_id: Uuid, race_planner_context: RacePlannerContext, done_callb
             Ok(plan) => race_planner_context.dispatch(RacePlannerAction::SetPlan(plan)),
             Err(e) => panic!("failed to load the plan: {:?}", e),
         }
-        match schedule_result {
-            Ok(stints) => race_planner_context.dispatch(RacePlannerAction::SetStints(stints)),
-            Err(_) => (), //TODO: log the error
+        if let Ok(stints) = schedule_result {
+            race_planner_context.dispatch(RacePlannerAction::SetStints(stints))
         };
-        match driver_roster_result {
-            Ok(drivers) => {
-                race_planner_context.dispatch(RacePlannerAction::SetDriverRoster(drivers))
-            }
-            Err(_) => (), //TODO: log the error
+        if let Ok(drivers) = driver_roster_result {
+            race_planner_context.dispatch(RacePlannerAction::SetDriverRoster(drivers))
         };
 
         done_callback.emit(())
@@ -302,7 +302,7 @@ impl Component for Planner {
                     plan_id,
                     PatchRacePlannerDto {
                         id: plan_id,
-                        title: Some(title.clone()),
+                        title: Some(title),
                         overall_event_config: None,
                         overall_fuel_stint_config: None,
                         fuel_stint_average_times: None,
@@ -362,19 +362,25 @@ impl Component for Planner {
 impl Planner {
     fn switch(switch: &PlannerRoutes) -> Html {
         match switch {
-            PlannerRoutes::Roster { id: _ } => {
+            PlannerRoutes::Roster { id: _ } =>
+            {
+                #[allow(clippy::needless_return, clippy::let_unit_value)]
                 return html! {
                     <div class="mdc-typography flex-container flex-row">
                         <DriverRoster />
                     </div>
                 }
             }
-            PlannerRoutes::Overview { id: _ } => {
+            PlannerRoutes::Overview { id: _ } =>
+            {
+                #[allow(clippy::needless_return, clippy::let_unit_value)]
                 return html! {
                     <Overview />
                 }
             }
-            PlannerRoutes::Schedule { id: _ } => {
+            PlannerRoutes::Schedule { id: _ } =>
+            {
+                #[allow(clippy::needless_return, clippy::let_unit_value)]
                 return html! {
                     <Schedule />
                 }
@@ -450,7 +456,7 @@ pub fn parse_duration_from_str(str: &str, format: DurationFormat) -> Result<Dura
                 _ => None,
             };
 
-            duration_seconds.map(|value| Duration::seconds(value))
+            duration_seconds.map(Duration::seconds)
         }
         DurationFormat::MinSecMilli => {
             let pattern = regex!(
@@ -460,19 +466,19 @@ pub fn parse_duration_from_str(str: &str, format: DurationFormat) -> Result<Dura
             captures.map(|captures| {
                 let minutes = captures
                     .name("M1")
-                    .or(captures.name("M2"))
+                    .or_else(|| captures.name("M2"))
                     .and_then(|m| m.as_str().parse::<i64>().ok())
                     .unwrap_or(0);
                 let seconds = captures
                     .name("S1")
-                    .or(captures.name("S2"))
-                    .or(captures.name("S3"))
-                    .or(captures.name("S4"))
+                    .or_else(|| captures.name("S2"))
+                    .or_else(|| captures.name("S3"))
+                    .or_else(|| captures.name("S4"))
                     .and_then(|m| m.as_str().parse::<i64>().ok())
                     .unwrap();
                 let milliseconds = captures
                     .name("mil1")
-                    .or(captures.name("mil2"))
+                    .or_else(|| captures.name("mil2"))
                     .map(|m| {
                         let mut milliseconds = m.as_str().parse::<i64>().unwrap();
                         if milliseconds < 10 {

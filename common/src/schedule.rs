@@ -98,8 +98,8 @@ impl ScheduleStintDto {
         tire_change_time: Duration,
         damage_modifier: Duration,
     ) -> Self {
-        let utc_start = previous_row.utc_end.clone();
-        let tod_start = previous_row.tod_end.clone();
+        let utc_start = previous_row.utc_end;
+        let tod_start = previous_row.tod_end;
 
         let (stint_duration, calculated_laps) = calculate_stint_duration_and_laps(
             utc_start,
@@ -120,7 +120,7 @@ impl ScheduleStintDto {
             tod_end: tod_start + stint_duration,
             actual_end: utc_start + stint_duration,
             duration_delta: Duration::zero(),
-            damage_modifier: previous_row.damage_modifier.clone(),
+            damage_modifier: previous_row.damage_modifier,
             calculated_laps,
             actual_laps: calculated_laps,
             driver_id: 0,

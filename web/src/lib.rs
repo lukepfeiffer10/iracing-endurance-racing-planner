@@ -56,14 +56,18 @@ impl Display for AppRoutes {
 
 fn switch(switch: &AppRoutes) -> Html {
     match switch {
-        AppRoutes::Planner => {
+        AppRoutes::Planner =>
+        {
+            #[allow(clippy::needless_return, clippy::let_unit_value)]
             return html! {
                 <RacePlannerProvider>
                     <Planner />
                 </RacePlannerProvider>
             }
         }
-        AppRoutes::Landing => {
+        AppRoutes::Landing =>
+        {
+            #[allow(clippy::needless_return, clippy::let_unit_value)]
             return html! {
                 <Landing />
             }
@@ -134,6 +138,7 @@ pub fn app() -> Html {
         })
     };
 
+    #[allow(clippy::let_unit_value)]
     let _handle_auth_redirect = {
         let app_state_context = app_state_context.clone();
         let is_loading = is_loading.clone();
@@ -276,6 +281,7 @@ pub fn header() -> Html {
     };
 
     if current_route == AppRoutes::Landing && app_state_context.user_info.is_none() {
+        #[allow(clippy::needless_return)]
         return html! {};
     } else {
         let profile_picture_section = if let Some(user) = &app_state_context.user_info {
@@ -327,7 +333,7 @@ pub fn header() -> Html {
         let edit_button = if current_route == AppRoutes::Planner {
             if state.is_editing_title {
                 let done_button_click = {
-                    let app_state = app_state_context.clone();
+                    let app_state = app_state_context;
                     let state = state.clone();
                     Callback::from(move |_| {
                         state.set(HeaderState {
@@ -341,7 +347,7 @@ pub fn header() -> Html {
                     })
                 };
                 let cancel_button_click = {
-                    let state = state.clone();
+                    let state = state;
                     Callback::from(move |_| {
                         state.set(HeaderState {
                             is_editing_title: false,
@@ -358,7 +364,7 @@ pub fn header() -> Html {
                 }
             } else {
                 let edit_button_click = {
-                    let state = state.clone();
+                    let state = state;
                     Callback::from(move |_| {
                         state.set(HeaderState {
                             is_editing_title: true,
@@ -375,6 +381,7 @@ pub fn header() -> Html {
             html! {}
         };
 
+        #[allow(clippy::needless_return)]
         return html! {
             <TopAppBar id="app-header">
                 <Section>

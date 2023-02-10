@@ -76,7 +76,7 @@ impl Component for TimeOfDayLapFactors {
             TimeOfDayLapFactor {
                 time_of_day: "Night1".to_string(),
                 lap_time: Duration::zero(),
-                tod_start: NaiveTime::from_hms(0, 0, 0),
+                tod_start: NaiveTime::from_hms_opt(0, 0, 0).unwrap(),
                 delta: Duration::zero(),
                 factor: 0.0,
                 has_edited_lap_time: false,
@@ -84,7 +84,7 @@ impl Component for TimeOfDayLapFactors {
             TimeOfDayLapFactor {
                 time_of_day: "Morning".to_string(),
                 lap_time: Duration::zero(),
-                tod_start: NaiveTime::from_hms(4, 0, 0),
+                tod_start: NaiveTime::from_hms_opt(0, 0, 0).unwrap(),
                 delta: Duration::zero(),
                 factor: 0.0,
                 has_edited_lap_time: false,
@@ -92,7 +92,7 @@ impl Component for TimeOfDayLapFactors {
             TimeOfDayLapFactor {
                 time_of_day: "Afternoon".to_string(),
                 lap_time: Duration::zero(),
-                tod_start: NaiveTime::from_hms(11, 0, 0),
+                tod_start: NaiveTime::from_hms_opt(0, 0, 0).unwrap(),
                 delta: Duration::zero(),
                 factor: 0.0,
                 has_edited_lap_time: false,
@@ -100,7 +100,7 @@ impl Component for TimeOfDayLapFactors {
             TimeOfDayLapFactor {
                 time_of_day: "Evening".to_string(),
                 lap_time: Duration::zero(),
-                tod_start: NaiveTime::from_hms(18, 0, 0),
+                tod_start: NaiveTime::from_hms_opt(0, 0, 0).unwrap(),
                 delta: Duration::zero(),
                 factor: 0.0,
                 has_edited_lap_time: false,
@@ -108,7 +108,7 @@ impl Component for TimeOfDayLapFactors {
             TimeOfDayLapFactor {
                 time_of_day: "Night2".to_string(),
                 lap_time: Duration::zero(),
-                tod_start: NaiveTime::from_hms(21, 0, 0),
+                tod_start: NaiveTime::from_hms_opt(0, 0, 0).unwrap(),
                 delta: Duration::zero(),
                 factor: 0.0,
                 has_edited_lap_time: false,

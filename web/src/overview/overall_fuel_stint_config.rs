@@ -34,12 +34,13 @@ impl Component for OverallFuelStintConfig {
             .link()
             .context::<RacePlannerContext>(ctx.link().batch_callback(
                 |context: RacePlannerContext| -> Option<OverallFuelStintMessage> {
-                    match &context.data.overall_fuel_stint_config {
-                        Some(fuel_stint_config) => {
-                            Some(OverallFuelStintMessage::OnCreate(fuel_stint_config.clone()))
-                        }
-                        None => None,
-                    }
+                    context
+                        .data
+                        .overall_fuel_stint_config
+                        .as_ref()
+                        .map(|fuel_stint_config| {
+                            OverallFuelStintMessage::OnCreate(fuel_stint_config.clone())
+                        })
                 },
             ))
             .expect("No Planner Context Provided");
@@ -49,8 +50,8 @@ impl Component for OverallFuelStintConfig {
                 .data
                 .overall_fuel_stint_config
                 .as_ref()
-                .map(|data| data.clone())
-                .unwrap_or_else(|| OverallFuelStintConfigData::new()),
+                .cloned()
+                .unwrap_or_else(OverallFuelStintConfigData::new),
             add_tire_time_input_ref: NodeRef::default(),
             _planner_context_listener: planner_context_listener,
         }
@@ -142,19 +143,19 @@ impl Component for OverallFuelStintConfig {
             value: format_duration(self.data.pit_duration, DurationFormat::MinSecMilli),
             label: Some("Pit Duration (MM:SS.mmm)".to_string()),
             id: "pit-duration".to_string(),
-            on_change: link.callback(|value| OverallFuelStintMessage::UpdatePitDuration(value))
+            on_change: link.callback(OverallFuelStintMessage::UpdatePitDuration)
         }};
         let fuel_tank_size_props = props! {MaterialTextFieldProps {
             value: self.data.fuel_tank_size.to_string(),
             label: Some("Fuel Tank Size".to_string()),
             id: "fuel-tank-size".to_string(),
-            on_change: link.callback(|value| OverallFuelStintMessage::UpdateFuelTankSize(value))
+            on_change: link.callback(OverallFuelStintMessage::UpdateFuelTankSize)
         }};
         let tire_change_time_props = props! {MaterialTextFieldProps {
             value: format_duration(self.data.tire_change_time, DurationFormat::MinSecMilli),
             label: Some("Tire Change Time (MM:SS.mmm)".to_string()),
             id: "tire-change-time".to_string(),
-            on_change: link.callback(|value| OverallFuelStintMessage::UpdateTireChangeTime(value))
+            on_change: link.callback(OverallFuelStintMessage::UpdateTireChangeTime)
         }};
 
         let add_tire_time_input_ref = self.add_tire_time_input_ref.clone();

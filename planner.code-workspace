@@ -1,15 +1,23 @@
 {
-    "folders": [
-        {
-            "path": "."
-        }
-    ],
-    "extensions": {
-        "recommendations": [
-            "ckolkman.vscode-postgres",
-            "rust-lang.rust-analyzer",
-            "syler.sass-indented",
-            "bungcip.better-toml"
-        ]
+  "folders": [
+    {
+      "path": "."
     }
+  ],
+  "extensions": {
+    "recommendations": [
+      "ckolkman.vscode-postgres",
+      "rust-lang.rust-analyzer",
+      "syler.sass-indented",
+      "bungcip.better-toml"
+    ]
+  },
+  "settings": {
+    "rust-analyzer.check.command": "clippy",
+    "rust-analyzer.check.extraArgs": [
+      "--",
+      "-A",
+      "clippy::let_unit_value"
+    ]
+  }
 }

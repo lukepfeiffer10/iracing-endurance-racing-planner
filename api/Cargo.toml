@@ -1,121 +1,44 @@
-﻿[[bin]]
-name = 'add-plan'
-path = 'src/bin/add_plan.rs'
-test = false
-
-[[bin]]
-name = 'add-user'
-path = 'src/bin/add_user.rs'
-test = false
-
-[[bin]]
-name = 'get-plan'
-path = 'src/bin/get_plan.rs'
-test = false
-
-[[bin]]
-name = 'get-plans'
-path = 'src/bin/get_plans.rs'
-test = false
-
-[[bin]]
-name = 'get-user'
-path = 'src/bin/get_user.rs'
-test = false
-
-[[bin]]
-name = 'me'
-path = 'src/bin/me.rs'
-test = false
-
-[[bin]]
-name = 'patch-plan'
-path = 'src/bin/patch_plan.rs'
-test = false
-
-[[bin]]
-name = 'add-schedule'
-path = 'src/bin/add_schedule.rs'
-test = false
-
-[[bin]]
-name = 'get-schedule'
-path = 'src/bin/get_schedule.rs'
-test = false
-
-[[bin]]
-name = 'put-schedule'
-path = 'src/bin/put_schedule.rs'
-test = false
-
-[[bin]]
-name = 'add-plan-driver'
-path = 'src/bin/add_plan_driver.rs'
-test = false
-
-[[bin]]
-name = 'get-plan-drivers'
-path = 'src/bin/get_plan_drivers.rs'
-test = false
-
-[[bin]]
-name = 'put-driver'
-path = 'src/bin/put_driver.rs'
-test = false
-
 [package]
-name = 'api'
-version = '0.1.0'
-edition = '2021'
+name = "api"
+version = "0.1.0"
+edition = "2021"
+publish = false
 
 [dependencies]
-lambda_http = '0.5.2'
-serde_json = '1.0.79'
-
-[dependencies.axum]
-version = '0.5.12'
-features = ['headers']
-
-[dependencies.axum-aws-lambda]
-version = '0.2.0'
+axum = { version = "0.6.2", features = ["headers"] }
+axum-macros = "0.3"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0.79"
+tokio = { version = "1.0", features = ["full"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+uuid = "1.2.2"
+endurance_racing_planner_common = { version = "0.1.0", path = "../common" }
+dotenvy = "0.15.6"
 
 [dependencies.chrono]
-version = '0.4.19'
-
-[dependencies.env_logger]
-version = '0.9.0'
-
-[dependencies.log]
-version = '0.4.0'
+version = "0.4.19"
 
 [dependencies.jwt-compact]
-version = '0.5.0'
+version = "0.5.0"
 default-features = false
-features = [
-    'clock',
-    'with_rsa',
-]
-
-[dependencies.tokio]
-version = '1.17.0'
-features = ['full']
+features = ['clock', 'with_rsa']
 
 [dependencies.tower-http]
-version = '0.3.4'
+version = "0.3.4"
 features = ['cors']
 
-[dependencies.serde]
-version = '1.0.136'
-
 [dependencies.sqlx]
-version = '0.6.1'
-features = [
-    'postgres',
-    'runtime-tokio-rustls',
-]
+version = "0.6.1"
+features = ["postgres", "runtime-tokio-rustls", "uuid", "chrono", "offline"]
 
-[dependencies.endurance_racing_planner_common]
-path = '../common'
+[dependencies.reqwest]
+version = "0.11.9"
+features = ["json"]
 
-[dependencies.data_access]
-path = '../data-access'
+[dependencies.reqwest-middleware]
+version = "0.2.0"
+
+[dependencies.http-cache-reqwest]
+version = "0.5.2"
+features = ["manager-moka"]
