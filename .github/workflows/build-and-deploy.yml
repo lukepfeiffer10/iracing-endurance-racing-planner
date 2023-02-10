@@ -1,0 +1,64 @@
+name: Build and Deploy
+
+on:
+  push:
+    branches: [ "main" ]
+
+env:
+  CARGO_TERM_COLOR: always
+  OAUTH_CLIENT_ID: 709154627100-di88dffek3d6mrvgnr83kg4jlh28hopm.apps.googleusercontent.com
+  API_BASE_BATH: https://h0ynlr5wgj.execute-api.us-east-1.amazonaws.com
+
+jobs:
+  api-build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+    - name: Build
+      run: cargo build --release
+    - name: Run tests
+      run: cargo test --verbose
+    - name: Upload a Build Artifact
+      uses: actions/upload-artifact@v3.1.2
+      with:
+        name: api
+        path: "**/target/release/**/*.*"
+        if-no-files-found: error
+        
+  web-build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+    - name: Restore
+      working-directory: ./web
+      run: npm ci
+    - name: Build
+      working-directory: ./web
+      run: npm run build
+    - name: Upload a Build Artifact
+      uses: actions/upload-artifact@v3.1.2
+      with:
+        name: web
+        path: web/dist/**/*.*
+        if-no-files-found: error
+
+  deploy:
+    needs: [api-build, web-build]
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Download API Artifact
+      uses: actions/download-artifact@v3.0.2
+      with:
+        path: ./api
+        name: api
+    - name: Download Web Artifact
+      uses: actions/download-artifact@v3.0.2
+      with:
+        path: ./web
+        name: web
+    - name: List the web files
+      run: ls -R ./web
+    
