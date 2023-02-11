@@ -17,6 +17,8 @@ jobs:
 
     steps:
     - uses: actions/checkout@v3
+    - name: Setup environment variables
+      run: echo "API_BASE_PATH=$API_BASE_PATH\nOAUTH_CLIENT_ID=$OAUTH_CLIENT_ID" >> .env
     - name: Build rust
       run: cargo build --release
     - name: Run tests
