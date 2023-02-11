@@ -11,27 +11,19 @@ jobs:
   api-build:
     runs-on: ubuntu-latest
 
-    steps:
-    - uses: actions/checkout@v3
-    - name: Build
-      run: cargo build --release -p api
-    - name: Run tests
-      run: cargo test --verbose -p api
-        
-  web-build:
-    runs-on: ubuntu-latest
-
     env:      
       OAUTH_CLIENT_ID: fake_client_id
       API_BASE_BATH: fake_api_base_path
-      
+
     steps:
-    - uses: actions/checkout@v3    
+    - uses: actions/checkout@v3
+    - name: Build rust
+      run: cargo build --release
     - name: Run tests
-      run: cargo test --verbose -p web
-    - name: Restore
+      run: cargo test --verbose
+    - name: Restore npm
       working-directory: ./web
       run: npm ci
-    - name: Build
+    - name: Build npm
       working-directory: ./web
       run: npm run build
