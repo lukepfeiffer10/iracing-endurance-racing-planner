@@ -14,9 +14,9 @@ jobs:
     steps:
     - uses: actions/checkout@v3
     - name: Build
-      run: cargo build --release
+      run: cargo build --release -p api
     - name: Run tests
-      run: cargo test --verbose
+      run: cargo test --verbose -p api
     - name: Upload a Build Artifact
       uses: actions/upload-artifact@v3.1.2
       with:
@@ -33,6 +33,8 @@ jobs:
       
     steps:
     - uses: actions/checkout@v3
+    - name: Run tests
+      run: cargo test --verbose -p web
     - name: Restore
       working-directory: ./web
       run: npm ci

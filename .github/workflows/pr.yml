@@ -6,8 +6,6 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
-  OAUTH_CLIENT_ID: fake_client_id
-  API_BASE_BATH: fake_api_base_path
       
 jobs:
   api-build:
@@ -15,20 +13,22 @@ jobs:
 
     steps:
     - uses: actions/checkout@v3
-    - name: Setup environment variables
-      run: echo "API_BASE_PATH=$API_BASE_PATH\nOAUTH_CLIENT_ID=$OAUTH_CLIENT_ID" >> .env
     - name: Build
-      run: cargo build --release
+      run: cargo build --release -p api
     - name: Run tests
-      run: cargo test --verbose
+      run: cargo test --verbose -p api
         
   web-build:
     runs-on: ubuntu-latest
+
+    env:      
+      OAUTH_CLIENT_ID: fake_client_id
+      API_BASE_BATH: fake_api_base_path
       
     steps:
-    - uses: actions/checkout@v3
-    - name: Setup environment variables
-      run: echo "API_BASE_PATH=$API_BASE_PATH\nOAUTH_CLIENT_ID=$OAUTH_CLIENT_ID" >> .env
+    - uses: actions/checkout@v3    
+    - name: Run tests
+      run: cargo test --verbose -p web
     - name: Restore
       working-directory: ./web
       run: npm ci
