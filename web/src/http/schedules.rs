@@ -4,7 +4,7 @@ use uuid::Uuid;
 use super::{get_async, post, put, CustomError};
 
 pub fn create_schedule(plan_id: Uuid, schedule: Vec<ScheduleStintDto>) {
-    post::<Vec<ScheduleStintDto>, ()>(format!("/plans/{}/schedule", plan_id), schedule, None)
+    post::<Vec<ScheduleStintDto>, ()>(format!("plans/{}/schedule", plan_id), schedule, None)
 }
 
 pub async fn get_schedule_async(plan_id: Uuid) -> Result<Vec<ScheduleStintDto>, CustomError> {
@@ -12,5 +12,5 @@ pub async fn get_schedule_async(plan_id: Uuid) -> Result<Vec<ScheduleStintDto>, 
 }
 
 pub fn update_schedule(plan_id: Uuid, schedule: Vec<ScheduleStintDto>) {
-    put::<Vec<ScheduleStintDto>>(format!("/plans/{}/schedule", plan_id), schedule)
+    put::<Vec<ScheduleStintDto>>(format!("plans/{}/schedule", plan_id), schedule)
 }

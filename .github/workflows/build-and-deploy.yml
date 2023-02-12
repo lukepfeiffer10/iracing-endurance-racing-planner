@@ -13,7 +13,7 @@ jobs:
 
     env:    
       OAUTH_CLIENT_ID: 709154627100-di88dffek3d6mrvgnr83kg4jlh28hopm.apps.googleusercontent.com
-      API_BASE_BATH: https://h0ynlr5wgj.execute-api.us-east-1.amazonaws.com
+      API_BASE_BATH: https://enduranceraceplanner.com/api/
 
     steps:
     - uses: actions/checkout@v3
@@ -39,7 +39,7 @@ jobs:
       uses: actions/upload-artifact@v3.1.2
       with:
         name: api
-        path: "**/target/release/**/*.*"
+        path: "**/target/release/api"
         if-no-files-found: error    
 
   deploy:
@@ -59,4 +59,6 @@ jobs:
         name: web
     - name: List the web files
       run: ls -R ./web
+    - name: List the api files
+      run: ls -R ./api
     
