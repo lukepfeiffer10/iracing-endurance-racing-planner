@@ -60,7 +60,6 @@ async fn main() {
             get(drivers::get_plan_drivers).post(drivers::add_driver),
         )
         .route("/drivers/:id", put(drivers::put_driver))
-        // .layer(cors_layer())
         .with_state(AppState {
             pool: db_context,
             http_client,
