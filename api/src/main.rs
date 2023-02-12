@@ -2,11 +2,7 @@ use axum::{
     async_trait,
     extract::{FromRef, FromRequestParts},
     headers::{authorization::Bearer, Authorization},
-    http::{
-        header::{AUTHORIZATION, CONTENT_TYPE},
-        request::Parts,
-        HeaderValue, Method, StatusCode,
-    },
+    http::{request::Parts, StatusCode},
     routing::{get, post, put},
     Router, TypedHeader,
 };
@@ -22,8 +18,7 @@ use reqwest::Client;
 use reqwest_middleware::{ClientBuilder, ClientWithMiddleware};
 use serde::Deserialize;
 use sqlx::PgPool;
-use std::{env, net::SocketAddr};
-use tower_http::cors::CorsLayer;
+use std::net::SocketAddr;
 
 use crate::data_access::user::Users;
 
@@ -65,7 +60,6 @@ async fn main() {
             get(drivers::get_plan_drivers).post(drivers::add_driver),
         )
         .route("/drivers/:id", put(drivers::put_driver))
-        .layer(cors_layer())
         .with_state(AppState {
             pool: db_context,
             http_client,
@@ -79,22 +73,6 @@ async fn main() {
         .serve(app.into_make_service())
         .await
         .unwrap();
-}
-
-fn cors_layer() -> CorsLayer {
-    let ui_origin =
-        env::var("UI_ORIGIN").expect("UI_ORIGIN environment variable to be set to enable CORS");
-    CorsLayer::new()
-        .allow_headers([CONTENT_TYPE, AUTHORIZATION])
-        .allow_origin(ui_origin.parse::<HeaderValue>().unwrap())
-        .allow_methods([
-            Method::GET,
-            Method::PUT,
-            Method::POST,
-            Method::PATCH,
-            Method::DELETE,
-            Method::OPTIONS,
-        ])
 }
 
 #[derive(Clone)]

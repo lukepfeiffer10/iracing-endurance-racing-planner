@@ -273,11 +273,11 @@ async fn create_user(claims: &GoogleOpenIdClaims) -> Result<User, Box<dyn Error>
         oauth_id: claims.sub.clone(),
     };
 
-    let new_user = http::post_async("/users".to_string(), user).await;
+    let new_user = http::post_async("users".to_string(), user).await;
 
     Ok(new_user)
 }
 
 pub async fn get_me() -> Result<User, CustomError> {
-    http::get_async::<User>("/users/me".to_string()).await
+    http::get_async::<User>("users/me".to_string()).await
 }
