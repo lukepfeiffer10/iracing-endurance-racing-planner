@@ -156,7 +156,21 @@ pub async fn handle_auth_code_redirect() -> Result<Option<UserInfo>, AuthError> 
                         Ok(created_user) => Ok(created_user),
                         Err(_) => Err(AuthError::Other("failed to create a user".into())),
                     },
-                    _ => Err(AuthError::Other("failed to get me".into())),
+                    CustomError::TokenNotFound(e) => Err(AuthError::Other(format!(
+                        "failed to get me. token not found. {}",
+                        e
+                    ))),
+                    CustomError::BadToken(e) => Err(AuthError::Other(format!(
+                        "failed to get me. bad token. {}",
+                        e
+                    ))),
+                    CustomError::TokenExpired => Err(AuthError::Other(
+                        "failed to get me. token expired.".to_string(),
+                    )),
+                    CustomError::BadUrl(e) => Err(AuthError::Other(format!(
+                        "failed to get me. bad url. {}",
+                        e
+                    ))),
                 },
             }?;
 
