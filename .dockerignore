@@ -3,3 +3,4 @@
 **/node_modules
 .env*
 planner.code-workspace
+api/enduranceraceplanner.com.service
