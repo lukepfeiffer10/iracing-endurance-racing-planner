@@ -66,7 +66,7 @@ jobs:
     - name: Migrate database
       env:
         DATABASE_URL: ${{ secrets.DATABASE_URL }}
-      run: cd api/ && cargo sqlx migrate run
+      run: cd api/ && DATABASE_URL=$DATABASE_URL cargo sqlx migrate run
     - name: Zip artifacts
       run: zip -r artifacts.zip artifacts/
     - name: Copy artifacts to server
