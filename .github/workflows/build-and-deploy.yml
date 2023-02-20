@@ -45,20 +45,28 @@ jobs:
   deploy:
     needs: [build]
     runs-on: ubuntu-latest
+    environment: Production
     
     steps:
+    - uses: actions/checkout@v3
     - name: Download API Artifact
       uses: actions/download-artifact@v3.0.2
       with:
-        path: ./api
+        path: ./artifacts/api
         name: api
     - name: Download Web Artifact
       uses: actions/download-artifact@v3.0.2
       with:
-        path: ./web
+        path: ./artifacts/web
         name: web
-    - name: List the web files
-      run: ls -R ./web
-    - name: List the api files
-      run: ls -R ./api
+    - name: List the artifacts files
+      run: ls -R ./artifacts
+    - name: Install sqlx-cli
+      run: cargo install sqlx-cli --no-default-features --features rustls,postgres
+    - name: Migrate database
+      run: cd api/ && DATABASE_URL=${{ secrets.DATABASE_URL }} cargo sqlx migrate run
+    - name: Zip artifacts
+      run: zip -r artifacts.zip artifacts/
+    - name: Copy artifacts to server
+      run: scp -i "${{ secrets.SSH_DEPLOY_KEY }}" artifacts.zip ubuntu@ec2-52-87-108-46.compute-1.amazonaws.com:~
     
