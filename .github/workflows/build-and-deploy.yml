@@ -64,9 +64,13 @@ jobs:
     - name: Install sqlx-cli
       run: cargo install sqlx-cli --no-default-features --features rustls,postgres
     - name: Migrate database
-      run: cd api/ && DATABASE_URL=${{ secrets.DATABASE_URL }} cargo sqlx migrate run
+      env:
+        DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      run: cd api/ && cargo sqlx migrate run
     - name: Zip artifacts
       run: zip -r artifacts.zip artifacts/
     - name: Copy artifacts to server
-      run: scp -i "${{ secrets.SSH_DEPLOY_KEY }}" artifacts.zip ubuntu@ec2-52-87-108-46.compute-1.amazonaws.com:~
+      env:
+        SSH_DEPLOY_KEY: ${{ secrets.SSH_DEPLOY_KEY }}
+      run: scp -i $SSH_DEPLOY_KEY artifacts.zip ubuntu@ec2-52-87-108-46.compute-1.amazonaws.com:~
     
