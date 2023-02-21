@@ -8,7 +8,7 @@ files:
 file_exists_behavior: OVERWRITE
 hooks:
   BeforeInstall:
-    - location: scripts/clear-web-directory.sh
+    - location: deploy-scripts/clear-web-directory.sh
   ApplicationStart:
-    - location: scripts/restart-api.sh
+    - location: deploy-scripts/restart-api.sh
       timeout: 180
