@@ -29,18 +29,26 @@ jobs:
     - name: Build npm
       working-directory: ./web
       run: npm run build-ci
-    - name: Upload a Build Artifact
+    - name: Upload web app Artifact
       uses: actions/upload-artifact@v3.1.2
       with:
         name: web
         path: web/dist/**/*.*
         if-no-files-found: error
-    - name: Upload a Build Artifact
+    - name: Upload api Artifact
       uses: actions/upload-artifact@v3.1.2
       with:
         name: api
         path: "**/target/release/api"
-        if-no-files-found: error    
+        if-no-files-found: error
+    - name: Upload deployment scripts Artifact
+      uses: actions/upload-artifact@v3.1.2
+      with:
+        name: deploy-scripts
+        path: |
+          deploy-scripts/*.sh
+          appspec.yml
+        if-no-files-found: error
 
   deploy:
     needs: [build]
@@ -48,7 +56,6 @@ jobs:
     environment: Production
     
     steps:
-#    - uses: actions/checkout@v3
     - name: Download API Artifact
       uses: actions/download-artifact@v3.0.2
       with:
@@ -59,14 +66,11 @@ jobs:
       with:
         path: ./artifacts/web
         name: web
-    - name: List the artifacts files
-      run: ls -R ./artifacts
-#     - name: Install sqlx-cli
-#       run: cargo install sqlx-cli --no-default-features --features rustls,postgres
-#     - name: Migrate database
-#       env:
-#         DATABASE_URL: ${{ secrets.DATABASE_URL }}
-#       run: cd api/ && DATABASE_URL=$DATABASE_URL cargo sqlx migrate run
+    - name: Download deploy scripts Artifact
+      uses: actions/download-artifact@v3.0.2
+      with:
+        path: ./artifacts/
+        name: deploy-scripts
     - name: Configure AWS Credentials
       uses: aws-actions/configure-aws-credentials@v1
       with:
