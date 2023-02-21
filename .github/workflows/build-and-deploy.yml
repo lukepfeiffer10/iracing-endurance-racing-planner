@@ -61,12 +61,12 @@ jobs:
         name: web
     - name: List the artifacts files
       run: ls -R ./artifacts
-    - name: Install sqlx-cli
-      run: cargo install sqlx-cli --no-default-features --features rustls,postgres
-    - name: Migrate database
-      env:
-        DATABASE_URL: ${{ secrets.DATABASE_URL }}
-      run: cd api/ && DATABASE_URL=$DATABASE_URL cargo sqlx migrate run
+#     - name: Install sqlx-cli
+#       run: cargo install sqlx-cli --no-default-features --features rustls,postgres
+#     - name: Migrate database
+#       env:
+#         DATABASE_URL: ${{ secrets.DATABASE_URL }}
+#       run: cd api/ && DATABASE_URL=$DATABASE_URL cargo sqlx migrate run
     - name: Zip artifacts
       run: zip -r artifacts.zip artifacts/
     - name: Copy artifacts to server
