@@ -48,7 +48,7 @@ jobs:
     environment: Production
     
     steps:
-    - uses: actions/checkout@v3
+#    - uses: actions/checkout@v3
     - name: Download API Artifact
       uses: actions/download-artifact@v3.0.2
       with:
@@ -72,5 +72,5 @@ jobs:
     - name: Copy artifacts to server
       env:
         SSH_DEPLOY_KEY: ${{ secrets.SSH_DEPLOY_KEY }}
-      run: echo "$SSH_DEPLOY_KEY" > deploy_key.pem && scp -i deploy_key.pem artifacts.zip ubuntu@ec2-52-87-108-46.compute-1.amazonaws.com:~
+      run: echo "$SSH_DEPLOY_KEY" > deploy_key.pem && scp -v -i deploy_key.pem artifacts.zip ubuntu@ec2-52-87-108-46.compute-1.amazonaws.com:~
     
