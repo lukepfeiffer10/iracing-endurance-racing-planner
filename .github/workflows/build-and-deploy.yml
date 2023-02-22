@@ -78,5 +78,5 @@ jobs:
         aws-secret-access-key: ${{ secrets.AWS_ACCESS_SECRET_KEY }}
         aws-region: us-east-1
     - name: Copy artifacts to s3
-      run: aws s3 cp artifacts s3://enduranceraceplanner-artifacts/ --recursive
+      run: tar czf artifacts.tar.gz artifacts && aws s3 cp artifacts.tar.gz s3://enduranceraceplanner-artifacts/
     
