@@ -79,4 +79,6 @@ jobs:
         aws-region: us-east-1
     - name: Copy artifacts to s3
       run: tar czf artifacts.tar.gz artifacts && aws s3 cp artifacts.tar.gz s3://enduranceraceplanner-artifacts/
+    - name: Deploy code to ec2
+      run: aws create-deployment --application-name enduranceraceplanner --deployment-group-name enduranceraceplanner-prod-dg --revision s3 --s3-location bucket=s3://enduranceraceplanner-artifacts/,key=artifacts,bundleType=tgz
     
