@@ -21,8 +21,9 @@ RUN apt-get update && apt-get install -y nodejs npm
 RUN echo "API_BASE_PATH=http://localhost:3000/api/\nOAUTH_CLIENT_ID=709154627100-fbcvr0njtbah2jfgv5bghnt7t39r28k9.apps.googleusercontent.com" > .env
 COPY common/ ./common/
 WORKDIR /usr/src/web
-COPY web/ .
+COPY web/package*.json .
 RUN npm ci
+COPY web/ .
 RUN npm run build
 
 FROM nginx:latest
