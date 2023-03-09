@@ -6,7 +6,7 @@ use crate::http::schedules::get_schedule_async;
 use crate::overview::Overview;
 use crate::roster::DriverRoster;
 use crate::schedule::Schedule;
-use crate::Loading;
+use crate::{AppStateAction, AppStateContext, Loading};
 use boolinator::Boolinator;
 use chrono::{Duration, NaiveDateTime};
 use endurance_racing_planner_common::schedule::ScheduleStintDto;
@@ -165,11 +165,17 @@ pub struct RacePlannerProviderProps {
 
 #[function_component(RacePlannerProvider)]
 pub fn race_planner_provider(props: &RacePlannerProviderProps) -> Html {
-    //TODO: setup an is_loading here
     let race_planner = use_reducer(RacePlanner::new);
     let is_loading = use_state(|| false);
 
-    let current_route = use_route::<PlannerRoutes>().unwrap();
+    let current_route = use_route::<PlannerRoutes>();
+    let app_context = use_context::<AppStateContext>().unwrap();
+
+    if current_route.is_none() {
+        return html! {};
+    }
+
+    let current_route = current_route.unwrap();
     let history = use_history().unwrap();
     let load_planner = {
         let race_planner = race_planner.clone();
@@ -198,6 +204,7 @@ pub fn race_planner_provider(props: &RacePlannerProviderProps) -> Html {
                 load_plan(
                     id,
                     race_planner,
+                    app_context,
                     Callback::from(move |_| is_loading.set(false)),
                 )
             }
@@ -218,7 +225,12 @@ pub fn race_planner_provider(props: &RacePlannerProviderProps) -> Html {
     }
 }
 
-fn load_plan(plan_id: Uuid, race_planner_context: RacePlannerContext, done_callback: Callback<()>) {
+fn load_plan(
+    plan_id: Uuid,
+    race_planner_context: RacePlannerContext,
+    app_state_context: AppStateContext,
+    done_callback: Callback<()>,
+) {
     spawn_local(async move {
         let get_plan = get_plan_async(plan_id);
         let get_schedule = get_schedule_async(plan_id);
@@ -228,7 +240,10 @@ fn load_plan(plan_id: Uuid, race_planner_context: RacePlannerContext, done_callb
             join!(get_plan, get_schedule, get_driver_roster);
 
         match plan_result {
-            Ok(plan) => race_planner_context.dispatch(RacePlannerAction::SetPlan(plan)),
+            Ok(plan) => {
+                app_state_context.dispatch(AppStateAction::SetPageTitle(plan.title.clone()));
+                race_planner_context.dispatch(RacePlannerAction::SetPlan(plan))
+            }
             Err(e) => panic!("failed to load the plan: {:?}", e),
         }
         if let Ok(stints) = schedule_result {
