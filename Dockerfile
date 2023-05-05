@@ -1,4 +1,4 @@
-FROM rust:1.66 as restore
+FROM rust:1.68 as restore
 WORKDIR /usr/src
 COPY Cargo.* .
 COPY common/Cargo.* ./common/
@@ -7,6 +7,7 @@ COPY web/Cargo.* ./web/
 RUN mkdir ./common/src && mkdir ./api/src && mkdir ./web/src
 RUN echo "fn main() {}" > ./common/src/lib.rs && echo "fn main() {}" > ./api/src/main.rs && echo "fn main() {}" > ./web/src/lib.rs
 RUN cargo build
+RUN cargo install wasm-pack
 
 FROM restore as build
 WORKDIR /usr/src
