@@ -17,6 +17,8 @@ jobs:
 
     steps:
     - uses: actions/checkout@v3
+    - name: Install wasm-pack
+      run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
     - name: Setup environment variables
       run: echo "API_BASE_PATH=$API_BASE_PATH\nOAUTH_CLIENT_ID=$OAUTH_CLIENT_ID" >> .env
     - name: Build rust
