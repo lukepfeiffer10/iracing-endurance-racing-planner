@@ -185,19 +185,6 @@
     },
     "query": "UPDATE plans SET modified_by = $1, modified_date = $2 WHERE id = $3"
   },
-  "65bafcd95d1487f5cae491b71f2b515ecac444c873fabdc921c0d06a9f975c00": {
-    "describe": {
-      "columns": [],
-      "nullable": [],
-      "parameters": {
-        "Left": [
-          "Int4",
-          "Uuid"
-        ]
-      }
-    },
-    "query": "INSERT INTO user_plans (user_id, plan_id) VALUES ($1, $2)"
-  },
   "697f32626f96c4b569c8433a73d094cf3c954ebe77a47567d2df4f557e9bebb0": {
     "describe": {
       "columns": [],
@@ -485,6 +472,44 @@
       }
     },
     "query": "SELECT * FROM users WHERE oauth_id = $1"
+  },
+  "c4607bb7d2ec61d1c167ba55655a59fd6a94a2afbf9627e0483a52a696dc6799": {
+    "describe": {
+      "columns": [
+        {
+          "name": "id",
+          "ordinal": 0,
+          "type_info": "Int4"
+        },
+        {
+          "name": "name",
+          "ordinal": 1,
+          "type_info": "Text"
+        },
+        {
+          "name": "email",
+          "ordinal": 2,
+          "type_info": "Text"
+        },
+        {
+          "name": "oauth_id",
+          "ordinal": 3,
+          "type_info": "Text"
+        }
+      ],
+      "nullable": [
+        false,
+        false,
+        false,
+        false
+      ],
+      "parameters": {
+        "Left": [
+          "Uuid"
+        ]
+      }
+    },
+    "query": "SELECT u.* FROM users u \n                INNER JOIN user_plans up ON up.user_id = u.id\n                INNER JOIN plans p ON up.plan_id = p.id AND p.created_by != up.user_id\n            WHERE up.plan_id = $1"
   },
   "c57d8c84e49dfff495ef1115bdb8814a1e10e7bab1a1e82433b2e04bbb794794": {
     "describe": {

@@ -1,4 +1,9 @@
-﻿@import "variables";
+﻿@use "@material/theme" with ($primary: #0759CA,
+  $secondary: #07baca,
+  $background: #fff,
+);
+@use "material-components-web";
+@import "variables";
 
 html,
 body,
@@ -98,12 +103,13 @@ footer {
   padding: 16px;
 }
 
-.mdc-checkbox .mdc-checkbox__native-control:enabled:checked~.mdc-checkbox__background {
-  background-color: var(--mdc-theme-primary);
-  border-color: var(--mdc-theme-primary);
-}
+// .mdc-checkbox .mdc-checkbox__native-control:enabled:checked~.mdc-checkbox__background {
+//   background-color: var(--mdc-theme-primary);
+//   border-color: var(--mdc-theme-primary);
+// }
 
 @import "src/schedule/schedule";
 @import "src/landing/landing";
 @import "src/header";
 @import "src/loading/loading";
+@import "src/share_plan";

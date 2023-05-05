@@ -1,0 +1,25 @@
+@use "@material/button";
+
+#share-plan-button {
+    margin-right: $gutter;
+    @include button.filled-accessible($secondary-color)
+}
+
+#share-plan-modal {
+    width: 560px;
+
+    .mdc-text-field {
+        display: flex;
+        flex: 1;
+    }
+
+    .email-chip-set {
+        margin-top: 10px;
+    }
+
+    .email-chip {
+        padding: 10px;
+        margin-right: 5px;
+        @include button.shape-radius(50%);
+    }
+}

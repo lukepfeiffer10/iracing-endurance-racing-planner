@@ -44,8 +44,13 @@ module.exports = {
                             name: 'bundle.css',
                         },
                     },
-                    {loader: 'extract-loader'},
-                    {loader: 'css-loader'},
+                    { loader: 'extract-loader' },
+                    {
+                        loader: 'css-loader',
+                        options: {
+                            esModule: false
+                        }
+                    },
                     {
                         loader: 'postcss-loader',
                         options: {
@@ -62,8 +67,7 @@ module.exports = {
                             // Prefer Dart Sass
                             implementation: require('sass'),
 
-                            // See https://github.com/webpack-contrib/sass-loader/issues/804
-                            webpackImporter: false,
+                            webpackImporter: true,
                             sassOptions: {
                                 includePaths: ['./node_modules']
                             }
