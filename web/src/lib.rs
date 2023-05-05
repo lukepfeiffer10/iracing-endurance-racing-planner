@@ -3,12 +3,14 @@ use crate::event_bus::{EventBus, EventBusInput};
 use crate::landing::Landing;
 use crate::loading::Loading;
 use crate::planner::{Planner, RacePlannerProvider};
+use crate::share_plan::SharePlan;
 use endurance_racing_planner_common::GoogleOpenIdClaims;
 use gloo_console::error;
 use gloo_storage::{LocalStorage, Storage};
 use jwt_compact::UntrustedToken;
 use std::fmt::{Display, Formatter};
 use std::rc::Rc;
+use uuid::Uuid;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::spawn_local;
 use web_sys::{window, Window};
@@ -36,6 +38,7 @@ mod overview;
 mod planner;
 mod roster;
 mod schedule;
+mod share_plan;
 
 #[derive(Routable, Clone, Eq, PartialEq, Copy)]
 enum AppRoutes {
@@ -87,12 +90,14 @@ pub struct AppState {
     pub user_info: Option<UserInfo>,
     pub nav_sidebar_open: bool,
     pub page_title: Option<String>,
+    pub plan_id: Option<Uuid>,
 }
 
 pub enum AppStateAction {
     SetUser(Option<UserInfo>),
     SetSidebarOpen(bool),
     SetPageTitle(String),
+    SetPlanId(Option<Uuid>),
 }
 
 impl Reducible for AppState {
@@ -113,6 +118,10 @@ impl Reducible for AppState {
                 page_title: Some(title),
                 ..clone
             },
+            AppStateAction::SetPlanId(id) => Self {
+                plan_id: id,
+                ..clone
+            },
         }
         .into()
     }
@@ -126,6 +135,7 @@ pub fn app() -> Html {
         user_info: None,
         nav_sidebar_open: false,
         page_title: None,
+        plan_id: None,
     });
     let is_loading = use_state_eq(|| false);
     let nav_sidebar_open = app_state_context.nav_sidebar_open;
@@ -134,6 +144,7 @@ pub fn app() -> Html {
         Callback::from(move |_| {
             app_state_context
                 .dispatch(AppStateAction::SetPageTitle(AppRoutes::Landing.to_string()));
+            app_state_context.dispatch(AppStateAction::SetPlanId(None));
             app_state_context.dispatch(AppStateAction::SetSidebarOpen(false));
         })
     };
@@ -286,15 +297,13 @@ pub fn header() -> Html {
     } else {
         let profile_picture_section = if let Some(user) = &app_state_context.user_info {
             html! {
-                <Section align={Align::End}>
-                    <div class="mdc-menu-surface--anchor">
-                        <img id="profile-picture" class="mdc-top-app-bar__action-item" src={user.picture.clone()} onclick={profile_picture_onclick} />
-                        <Menu open={state.profile_menu_open} onclose={profile_menu_onclose} corner={Corner::BottomLeft} fixed_position={true}>
-                            <MenuItem text={user.name.clone()} />
-                            <MenuItem text={user.email.clone()} />
-                        </Menu>
-                    </div>
-                </Section>
+                <div class="mdc-menu-surface--anchor">
+                    <img id="profile-picture" class="mdc-top-app-bar__action-item" src={user.picture.clone()} onclick={profile_picture_onclick} />
+                    <Menu open={state.profile_menu_open} onclose={profile_menu_onclose} corner={Corner::BottomLeft} fixed_position={true}>
+                        <MenuItem text={user.name.clone()} />
+                        <MenuItem text={user.email.clone()} />
+                    </Menu>
+                </div>
             }
         } else {
             html! {}
@@ -330,10 +339,11 @@ pub fn header() -> Html {
             }
         };
 
-        let edit_button = if current_route == AppRoutes::Planner {
+        let is_on_plan_route = current_route == AppRoutes::Planner;
+        let edit_button = if is_on_plan_route {
             if state.is_editing_title {
                 let done_button_click = {
-                    let app_state = app_state_context;
+                    let app_state = app_state_context.clone();
                     let state = state.clone();
                     Callback::from(move |_| {
                         state.set(HeaderState {
@@ -389,7 +399,12 @@ pub fn header() -> Html {
                     { page_title_html }
                     { edit_button }
                 </Section>
-                { profile_picture_section }
+                <Section align={Align::End}>
+                    if is_on_plan_route && app_state_context.plan_id.is_some() {
+                        <SharePlan plan_id={app_state_context.plan_id.unwrap()} />
+                    }
+                    { profile_picture_section }
+                </Section>
             </TopAppBar>
         };
     }

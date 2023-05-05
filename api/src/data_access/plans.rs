@@ -3,10 +3,10 @@ use endurance_racing_planner_common::{
     EventConfigDto, OverallFuelStintConfigData, RacePlannerDto, StintDataDto,
 };
 use sqlx::{
-    postgres::{types::PgInterval, PgArguments},
+    postgres::{types::PgInterval, PgArguments, PgQueryResult},
     query::Query,
     types::Uuid,
-    PgPool, Postgres,
+    PgPool, Postgres, QueryBuilder,
 };
 use tokio::try_join;
 
@@ -148,13 +148,7 @@ pub async fn create_plan(pool: &PgPool, plan: Plan) -> Result<Plan, sqlx::Error>
     .fetch_one(pool)
     .await?;
 
-    sqlx::query!(
-        r#"INSERT INTO user_plans (user_id, plan_id) VALUES ($1, $2)"#,
-        plan.created_by,
-        plan.id
-    )
-    .execute(pool)
-    .await?;
+    add_users_to_plan(pool, plan.id, &[plan.created_by]).await?;
 
     Ok(plan)
 }
@@ -176,6 +170,18 @@ pub async fn get_plans_by_user_id(
     .await?;
 
     Ok(plans)
+}
+
+pub async fn add_users_to_plan(pool: &PgPool, plan_id: Uuid, user_ids: &[i32]) -> Result<PgQueryResult, sqlx::Error> {
+    let mut query_builder: QueryBuilder<Postgres> = QueryBuilder::new(
+        "INSERT INTO user_plans (user_id, plan_id) "
+    );
+    query_builder.push_values(user_ids.iter(), |mut builder, user_id|  {
+        builder.push_bind(user_id).push_bind(plan_id);
+    });
+    query_builder.build()
+    .execute(pool)
+    .await
 }
 
 pub async fn patch_plan(pool: &PgPool, plan: PatchPlan) -> Result<bool, sqlx::Error> {

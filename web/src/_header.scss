@@ -1,13 +1,9 @@
 ﻿@use "@material/textfield/mdc-text-field";
 @use "@material/textfield";
-@use "@material/top-app-bar";
+@use "@material/button";
 @import "variables";
 
 .header-text-field {
   @include textfield.ink-color(white);
   @include textfield.caret-color(white)
-}
-
-#app-header {
-  @include top-app-bar.fill-color($main-color);
 }

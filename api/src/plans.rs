@@ -124,3 +124,39 @@ pub(crate) async fn patch_plan(
         ),
     }
 }
+
+pub(crate) async fn share_plan(
+    AuthenticatedUser(_): AuthenticatedUser,
+    State(pool): State<PgPool>,
+    Path(id): Path<Uuid>,
+    Json(emails): Json<Vec<String>>,
+) -> impl IntoResponse {
+    match data_access::user::Users::get_users_by_emails(&pool, &emails).await {
+        Ok(users) => {
+            let user_ids = users.iter().map(|user| user.id).collect::<Vec<_>>();
+            if user_ids.is_empty() {
+                return StatusCode::OK;
+            }
+            match data_access::plans::add_users_to_plan(&pool, id, &user_ids).await {
+                Ok(_) => StatusCode::OK,
+                Err(_) => StatusCode::INTERNAL_SERVER_ERROR,
+            }
+        }
+        Err(_) => StatusCode::INTERNAL_SERVER_ERROR,
+    }
+}
+
+pub(crate) async fn get_plan_shared_users(
+    AuthenticatedUser(_): AuthenticatedUser,
+    State(pool): State<PgPool>,
+    Path(id): Path<Uuid>,
+) -> impl IntoResponse {
+    match data_access::user::Users::get_shared_users_by_plan_id(&pool, id).await {
+        Ok(users) => (StatusCode::OK, Json(users)).into_response(),
+        Err(_) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json("Something went wrong getting shared users. Please try again later.".to_string()),
+        )
+            .into_response(),
+    }
+}

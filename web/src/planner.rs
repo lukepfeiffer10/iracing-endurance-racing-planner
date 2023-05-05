@@ -286,6 +286,15 @@ impl Component for Planner {
             .add_history_listener(link.callback(|_| PlannerMsg::UpdateTab))
             .unwrap();
 
+        let plan_id = link.route::<PlannerRoutes>().map(|route| match route {
+            PlannerRoutes::Schedule { id } => id,
+            PlannerRoutes::Roster { id } => id,
+            PlannerRoutes::Overview { id } => id,
+        });
+
+        let (app_state_context, _) = link.context::<AppStateContext>(Callback::noop()).unwrap();
+        app_state_context.dispatch(AppStateAction::SetPlanId(plan_id));
+
         let (_, context_listener) = link
             .context::<RacePlannerContext>(link.callback(|_| PlannerMsg::UpdateTab))
             .unwrap();
@@ -460,7 +469,6 @@ pub fn parse_duration_from_str(str: &str, format: DurationFormat) -> Result<Dura
         DurationFormat::HourMinSec => {
             let duration_split = str
                 .split(':')
-                .into_iter()
                 .map(|part| part.parse::<i64>().unwrap())
                 .collect::<Vec<_>>();
 

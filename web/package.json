@@ -25,6 +25,7 @@
     "webpack-dev-server": "^4.7.2"
   },
   "dependencies": {
+    "@material/shape": "^14.0.0",
     "material-components-web": "^13.0.0"
   }
 }

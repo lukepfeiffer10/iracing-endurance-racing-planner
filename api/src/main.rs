@@ -59,6 +59,8 @@ async fn main() {
             "/plans/:id/drivers",
             get(drivers::get_plan_drivers).post(drivers::add_driver),
         )
+        .route("/plans/:id/share", post(plans::share_plan))
+        .route("/plans/:id/share", get(plans::get_plan_shared_users))
         .route("/drivers/:id", put(drivers::put_driver))
         .with_state(AppState {
             pool: db_context,
