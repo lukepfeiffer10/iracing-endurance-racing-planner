@@ -1,4 +1,4 @@
-FROM rust:1.68 as restore
+FROM rust:1.74 as restore
 WORKDIR /usr/src
 COPY Cargo.* .
 COPY common/Cargo.* ./common/
@@ -18,7 +18,8 @@ RUN cargo install --path ./api
 
 FROM restore as web-build
 WORKDIR /usr/src
-RUN apt-get update && apt-get install -y nodejs npm
+RUN curl -sL https://deb.nodesource.com/setup_18.x | bash -
+RUN apt-get update && apt-get install -y nodejs
 RUN echo "API_BASE_PATH=http://localhost:3000/api/\nOAUTH_CLIENT_ID=709154627100-fbcvr0njtbah2jfgv5bghnt7t39r28k9.apps.googleusercontent.com" > .env
 COPY common/ ./common/
 WORKDIR /usr/src/web
@@ -27,7 +28,7 @@ RUN npm ci
 COPY web/ .
 RUN npm run build
 
-FROM nginx:latest
+FROM nginx:1.25.3
 COPY api-entrypoint.sh /docker-entrypoint.d
 COPY default.conf /etc/nginx/conf.d/
 COPY --from=build /usr/local/cargo/bin/api /usr/local/bin/api
