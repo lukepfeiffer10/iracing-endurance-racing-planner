@@ -7,13 +7,9 @@ version = '1.0.136'
 features = ['derive']
 
 [dependencies.chrono]
-version = '0.4.19'
+version = '0.4.31'
 features = ['serde']
 
 [dependencies.uuid]
 version = '1.2.2'
-features = [
-    'v4',
-    'serde',
-    'js',
-]
+features = ['v4', 'serde', 'js']

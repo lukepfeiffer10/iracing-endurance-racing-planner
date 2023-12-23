@@ -18,6 +18,9 @@
       "--",
       "-A",
       "clippy::let_unit_value"
+    ],
+    "rust-analyzer.linkedProjects": [
+      "./common/Cargo.toml"
     ]
   }
 }
