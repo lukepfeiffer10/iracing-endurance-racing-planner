@@ -23,11 +23,8 @@ version = '0.4.0'
 git = 'https://github.com/lukepfeiffer10/yew-mdc.git'
 
 [dependencies.chrono]
-version = '0.4.19'
-features = [
-    'serde',
-    'wasmbind',
-]
+version = '0.4.31'
+features = ['serde', 'wasmbind']
 
 [dependencies.wasm-bindgen]
 version = '0.2.78'
@@ -61,10 +58,7 @@ version = '0.3.55'
 [dependencies.jwt-compact]
 version = '0.5.0'
 default-features = false
-features = [
-    'clock',
-    'with_rsa',
-]
+features = ['clock', 'with_rsa']
 
 [dependencies.reqwest]
 version = '0.11.9'
@@ -72,13 +66,7 @@ features = ['json']
 
 [dependencies.web-sys]
 version = '0.3.56'
-features = [
-    'Location',
-    'Window',
-    'HtmlInputElement',
-    'Element',
-    'EventTarget',
-]
+features = ['Location', 'Window', 'HtmlInputElement', 'Element', 'EventTarget']
 
 [dependencies.gloo-console]
 version = '0.2.1'
@@ -88,10 +76,7 @@ version = '0.2.0'
 
 [dependencies.uuid]
 version = '1.1.2'
-features = [
-    'v4',
-    'js',
-]
+features = ['v4', 'js']
 
 [dependencies.dotenv]
 version = '0.15'

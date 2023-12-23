@@ -141,6 +141,11 @@ impl ScheduleStintDto {
         tire_change_time: Duration,
         damage_modifier: Duration,
     ) {
+        // Only modify rows that don't have user updated stint timing
+        if self.actual_end != self.utc_end {
+            return;
+        }
+
         let (stint_duration, calculated_laps) = calculate_stint_duration_and_laps(
             utc_start,
             &self.stint_type,
@@ -206,5 +211,237 @@ fn calculate_stint_duration_and_laps(
         (stint_duration, calculated_laps)
     } else {
         (total_stint_time, fuel_stint_data.lap_count)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use chrono::{Duration, TimeZone, Utc};
+
+    use crate::{FuelStintAverageTimes, StintDataDto};
+
+    use super::{calculate_stint_duration_and_laps, StintType};
+
+    #[test]
+    fn calculate_stint_duration_and_laps_uses_stint_type_for_stint_time() {
+        let stint_utc_start = Utc.with_ymd_and_hms(2023, 12, 22, 12, 0, 0).unwrap();
+        let race_end_utc = Utc.with_ymd_and_hms(2023, 12, 22, 20, 0, 0).unwrap();
+        let stint_type = StintType::FuelSavingNoTires;
+        let fuel_stint_times = FuelStintAverageTimes {
+            standard_fuel_stint: StintDataDto {
+                lap_time: Duration::seconds(90),
+                fuel_per_lap: 3.25,
+                lap_count: 22,
+                lap_time_with_pit: Duration::seconds(120),
+                track_time: Duration::minutes(55),
+                track_time_with_pit: Duration::minutes(57),
+                fuel_per_stint: 100.0,
+            },
+            fuel_saving_stint: StintDataDto {
+                lap_time: Duration::seconds(85),
+                fuel_per_lap: 3.35,
+                lap_count: 20,
+                lap_time_with_pit: Duration::seconds(115),
+                track_time: Duration::minutes(53),
+                track_time_with_pit: Duration::minutes(55),
+                fuel_per_stint: 100.0,
+            },
+        };
+        let tire_change_time = Duration::seconds(40);
+        let damage_modifier = Duration::zero();
+
+        let result = calculate_stint_duration_and_laps(
+            stint_utc_start,
+            &stint_type,
+            &fuel_stint_times,
+            race_end_utc,
+            tire_change_time,
+            damage_modifier,
+        );
+
+        assert_eq!(
+            fuel_stint_times.fuel_saving_stint.track_time_with_pit,
+            result.0
+        );
+        assert_eq!(fuel_stint_times.fuel_saving_stint.lap_count, result.1);
+
+        let stint_type = StintType::StandardNoTires;
+        let result = calculate_stint_duration_and_laps(
+            stint_utc_start,
+            &stint_type,
+            &fuel_stint_times,
+            race_end_utc,
+            tire_change_time,
+            damage_modifier,
+        );
+
+        assert_eq!(
+            fuel_stint_times.standard_fuel_stint.track_time_with_pit,
+            result.0
+        );
+        assert_eq!(fuel_stint_times.standard_fuel_stint.lap_count, result.1);
+    }
+
+    #[test]
+    fn calculate_stint_duration_and_laps_adds_tire_change_time_to_stint_time() {
+        let stint_utc_start = Utc.with_ymd_and_hms(2023, 12, 22, 12, 0, 0).unwrap();
+        let race_end_utc = Utc.with_ymd_and_hms(2023, 12, 22, 20, 0, 0).unwrap();
+        let stint_type = StintType::FuelSavingWithTires;
+        let fuel_stint_times = FuelStintAverageTimes {
+            standard_fuel_stint: StintDataDto {
+                lap_time: Duration::seconds(90),
+                fuel_per_lap: 3.25,
+                lap_count: 22,
+                lap_time_with_pit: Duration::seconds(120),
+                track_time: Duration::minutes(55),
+                track_time_with_pit: Duration::minutes(57),
+                fuel_per_stint: 100.0,
+            },
+            fuel_saving_stint: StintDataDto {
+                lap_time: Duration::seconds(85),
+                fuel_per_lap: 3.35,
+                lap_count: 20,
+                lap_time_with_pit: Duration::seconds(115),
+                track_time: Duration::minutes(53),
+                track_time_with_pit: Duration::minutes(55),
+                fuel_per_stint: 100.0,
+            },
+        };
+        let tire_change_time = Duration::seconds(40);
+        let damage_modifier = Duration::zero();
+
+        let result = calculate_stint_duration_and_laps(
+            stint_utc_start,
+            &stint_type,
+            &fuel_stint_times,
+            race_end_utc,
+            tire_change_time,
+            damage_modifier,
+        );
+
+        assert_eq!(
+            fuel_stint_times.fuel_saving_stint.track_time_with_pit + tire_change_time,
+            result.0
+        );
+        assert_eq!(fuel_stint_times.fuel_saving_stint.lap_count, result.1);
+
+        let stint_type = StintType::StandardWithTires;
+        let result = calculate_stint_duration_and_laps(
+            stint_utc_start,
+            &stint_type,
+            &fuel_stint_times,
+            race_end_utc,
+            tire_change_time,
+            damage_modifier,
+        );
+
+        assert_eq!(
+            fuel_stint_times.standard_fuel_stint.track_time_with_pit + tire_change_time,
+            result.0
+        );
+        assert_eq!(fuel_stint_times.standard_fuel_stint.lap_count, result.1);
+    }
+
+    #[test]
+    fn calculate_stint_duration_and_laps_adds_damage_modifier_per_lap_to_stint_time() {
+        let stint_utc_start = Utc.with_ymd_and_hms(2023, 12, 22, 12, 0, 0).unwrap();
+        let race_end_utc = Utc.with_ymd_and_hms(2023, 12, 22, 20, 0, 0).unwrap();
+        let stint_type = StintType::FuelSavingNoTires;
+        let fuel_stint_times = FuelStintAverageTimes {
+            standard_fuel_stint: StintDataDto {
+                lap_time: Duration::seconds(90),
+                fuel_per_lap: 3.25,
+                lap_count: 22,
+                lap_time_with_pit: Duration::seconds(120),
+                track_time: Duration::minutes(55),
+                track_time_with_pit: Duration::minutes(57),
+                fuel_per_stint: 100.0,
+            },
+            fuel_saving_stint: StintDataDto {
+                lap_time: Duration::seconds(85),
+                fuel_per_lap: 3.35,
+                lap_count: 20,
+                lap_time_with_pit: Duration::seconds(115),
+                track_time: Duration::minutes(53),
+                track_time_with_pit: Duration::minutes(55),
+                fuel_per_stint: 100.0,
+            },
+        };
+        let tire_change_time = Duration::seconds(40);
+        let damage_modifier = Duration::seconds(1);
+
+        let result = calculate_stint_duration_and_laps(
+            stint_utc_start,
+            &stint_type,
+            &fuel_stint_times,
+            race_end_utc,
+            tire_change_time,
+            damage_modifier,
+        );
+
+        assert_eq!(
+            fuel_stint_times.fuel_saving_stint.track_time_with_pit
+                + Duration::seconds(
+                    (fuel_stint_times.fuel_saving_stint.lap_count as i64)
+                        * damage_modifier.num_seconds()
+                ),
+            result.0
+        );
+        assert_eq!(fuel_stint_times.fuel_saving_stint.lap_count, result.1);
+    }
+
+    #[test]
+    fn calculate_stint_duration_and_laps_returns_modified_stint_duration_when_full_stint_ends_after_race_end(
+    ) {
+        let stint_utc_start = Utc.with_ymd_and_hms(2023, 12, 22, 19, 30, 0).unwrap();
+        let race_end_utc = Utc.with_ymd_and_hms(2023, 12, 22, 20, 0, 0).unwrap();
+        let stint_type = StintType::StandardNoTires;
+        let fuel_stint_times = FuelStintAverageTimes {
+            standard_fuel_stint: StintDataDto {
+                lap_time: Duration::seconds(90),
+                fuel_per_lap: 3.25,
+                lap_count: 22,
+                lap_time_with_pit: Duration::seconds(120),
+                track_time: Duration::minutes(55),
+                track_time_with_pit: Duration::minutes(57),
+                fuel_per_stint: 100.0,
+            },
+            fuel_saving_stint: StintDataDto {
+                lap_time: Duration::seconds(85),
+                fuel_per_lap: 3.35,
+                lap_count: 20,
+                lap_time_with_pit: Duration::seconds(115),
+                track_time: Duration::minutes(53),
+                track_time_with_pit: Duration::minutes(55),
+                fuel_per_stint: 100.0,
+            },
+        };
+        let tire_change_time = Duration::seconds(40);
+        let damage_modifier = Duration::zero();
+
+        let result = calculate_stint_duration_and_laps(
+            stint_utc_start,
+            &stint_type,
+            &fuel_stint_times,
+            race_end_utc,
+            tire_change_time,
+            damage_modifier,
+        );
+
+        assert_eq!(Duration::minutes(30), result.0);
+        assert_eq!(20, result.1);
+
+        let damage_modifier = Duration::seconds(5);
+        let result = calculate_stint_duration_and_laps(
+            stint_utc_start,
+            &stint_type,
+            &fuel_stint_times,
+            race_end_utc,
+            tire_change_time,
+            damage_modifier,
+        );
+
+        assert_eq!(Duration::minutes(30), result.0);
+        assert_eq!(19, result.1);
     }
 }
