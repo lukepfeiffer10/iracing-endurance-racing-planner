@@ -9,7 +9,7 @@ services:
     ports:
       - '5432:5432'
     volumes:
-      - db-data:/var/lib/postgresql/data
+      - db-data:/usr/local/postgresql/data
     deploy:
       resources:
         limits:
