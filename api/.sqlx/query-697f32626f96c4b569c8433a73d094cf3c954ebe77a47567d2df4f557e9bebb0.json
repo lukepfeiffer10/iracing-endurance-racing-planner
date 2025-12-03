@@ -1,0 +1,19 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE drivers \n               SET \n                name = $1,\n                color = $2,\n                utc_offset = $3,\n                irating = $4,\n                stint_preference = $5\n            WHERE id = $6",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Int2",
+        "Int2",
+        "Int2",
+        "Int4"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "697f32626f96c4b569c8433a73d094cf3c954ebe77a47567d2df4f557e9bebb0"
+}

@@ -1,0 +1,18 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n                INSERT INTO fuel_stint_configs AS fsc (plan_id, pit_duration, fuel_tank_size, tire_change_time, add_tire_time)\n                VALUES ($5, $1, $2, $3, $4)\n                ON CONFLICT (plan_id) DO UPDATE \n                SET \n                    pit_duration = $1, \n                    fuel_tank_size = $2, \n                    tire_change_time = $3, \n                    add_tire_time = $4\n                WHERE fsc.plan_id = $5",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Interval",
+        "Int4",
+        "Interval",
+        "Bool",
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "9ab1fb2ff65388ce9f4b66a861f00e3af8280dcb088fe5b63322be8156fac400"
+}

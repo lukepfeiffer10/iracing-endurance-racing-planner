@@ -1,0 +1,17 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE plans SET title = $1, modified_by = $2, modified_date = $3 WHERE id = $4",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Int4",
+        "Timestamptz",
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "88e951ea73c6ee4df55b39786c62ef690d7730c96996609b92c1a8b0c93f5ec9"
+}
