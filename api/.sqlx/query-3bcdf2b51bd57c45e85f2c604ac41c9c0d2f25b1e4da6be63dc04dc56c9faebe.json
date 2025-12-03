@@ -1,0 +1,22 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n                INSERT INTO event_configs AS ec (plan_id, race_duration, session_start_utc, race_start_utc, race_end_utc, race_start_tod, race_end_tod, green_flag_offset, tod_offset)\n                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)\n                ON CONFLICT (plan_id) DO UPDATE \n                SET \n                    race_duration = $2, \n                    session_start_utc = $3, \n                    race_start_utc = $4,\n                    race_end_utc = $5,\n                    race_start_tod = $6,\n                    race_end_tod = $7, \n                    green_flag_offset = $8,\n                    tod_offset = $9\n                WHERE ec.plan_id = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Interval",
+        "Timestamptz",
+        "Timestamptz",
+        "Timestamptz",
+        "Timestamp",
+        "Timestamp",
+        "Interval",
+        "Interval"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "3bcdf2b51bd57c45e85f2c604ac41c9c0d2f25b1e4da6be63dc04dc56c9faebe"
+}

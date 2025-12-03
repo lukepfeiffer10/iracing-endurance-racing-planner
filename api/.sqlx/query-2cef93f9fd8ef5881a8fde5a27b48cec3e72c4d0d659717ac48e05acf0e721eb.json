@@ -1,0 +1,100 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "select \n            id\n            ,stint_type as \"stint_type: StintType\"\n            ,\"number\"\n            ,utc_start\n            ,utc_end\n            ,tod_start\n            ,tod_end\n            ,actual_end\n            ,duration_delta\n            ,damage_modifier\n            ,calculated_laps\n            ,actual_laps\n            ,driver_stint_count\n            ,driver_id\n            from public.stints s\n            WHERE s.plan_id = $1\n            ORDER BY s.number",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "stint_type: StintType",
+        "type_info": "Int2"
+      },
+      {
+        "ordinal": 2,
+        "name": "number",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 3,
+        "name": "utc_start",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 4,
+        "name": "utc_end",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 5,
+        "name": "tod_start",
+        "type_info": "Timestamp"
+      },
+      {
+        "ordinal": 6,
+        "name": "tod_end",
+        "type_info": "Timestamp"
+      },
+      {
+        "ordinal": 7,
+        "name": "actual_end",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 8,
+        "name": "duration_delta",
+        "type_info": "Interval"
+      },
+      {
+        "ordinal": 9,
+        "name": "damage_modifier",
+        "type_info": "Interval"
+      },
+      {
+        "ordinal": 10,
+        "name": "calculated_laps",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 11,
+        "name": "actual_laps",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 12,
+        "name": "driver_stint_count",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 13,
+        "name": "driver_id",
+        "type_info": "Int4"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true
+    ]
+  },
+  "hash": "2cef93f9fd8ef5881a8fde5a27b48cec3e72c4d0d659717ac48e05acf0e721eb"
+}

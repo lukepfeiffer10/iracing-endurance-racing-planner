@@ -1,0 +1,70 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT\n            plan_id,\n            lap_time,\n            fuel_per_lap,\n            lap_count,\n            lap_time_with_pit,\n            track_time,\n            track_time_with_pit,\n            fuel_per_stint,\n            stint_type as \"stint_type: StintType\"\n        FROM fuel_stint_average_times\n        WHERE plan_id = $1\n        ORDER BY stint_type",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "plan_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "lap_time",
+        "type_info": "Interval"
+      },
+      {
+        "ordinal": 2,
+        "name": "fuel_per_lap",
+        "type_info": "Float4"
+      },
+      {
+        "ordinal": 3,
+        "name": "lap_count",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 4,
+        "name": "lap_time_with_pit",
+        "type_info": "Interval"
+      },
+      {
+        "ordinal": 5,
+        "name": "track_time",
+        "type_info": "Interval"
+      },
+      {
+        "ordinal": 6,
+        "name": "track_time_with_pit",
+        "type_info": "Interval"
+      },
+      {
+        "ordinal": 7,
+        "name": "fuel_per_stint",
+        "type_info": "Float4"
+      },
+      {
+        "ordinal": 8,
+        "name": "stint_type: StintType",
+        "type_info": "Int2"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "b7e72f6acfd49005d876a41d0aca01d941e742707eeeb47e5bd86a225d86d084"
+}

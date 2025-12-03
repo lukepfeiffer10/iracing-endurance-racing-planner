@@ -1,0 +1,63 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO drivers (plan_id, name, color, utc_offset, irating, stint_preference) VALUES ($1, $2, $3, $4, $5, $6)\n                RETURNING *",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 1,
+        "name": "plan_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 2,
+        "name": "name",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 3,
+        "name": "color",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 4,
+        "name": "utc_offset",
+        "type_info": "Int2"
+      },
+      {
+        "ordinal": 5,
+        "name": "irating",
+        "type_info": "Int2"
+      },
+      {
+        "ordinal": 6,
+        "name": "stint_preference",
+        "type_info": "Int2"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Text",
+        "Text",
+        "Int2",
+        "Int2",
+        "Int2"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "ffab7c35fe782a0fe437f365ed0aef50640b33fbdf3543077bee937417223665"
+}

@@ -1,0 +1,58 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT p.*, u.name as owner FROM plans p \n            INNER JOIN user_plans up ON up.plan_id = p.id \n            INNER JOIN users u ON u.id = p.created_by\n            WHERE up.user_id = $1\n            ORDER BY p.modified_date desc",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "title",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 2,
+        "name": "created_by",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 3,
+        "name": "created_date",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 4,
+        "name": "modified_by",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 5,
+        "name": "modified_date",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 6,
+        "name": "owner",
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int4"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      false
+    ]
+  },
+  "hash": "c57d8c84e49dfff495ef1115bdb8814a1e10e7bab1a1e82433b2e04bbb794794"
+}
