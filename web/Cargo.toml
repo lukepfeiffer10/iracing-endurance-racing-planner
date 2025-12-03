@@ -27,7 +27,7 @@ version = '0.4.31'
 features = ['serde', 'wasmbind']
 
 [dependencies.wasm-bindgen]
-version = '0.2.78'
+version = '0.2.88'
 
 [dependencies.boolinator]
 version = '2.4.0'
@@ -56,9 +56,9 @@ version = '0.4.28'
 version = '0.3.55'
 
 [dependencies.jwt-compact]
-version = '0.5.0'
+version = '0.8.0'
 default-features = false
-features = ['clock', 'with_rsa']
+features = ['clock', 'rsa']
 
 [dependencies.reqwest]
 version = '0.11.9'
