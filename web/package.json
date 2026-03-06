@@ -11,7 +11,7 @@
   "devDependencies": {
     "@wasm-tool/wasm-pack-plugin": "^1.1.0",
     "autoprefixer": "^10.4.4",
-    "copy-webpack-plugin": "^10.2.0",
+    "copy-webpack-plugin": "^14.0.0",
     "css-loader": "^6.5.1",
     "extract-loader": "^4.0.3",
     "file-loader": "^6.2.0",
